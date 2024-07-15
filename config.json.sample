@@ -1,0 +1,20 @@
+{
+  "google_ai_api_key": "ABCDEFGHIJK1234567890",
+  /*
+  "infisical": {
+    "client_id": "012345-abcdefg-987654321",
+    "client_secret": "aAbBcCdDeEfFgG0123456789xyzwXYZW",
+
+    "project_id": "012345abcdefg",
+    "environment": "dev",
+    "secret_type": "shared",
+
+    "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY"
+  },
+  */
+
+  "google_ai_model": "gemini-1.5-pro-latest",
+  "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
+
+  "replace_http_urls_in_prompt_to_body_texts": false,
+}

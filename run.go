@@ -1,0 +1,438 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/gabriel-vasile/mimetype"
+	"github.com/google/generative-ai-go/genai"
+	infisical "github.com/infisical/go-sdk"
+	"github.com/infisical/go-sdk/packages/models"
+	"github.com/tailscale/hujson"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+)
+
+const (
+	appName = "gmn"
+
+	defaultConfigFilename    = "config.json"
+	defaultSystemInstruction = "You are a chat bot which responds to user requests reliably and accurately."
+	defaultGoogleAIModel     = "gemini-1.5-pro-latest"
+
+	timeoutSeconds                             = 180 // 3 minutes
+	fetchURLTimeoutSeconds                     = 10  // 10 seconds
+	uploadedFileStateCheckIntervalMilliseconds = 300 // 300 milliseconds
+
+	// for replacing URLs in prompt to body texts
+	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
+	urlToTextFormat = `<link url="%[1]s" content-type="%[2]s">
+%[3]s
+</link>`
+)
+
+type role string
+
+const (
+	roleModel role = "model"
+	roleUser  role = "user"
+)
+
+type config struct {
+	GoogleAIAPIKey *string           `json:"google_ai_api_key,omitempty"`
+	Infisical      *infisicalSetting `json:"infisical,omitempty"`
+
+	GoogleAIModel     *string `json:"google_ai_model,omitempty"`
+	SystemInstruction *string `json:"system_instruction,omitempty"`
+
+	ReplaceHTTPURLsInPromptToBodyTexts bool `json:"replace_http_urls_in_prompt_to_body_texts,omitempty"`
+}
+
+// infisical setting struct
+type infisicalSetting struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+
+	ProjectID   string `json:"project_id"`
+	Environment string `json:"environment"`
+	SecretType  string `json:"secret_type"`
+
+	GoogleAIAPIKeyKeyPath string `json:"google_ai_api_key_key_path"`
+}
+
+// standardize given JSON (JWCC) bytes
+func standardizeJSON(b []byte) ([]byte, error) {
+	ast, err := hujson.Parse(b)
+	if err != nil {
+		return b, err
+	}
+	ast.Standardize()
+
+	return ast.Pack(), nil
+}
+
+// read config from given filepath
+func readConfig(configFilepath string) (conf config, err error) {
+	var bytes []byte
+	if bytes, err = os.ReadFile(configFilepath); err == nil {
+		if bytes, err = standardizeJSON(bytes); err == nil {
+			if err = json.Unmarshal(bytes, &conf); err == nil {
+				if conf.GoogleAIAPIKey == nil && conf.Infisical != nil {
+					// read token and api key from infisical
+					client := infisical.NewInfisicalClient(infisical.Config{
+						SiteUrl: "https://app.infisical.com",
+					})
+
+					_, err = client.Auth().UniversalAuthLogin(conf.Infisical.ClientID, conf.Infisical.ClientSecret)
+					if err != nil {
+						return config{}, fmt.Errorf("failed to authenticate with Infisical: %s", err)
+					}
+
+					var keyPath string
+					var secret models.Secret
+
+					// google ai api key
+					keyPath = conf.Infisical.GoogleAIAPIKeyKeyPath
+					secret, err = client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
+						ProjectID:   conf.Infisical.ProjectID,
+						Type:        conf.Infisical.SecretType,
+						Environment: conf.Infisical.Environment,
+						SecretPath:  path.Dir(keyPath),
+						SecretKey:   path.Base(keyPath),
+					})
+					if err == nil {
+						val := secret.SecretValue
+						conf.GoogleAIAPIKey = &val
+					} else {
+						return config{}, fmt.Errorf("failed to retrieve `google_ai_api_key` from Infisical: %s", err)
+					}
+				}
+				return conf, nil
+			}
+		}
+	}
+
+	return conf, err
+}
+
+// resolve config filepath
+func resolveConfigFilepath(configFilepath *string) string {
+	if configFilepath != nil {
+		return *configFilepath
+	}
+
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome != "" {
+		return filepath.Join(configHome, appName, defaultConfigFilename)
+	}
+
+	return filepath.Join(os.Getenv("HOME"), ".config", appName, defaultConfigFilename)
+}
+
+// run with params
+func run(p params) {
+	var err error
+	var conf config
+
+	// read and apply configs
+	if conf, err = readConfig(resolveConfigFilepath(p.ConfigFilepath)); err == nil {
+		if p.SystemInstruction == nil && conf.SystemInstruction != nil {
+			p.SystemInstruction = conf.SystemInstruction
+		}
+	} else {
+		log("Failed to read configuration: %s", err)
+	}
+
+	// override parameters with command arguments
+	if conf.GoogleAIAPIKey != nil && p.GoogleAIAPIKey == nil {
+		p.GoogleAIAPIKey = conf.GoogleAIAPIKey
+	}
+	if conf.GoogleAIModel != nil && p.GoogleAIModel == nil {
+		p.GoogleAIModel = conf.GoogleAIModel
+	}
+
+	// set default values
+	if p.GoogleAIModel == nil {
+		p.GoogleAIModel = ptr(defaultGoogleAIModel)
+	}
+	if p.SystemInstruction == nil {
+		p.SystemInstruction = ptr(defaultSystemInstruction)
+	}
+
+	// check existence of essential parameters here
+	if conf.GoogleAIAPIKey == nil {
+		logAndExit(1, "Google AI API Key is missing")
+	}
+
+	// replace urls in the prompt
+	if conf.ReplaceHTTPURLsInPromptToBodyTexts {
+		p.Prompt = replaceHTTPURLsInPromptToBodyTexts(p.Prompt, p.Verbose)
+	}
+
+	// do the actual job
+	if p.Verbose {
+		log("[verbose] parameters: %+v", p)
+		log("[verbose] prompt: %s", p.Prompt)
+	}
+	doGeneration(context.TODO(), *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepath, p.OmitTokenCounts)
+}
+
+// generate with given things
+func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepath *string, omitTokenCounts bool) {
+	ctx, cancel := context.WithTimeout(ctx, timeoutSeconds*time.Second)
+	defer cancel()
+
+	client, err := genai.NewClient(ctx, option.WithAPIKey(googleAIAPIKey))
+	if err != nil {
+		logAndExit(1, "Failed to create API client: %s", err)
+	}
+	defer client.Close()
+
+	model := client.GenerativeModel(googleAIModel)
+
+	// system instruction
+	model.SystemInstruction = &genai.Content{
+		Role: string(roleModel),
+		Parts: []genai.Part{
+			genai.Text(systemInstruction),
+		},
+	}
+
+	// prompt (text)
+	parts := []genai.Part{
+		genai.Text(prompt),
+	}
+
+	// prompt (file)
+	fileNames := []string{}
+	if filepath != nil {
+		if file, err := os.Open(*filepath); err == nil {
+			if mime, err := mimetype.DetectReader(file); err == nil {
+				mimeType := stripCharsetFromMimeType(mime.String())
+
+				if _, err := file.Seek(0, io.SeekStart); err == nil {
+					if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
+						MIMEType: mimeType,
+					}); err == nil {
+						parts = append(parts, genai.FileData{
+							MIMEType: file.MIMEType,
+							URI:      file.URI,
+						})
+
+						fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+					} else {
+						logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+					}
+				} else {
+					logAndExit(1, "Failed to seek to start of file: %s", *filepath)
+				}
+			} else {
+				logAndExit(1, "Failed to detect MIME type of %s: %s", *filepath, err)
+			}
+		} else {
+			logAndExit(1, "Failed to open file %s: %s", *filepath, err)
+		}
+	}
+
+	// FIXME: wait for all files to become active
+	waitForFiles(ctx, client, fileNames)
+
+	// number of tokens for logging
+	var numTokensInput int32 = 0
+	var numTokensOutput int32 = 0
+
+	// generate and stream response
+	iter := model.GenerateContentStream(ctx, parts...)
+	for {
+		if it, err := iter.Next(); err == nil {
+			var candidate *genai.Candidate
+			var content *genai.Content
+			var parts []genai.Part
+
+			if len(it.Candidates) > 0 {
+				// update number of tokens
+				numTokensInput = it.UsageMetadata.PromptTokenCount
+				numTokensOutput = it.UsageMetadata.TotalTokenCount - it.UsageMetadata.PromptTokenCount
+
+				candidate = it.Candidates[0]
+				content = candidate.Content
+
+				if len(content.Parts) > 0 {
+					parts = content.Parts
+				}
+			}
+
+			for _, part := range parts {
+				if text, ok := part.(genai.Text); ok { // (text)
+					fmt.Print(string(text))
+				} else {
+					log("# Unsupported type of part for streaming: %+v", part)
+				}
+			}
+		} else {
+			if err != iterator.Done {
+				log("# Failed to iterate stream: %s", errorString(err))
+			}
+			break
+		}
+	}
+
+	// print the number of tokens
+	if !omitTokenCounts {
+		log("\n> input tokens: %d / output tokens: %d", numTokensInput, numTokensOutput)
+	}
+}
+
+// convert error to string
+func errorString(err error) (error string) {
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) {
+		return fmt.Sprintf("googleapi error: %s", gerr.Body)
+	} else {
+		return err.Error()
+	}
+}
+
+// strip trailing charset text from given mime type
+func stripCharsetFromMimeType(mimeType string) string {
+	splitted := strings.Split(mimeType, ";")
+	return splitted[0]
+}
+
+// replace all http urls in given text to body texts
+func replaceHTTPURLsInPromptToBodyTexts(prompt string, verbose bool) string {
+	re := regexp.MustCompile(urlRegexp)
+	for _, url := range re.FindAllString(prompt, -1) {
+		if converted, err := urlToText(url, verbose); err == nil {
+			prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", converted), 1)
+		}
+	}
+
+	return prompt
+}
+
+// fetch the content from given url and convert it to text for prompting.
+func urlToText(url string, verbose bool) (body string, err error) {
+	client := &http.Client{
+		Timeout: time.Duration(fetchURLTimeoutSeconds) * time.Second,
+	}
+
+	if verbose {
+		log("[verbose] fetching from url: %s", url)
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch contents from url: %s", err)
+	}
+	defer resp.Body.Close()
+
+	contentType := resp.Header.Get("Content-Type")
+
+	if verbose {
+		log("[verbose] fetched %s from url: %s", contentType, url)
+	}
+
+	if resp.StatusCode == 200 {
+		if strings.HasPrefix(contentType, "text/html") {
+			var doc *goquery.Document
+			if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
+				_ = doc.Find("script").Remove() // FIXME: remove unwanted javascripts
+
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
+			} else {
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document.")
+				err = fmt.Errorf("failed to read html document from %s: %s", url, err)
+			}
+		} else if strings.HasPrefix(contentType, "text/") {
+			var bytes []byte
+			if bytes, err = io.ReadAll(resp.Body); err == nil {
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes)))
+			} else {
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
+				err = fmt.Errorf("failed to read %s document from %s: %s", contentType, url, err)
+			}
+		} else {
+			body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type: %s not supported.", contentType))
+			err = fmt.Errorf("content type %s not supported for url: %s", contentType, url)
+		}
+	} else {
+		body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("HTTP Error %d", resp.StatusCode))
+		err = fmt.Errorf("http error %d from url: %s", resp.StatusCode, url)
+	}
+
+	return body, err
+}
+
+// remove consecutive empty lines for compacting prompt lines
+func removeConsecutiveEmptyLines(input string) string {
+	// trim each line
+	trimmed := []string{}
+	for _, line := range strings.Split(input, "\n") {
+		trimmed = append(trimmed, strings.TrimRight(line, " "))
+	}
+	input = strings.Join(trimmed, "\n")
+
+	// remove redundant empty lines
+	regex := regexp.MustCompile("\n{2,}")
+	return regex.ReplaceAllString(input, "\n")
+}
+
+// wait for all files to be active
+func waitForFiles(ctx context.Context, client *genai.Client, fileNames []string) {
+	var wg sync.WaitGroup
+	for _, fileName := range fileNames {
+		wg.Add(1)
+
+		go func(name string) {
+			for {
+				if file, err := client.GetFile(ctx, name); err == nil {
+					if file.State == genai.FileStateActive {
+						wg.Done()
+						break
+					} else {
+						time.Sleep(uploadedFileStateCheckIntervalMilliseconds * time.Millisecond)
+					}
+				} else {
+					time.Sleep(uploadedFileStateCheckIntervalMilliseconds * time.Millisecond)
+				}
+			}
+		}(fileName)
+	}
+	wg.Wait()
+}
+
+// get pointer of given value
+func ptr[T any](v T) *T {
+	val := v
+	return &val
+}
+
+// print given strings to stdout
+func log(format string, v ...any) {
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+
+	fmt.Printf(format, v...)
+}
+
+// print given strings and exit with code
+func logAndExit(code int, format string, v ...any) {
+	log(format, v...)
+
+	os.Exit(code)
+}
