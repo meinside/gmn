@@ -211,6 +211,9 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 		},
 	}
 
+	// safety filters (block only high)
+	model.SafetySettings = safetySettings(genai.HarmBlockThreshold(genai.HarmBlockOnlyHigh))
+
 	// prompt (text)
 	parts := []genai.Part{
 		genai.Text(prompt),
@@ -389,6 +392,35 @@ func removeConsecutiveEmptyLines(input string) string {
 	// remove redundant empty lines
 	regex := regexp.MustCompile("\n{2,}")
 	return regex.ReplaceAllString(input, "\n")
+}
+
+// generate safety settings for all supported harm categories
+func safetySettings(threshold genai.HarmBlockThreshold) (settings []*genai.SafetySetting) {
+	for _, category := range []genai.HarmCategory{
+		/*
+			// categories for PaLM 2 (Legacy) models
+			genai.HarmCategoryUnspecified,
+			genai.HarmCategoryDerogatory,
+			genai.HarmCategoryToxicity,
+			genai.HarmCategoryViolence,
+			genai.HarmCategorySexual,
+			genai.HarmCategoryMedical,
+			genai.HarmCategoryDangerous,
+		*/
+
+		// all categories supported by Gemini models
+		genai.HarmCategoryHarassment,
+		genai.HarmCategoryHateSpeech,
+		genai.HarmCategorySexuallyExplicit,
+		genai.HarmCategoryDangerousContent,
+	} {
+		settings = append(settings, &genai.SafetySetting{
+			Category:  category,
+			Threshold: threshold,
+		})
+	}
+
+	return settings
 }
 
 // wait for all files to be active
