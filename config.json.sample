@@ -14,7 +14,7 @@
   */
 
   "google_ai_model": "gemini-1.5-pro-latest",
-  "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
+  //"system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
 
   "replace_http_urls_in_prompt": false,
 }

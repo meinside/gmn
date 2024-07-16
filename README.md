@@ -24,8 +24,6 @@ with following content:
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
 
   "google_ai_model": "gemini-1.5-pro-latest",
-  "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
-
   "replace_http_urls_in_prompt": false,
 }
 ```
@@ -62,8 +60,6 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   },
 
   "google_ai_model": "gemini-1.5-pro-latest",
-  "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
-
   "replace_http_urls_in_prompt": false,
 }
 ```
