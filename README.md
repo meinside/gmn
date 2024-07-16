@@ -2,7 +2,7 @@
 
 A CLI for generating things with Google Gemini API, built with Golang.
 
-## Build
+## Build / Install
 
 ```bash
 $ go install github.com/meinside/gmn@latest
@@ -26,13 +26,22 @@ with following content:
   "google_ai_model": "gemini-1.5-pro-latest",
   "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
 
-  "replace_http_urls_in_prompt_to_body_texts": false,
+  "replace_http_urls_in_prompt": false,
 }
 ```
 
 and replace things with your own values.
 
 You can get your Google AI API key [here](https://aistudio.google.com/app/apikey).
+
+### Fetch URL Contents from the Prompt
+
+Set `replace_http_urls_in_prompt` to true, then it will try fetching contents from all urls in the given prompt.
+
+Supported content types are:
+
+* `text/*` (eg. `text/html`, `text/csv`, …)
+* `application/json`
 
 ### Using Infisical
 
@@ -55,10 +64,9 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   "google_ai_model": "gemini-1.5-pro-latest",
   "system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
 
-  "replace_http_urls_in_prompt_to_body_texts": false,
+  "replace_http_urls_in_prompt": false,
 }
 ```
-
 
 ## Run
 
@@ -71,7 +79,14 @@ $ gmn -p "what is the answer to life, the universe, and everything?"
 
 # generate with a text prompt and a file
 $ gmn -p "summarize this csv file" -f "~/files/mydata.csv"
+
+# generate with a text prompt which includes urls in it 
+#
+# (set `replace_http_urls_in_prompt` to true)
+$ gmn -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 ```
+
+Supported file formats are listed [here](https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#supported_file_formats).
 
 ## License
 
