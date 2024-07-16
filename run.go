@@ -354,25 +354,32 @@ func urlToText(url string, verbose bool) (body string, err error) {
 		if strings.HasPrefix(contentType, "text/html") {
 			var doc *goquery.Document
 			if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
-				_ = doc.Find("script").Remove() // FIXME: remove unwanted javascripts
+				_ = doc.Find("script").Remove() // NOTE: removing unwanted javascripts
 
 				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
 			} else {
 				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document.")
-				err = fmt.Errorf("failed to read html document from %s: %s", url, err)
+				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
 			}
-		} else if strings.HasPrefix(contentType, "text/") ||
-			strings.HasPrefix(contentType, "application/json") {
+		} else if strings.HasPrefix(contentType, "text/") {
 			var bytes []byte
 			if bytes, err = io.ReadAll(resp.Body); err == nil {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes)))
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes))) // NOTE: removing redundant empty lines
 			} else {
 				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
-				err = fmt.Errorf("failed to read %s document from %s: %s", contentType, url, err)
+				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
+			}
+		} else if strings.HasPrefix(contentType, "application/json") {
+			var bytes []byte
+			if bytes, err = io.ReadAll(resp.Body); err == nil {
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, string(bytes))
+			} else {
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
+				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
 			}
 		} else {
-			body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type: %s not supported.", contentType))
-			err = fmt.Errorf("content type %s not supported for url: %s", contentType, url)
+			body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType))
+			err = fmt.Errorf("content type '%s' not supported for url: %s", contentType, url)
 		}
 	} else {
 		body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("HTTP Error %d", resp.StatusCode))
