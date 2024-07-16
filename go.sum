@@ -100,8 +100,8 @@ github.com/googleapis/enterprise-certificate-proxy v0.3.2 h1:Vie5ybvEvT75RniqhfF
 github.com/googleapis/enterprise-certificate-proxy v0.3.2/go.mod h1:VLSiSSBs/ksPL8kq3OBOQ6WRI2QnaFynd1DCjZ62+V0=
 github.com/googleapis/gax-go/v2 v2.12.5 h1:8gw9KZK8TiVKB6q3zHY3SBzLnrGp6HQjyfYBYGmXdxA=
 github.com/googleapis/gax-go/v2 v2.12.5/go.mod h1:BUDKcWo+RaKq5SC9vVYL0wLADa3VcfswbOMMRmB9H3E=
-github.com/infisical/go-sdk v0.3.1 h1:ABdq/PgzqTIxSJ5KmKAeTVVDbrAvPU65EmsDAVrQSHc=
-github.com/infisical/go-sdk v0.3.1/go.mod h1:vHTDVw3k+wfStXab513TGk1n53kaKF2xgLqpw/xvtl4=
+github.com/infisical/go-sdk v0.3.2 h1:BfeQzG7s3qmEGhgXu0d1YNsyaiHucHgI+BaLpx+W8cc=
+github.com/infisical/go-sdk v0.3.2/go.mod h1:vHTDVw3k+wfStXab513TGk1n53kaKF2xgLqpw/xvtl4=
 github.com/jessevdk/go-flags v1.6.1 h1:Cvu5U8UGrLay1rZfv/zP7iLpSHGUZ/Ou68T0iX1bBK4=
 github.com/jessevdk/go-flags v1.6.1/go.mod h1:Mk8T1hIAWpOiJiHa9rJASDK2UGWji0EuPGBnNLMooyc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

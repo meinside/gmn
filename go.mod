@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/gabriel-vasile/mimetype v1.4.4
 	github.com/google/generative-ai-go v0.16.0
-	github.com/infisical/go-sdk v0.3.1
+	github.com/infisical/go-sdk v0.3.2
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	google.golang.org/api v0.188.0
