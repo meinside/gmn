@@ -39,9 +39,7 @@ const (
 
 	// for replacing URLs in prompt to body texts
 	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
-	urlToTextFormat = `<link url="%[1]s" content-type="%[2]s">
-%[3]s
-</link>`
+	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
 )
 
 type role string
@@ -58,7 +56,7 @@ type config struct {
 	GoogleAIModel     *string `json:"google_ai_model,omitempty"`
 	SystemInstruction *string `json:"system_instruction,omitempty"`
 
-	ReplaceHTTPURLsInPromptToBodyTexts bool `json:"replace_http_urls_in_prompt_to_body_texts,omitempty"`
+	ReplaceHTTPURLsInPrompt bool `json:"replace_http_urls_in_prompt,omitempty"`
 }
 
 // infisical setting struct
@@ -178,14 +176,17 @@ func run(p params) {
 	}
 
 	// replace urls in the prompt
-	if conf.ReplaceHTTPURLsInPromptToBodyTexts {
+	if conf.ReplaceHTTPURLsInPrompt {
 		p.Prompt = replaceHTTPURLsInPromptToBodyTexts(p.Prompt, p.Verbose)
+
+		if p.Verbose {
+			log("[verbose] replaced prompt: %s", p.Prompt)
+		}
 	}
 
 	// do the actual job
 	if p.Verbose {
-		log("[verbose] parameters: %+v", p)
-		log("[verbose] prompt: %s", p.Prompt)
+		log("[verbose] parameters: %s", prettify(p))
 	}
 	doGeneration(context.TODO(), *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepath, p.OmitTokenCounts)
 }
@@ -346,7 +347,7 @@ func urlToText(url string, verbose bool) (body string, err error) {
 	contentType := resp.Header.Get("Content-Type")
 
 	if verbose {
-		log("[verbose] fetched %s from url: %s", contentType, url)
+		log("[verbose] fetched '%s' from url: %s", contentType, url)
 	}
 
 	if resp.StatusCode == 200 {
@@ -360,7 +361,8 @@ func urlToText(url string, verbose bool) (body string, err error) {
 				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document.")
 				err = fmt.Errorf("failed to read html document from %s: %s", url, err)
 			}
-		} else if strings.HasPrefix(contentType, "text/") {
+		} else if strings.HasPrefix(contentType, "text/") ||
+			strings.HasPrefix(contentType, "application/json") {
 			var bytes []byte
 			if bytes, err = io.ReadAll(resp.Body); err == nil {
 				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes)))
@@ -375,6 +377,10 @@ func urlToText(url string, verbose bool) (body string, err error) {
 	} else {
 		body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("HTTP Error %d", resp.StatusCode))
 		err = fmt.Errorf("http error %d from url: %s", resp.StatusCode, url)
+	}
+
+	if verbose {
+		log("[verbose] fetched body =\n%s\n", body)
 	}
 
 	return body, err
@@ -467,4 +473,12 @@ func logAndExit(code int, format string, v ...any) {
 	log(format, v...)
 
 	os.Exit(code)
+}
+
+// prettify given thing in JSON format
+func prettify(v any) string {
+	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+		return string(bytes)
+	}
+	return fmt.Sprintf("%+v", v)
 }
