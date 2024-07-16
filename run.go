@@ -29,9 +29,20 @@ import (
 const (
 	appName = "gmn"
 
-	defaultConfigFilename    = "config.json"
-	defaultSystemInstruction = "You are a chat bot which responds to user requests reliably and accurately."
-	defaultGoogleAIModel     = "gemini-1.5-pro-latest"
+	defaultConfigFilename          = "config.json"
+	defaultGoogleAIModel           = "gemini-1.5-pro-latest"
+	defaultSystemInstructionFormat = `You are a chat bot which is built with Golang and Google Gemini API(model: %[1]s).
+
+Current datetime is %[2]s, and hostname is '%[3]s'.
+
+Respond to user messages according to the following principles:
+- Do not repeat the user's request.
+- Be as accurate as possible.
+- Be as truthful as possible.
+- Be as comprehensive and informative as possible.
+- Be as concise and meaningful as possible.
+- Your response must be in plain text, so do not try to emphasize words with markdown characters.
+`
 
 	timeoutSeconds                             = 180 // 3 minutes
 	fetchURLTimeoutSeconds                     = 10  // 10 seconds
@@ -167,7 +178,7 @@ func run(p params) {
 		p.GoogleAIModel = ptr(defaultGoogleAIModel)
 	}
 	if p.SystemInstruction == nil {
-		p.SystemInstruction = ptr(defaultSystemInstruction)
+		p.SystemInstruction = ptr(defaultSystemInstruction(conf))
 	}
 
 	// check existence of essential parameters here
@@ -458,6 +469,18 @@ func waitForFiles(ctx context.Context, client *genai.Client, fileNames []string)
 		}(fileName)
 	}
 	wg.Wait()
+}
+
+// generate a default system instruction with given configuration
+func defaultSystemInstruction(conf config) string {
+	datetime := time.Now().Format("2006-01-02 15:04:05 (Mon)")
+	hostname, _ := os.Hostname()
+
+	return fmt.Sprintf(defaultSystemInstructionFormat,
+		*conf.GoogleAIModel,
+		datetime,
+		hostname,
+	)
 }
 
 // get pointer of given value
