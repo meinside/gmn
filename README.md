@@ -34,6 +34,15 @@ and replace things with your own values.
 
 You can get your Google AI API key [here](https://aistudio.google.com/app/apikey).
 
+### Fetch URL Contents from the Prompt
+
+Set `replace_http_urls_in_prompt` to true, then it will try fetching contents from all urls in the given prompt.
+
+Supported content types are:
+
+* `text/*` (eg. `text/html`, `text/csv`, …)
+* `application/json`
+
 ### Using Infisical
 
 You can use [Infisical](https://infisical.com/) for saving & retrieving your api key:
@@ -76,6 +85,8 @@ $ gmn -p "summarize this csv file" -f "~/files/mydata.csv"
 # (set `replace_http_urls_in_prompt` to true)
 $ gmn -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 ```
+
+Supported file formats are listed [here](https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#supported_file_formats).
 
 ## License
 
