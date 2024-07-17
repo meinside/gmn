@@ -79,7 +79,10 @@ func urlToText(url string, verbose bool) (body string, err error) {
 			if strings.HasPrefix(contentType, "text/html") {
 				var doc *goquery.Document
 				if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
-					_ = doc.Find("script").Remove() // NOTE: removing unwanted javascripts
+					// NOTE: removing unwanted things here
+					_ = doc.Find("script").Remove()                   // javascripts
+					_ = doc.Find("link[rel=\"stylesheet\"]").Remove() // css links
+					_ = doc.Find("style").Remove()                    // embeded css tyles
 
 					body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
 				} else {
