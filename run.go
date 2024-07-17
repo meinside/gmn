@@ -230,21 +230,25 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 			if mime, err := mimetype.DetectReader(file); err == nil {
 				mimeType := stripCharsetFromMimeType(mime.String())
 
-				if _, err := file.Seek(0, io.SeekStart); err == nil {
-					if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
-						MIMEType: mimeType,
-					}); err == nil {
-						parts = append(parts, genai.FileData{
-							MIMEType: file.MIMEType,
-							URI:      file.URI,
-						})
+				if supportedFileMimeType(mimeType) {
+					if _, err := file.Seek(0, io.SeekStart); err == nil {
+						if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
+							MIMEType: mimeType,
+						}); err == nil {
+							parts = append(parts, genai.FileData{
+								MIMEType: file.MIMEType,
+								URI:      file.URI,
+							})
 
-						fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+							fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+						} else {
+							logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+						}
 					} else {
-						logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+						logAndExit(1, "Failed to seek to start of file: %s", *filepath)
 					}
 				} else {
-					logAndExit(1, "Failed to seek to start of file: %s", *filepath)
+					logAndExit(1, "File type (%s) not suuported: %s", mimeType, *filepath)
 				}
 			} else {
 				logAndExit(1, "Failed to detect MIME type of %s: %s", *filepath, err)

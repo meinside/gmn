@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -74,31 +75,37 @@ func urlToText(url string, verbose bool) (body string, err error) {
 	}
 
 	if resp.StatusCode == 200 {
-		if strings.HasPrefix(contentType, "text/html") {
-			var doc *goquery.Document
-			if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
-				_ = doc.Find("script").Remove() // NOTE: removing unwanted javascripts
+		if supportedHTTPContentType(contentType) {
+			if strings.HasPrefix(contentType, "text/html") {
+				var doc *goquery.Document
+				if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
+					_ = doc.Find("script").Remove() // NOTE: removing unwanted javascripts
 
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
+				} else {
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document.")
+					err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
+				}
+			} else if strings.HasPrefix(contentType, "text/") {
+				var bytes []byte
+				if bytes, err = io.ReadAll(resp.Body); err == nil {
+					// (success)
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes))) // NOTE: removing redundant empty lines
+				} else {
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
+					err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
+				}
+			} else if strings.HasPrefix(contentType, "application/json") {
+				var bytes []byte
+				if bytes, err = io.ReadAll(resp.Body); err == nil {
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, string(bytes))
+				} else {
+					body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
+					err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
+				}
 			} else {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document.")
-				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
-			}
-		} else if strings.HasPrefix(contentType, "text/") {
-			var bytes []byte
-			if bytes, err = io.ReadAll(resp.Body); err == nil {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes))) // NOTE: removing redundant empty lines
-			} else {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
-				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
-			}
-		} else if strings.HasPrefix(contentType, "application/json") {
-			var bytes []byte
-			if bytes, err = io.ReadAll(resp.Body); err == nil {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, string(bytes))
-			} else {
-				body = fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document.")
-				err = fmt.Errorf("failed to read '%s' document from %s: %s", contentType, url, err)
+				body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType))
+				err = fmt.Errorf("content type '%s' not supported for url: %s", contentType, url)
 			}
 		} else {
 			body = fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType))
@@ -128,6 +135,91 @@ func removeConsecutiveEmptyLines(input string) string {
 	// remove redundant empty lines
 	regex := regexp.MustCompile("\n{2,}")
 	return regex.ReplaceAllString(input, "\n")
+}
+
+// check if given file's mime type is supported
+//
+// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#supported_file_formats
+func supportedFileMimeType(mimeType string) bool {
+	return func(mimeType string) bool {
+		switch {
+		// images
+		//
+		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#image_formats
+		case slices.Contains([]string{
+			"image/png",
+			"image/jpeg",
+			"image/webp",
+			"image/heic",
+			"image/heif",
+		}, mimeType):
+			return true
+		// audios
+		//
+		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#audio_formats
+		case slices.Contains([]string{
+			"audio/wav",
+			"audio/mp3",
+			"audio/aiff",
+			"audio/aac",
+			"audio/ogg",
+			"audio/flac",
+		}, mimeType):
+			return true
+		// videos
+		//
+		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#video_formats
+		case slices.Contains([]string{
+			"video/mp4",
+			"video/mpeg",
+			"video/mov",
+			"video/avi",
+			"video/x-flv",
+			"video/mpg",
+			"video/webm",
+			"video/wmv",
+			"video/3gpp",
+		}, mimeType):
+			return true
+		// plain text formats
+		//
+		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#plain_text_formats
+		case slices.Contains([]string{
+			"text/plain",
+			"text/html",
+			"text/css",
+			"text/javascript",
+			"application/x-javascript",
+			"text/x-typescript",
+			"application/x-typescript",
+			"text/csv",
+			"text/markdown",
+			"text/x-python",
+			"application/x-python-code",
+			"application/json",
+			"text/xml",
+			"application/rtf",
+			"text/rtf",
+		}, mimeType):
+			return true
+		default:
+			return false
+		}
+	}(mimeType)
+}
+
+// check if given HTTP content type is supported
+func supportedHTTPContentType(contentType string) bool {
+	return func(contentType string) bool {
+		switch {
+		case strings.HasPrefix(contentType, "text/"):
+			return true
+		case strings.HasPrefix(contentType, "application/json"):
+			return true
+		default:
+			return false
+		}
+	}(contentType)
 }
 
 // get pointer of given value
