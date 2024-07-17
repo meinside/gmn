@@ -290,7 +290,7 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 				if text, ok := part.(genai.Text); ok { // (text)
 					fmt.Print(string(text))
 				} else {
-					log("# Unsupported type of part for streaming: %+v", part)
+					log("# Unsupported type of part for streaming: %s", prettify(part))
 				}
 			}
 		} else {
