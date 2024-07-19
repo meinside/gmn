@@ -26,7 +26,7 @@ const (
 	appName = "gmn"
 
 	defaultConfigFilename          = "config.json"
-	defaultGoogleAIModel           = "gemini-1.5-pro-latest"
+	defaultGoogleAIModel           = "gemini-1.5-flash-latest"
 	defaultSystemInstructionFormat = `You are a chat bot which is built with Golang and Google Gemini API(model: %[1]s).
 
 Current datetime is %[2]s, and hostname is '%[3]s'.
