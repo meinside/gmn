@@ -281,7 +281,7 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 				candidate = it.Candidates[0]
 				content = candidate.Content
 
-				if len(content.Parts) > 0 {
+				if content != nil && len(content.Parts) > 0 {
 					parts = content.Parts
 				}
 			}
