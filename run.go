@@ -283,6 +283,14 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 
 				if content != nil && len(content.Parts) > 0 {
 					parts = content.Parts
+				} else if candidate.FinishReason > 0 {
+					parts = []genai.Part{
+						genai.Text(fmt.Sprintf("<<<FinishReason: %s>>>", candidate.FinishReason.String())),
+					}
+				} else {
+					parts = []genai.Part{
+						genai.Text(`<<<Error: no content in candidate>>>`),
+					}
 				}
 			}
 
