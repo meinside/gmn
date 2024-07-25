@@ -191,11 +191,11 @@ func run(p params) {
 	if p.Verbose {
 		log("[verbose] parameters: %s", prettify(p))
 	}
-	doGeneration(context.TODO(), *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepath, p.OmitTokenCounts)
+	doGeneration(context.TODO(), *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepaths, p.OmitTokenCounts)
 }
 
 // generate with given things
-func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepath *string, omitTokenCounts bool) {
+func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepaths []*string, omitTokenCounts bool) {
 	ctx, cancel := context.WithTimeout(ctx, timeoutSeconds*time.Second)
 	defer cancel()
 
@@ -225,36 +225,39 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 
 	// prompt (file)
 	fileNames := []string{}
-	if filepath != nil {
-		if file, err := os.Open(*filepath); err == nil {
-			if mime, err := mimetype.DetectReader(file); err == nil {
-				mimeType := stripCharsetFromMimeType(mime.String())
+	if len(filepaths) > 0 {
+		for _, filepath := range filepaths {
+			if file, err := os.Open(*filepath); err == nil {
+				if mime, err := mimetype.DetectReader(file); err == nil {
+					mimeType := stripCharsetFromMimeType(mime.String())
 
-				if supportedFileMimeType(mimeType) {
-					if _, err := file.Seek(0, io.SeekStart); err == nil {
-						if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
-							MIMEType: mimeType,
-						}); err == nil {
-							parts = append(parts, genai.FileData{
-								MIMEType: file.MIMEType,
-								URI:      file.URI,
-							})
+					if supportedFileMimeType(mimeType) {
+						if _, err := file.Seek(0, io.SeekStart); err == nil {
+							if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
+								DisplayName: path.Base(*filepath),
+								MIMEType:    mimeType,
+							}); err == nil {
+								parts = append(parts, genai.FileData{
+									MIMEType: file.MIMEType,
+									URI:      file.URI,
+								})
 
-							fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+								fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+							} else {
+								logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+							}
 						} else {
-							logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+							logAndExit(1, "Failed to seek to start of file: %s", *filepath)
 						}
 					} else {
-						logAndExit(1, "Failed to seek to start of file: %s", *filepath)
+						logAndExit(1, "File type (%s) not supported: %s", mimeType, *filepath)
 					}
 				} else {
-					logAndExit(1, "File type (%s) not suuported: %s", mimeType, *filepath)
+					logAndExit(1, "Failed to detect MIME type of %s: %s", *filepath, err)
 				}
 			} else {
-				logAndExit(1, "Failed to detect MIME type of %s: %s", *filepath, err)
+				logAndExit(1, "Failed to open file %s: %s", *filepath, err)
 			}
-		} else {
-			logAndExit(1, "Failed to open file %s: %s", *filepath, err)
 		}
 	}
 
