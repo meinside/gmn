@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	httpUserAgent = `GMN/url2text`
+
 	// for replacing URLs in prompt to body texts
 	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
@@ -62,7 +64,13 @@ func urlToText(url string, verbose bool) (body string, err error) {
 		log("[verbose] fetching from url: %s", url)
 	}
 
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create http request: %s", err)
+	}
+	req.Header.Set("User-Agent", httpUserAgent)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch contents from url: %s", err)
 	}
