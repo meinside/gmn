@@ -6,8 +6,8 @@ import (
 
 // parameter definitions
 type params struct {
-	Prompt   string  `short:"p" long:"prompt" description:"Prompt to use" required:"true"`
-	Filepath *string `short:"f" long:"filepath" description:"Path of file (optional)"`
+	Prompt    string    `short:"p" long:"prompt" description:"Prompt to use" required:"true"`
+	Filepaths []*string `short:"f" long:"filepath" description:"Path(s) of file(s) (optional)"`
 
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
