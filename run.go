@@ -40,8 +40,10 @@ Respond to user messages according to the following principles:
 - Your response must be in plain text, so do not try to emphasize words with markdown characters.
 `
 
-	timeoutSeconds                             = 180 // 3 minutes
-	fetchURLTimeoutSeconds                     = 10  // 10 seconds
+	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
+	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
+	defaultUserAgent              = `GMN/url2text`
+
 	uploadedFileStateCheckIntervalMilliseconds = 300 // 300 milliseconds
 )
 
@@ -59,7 +61,10 @@ type config struct {
 	GoogleAIModel     *string `json:"google_ai_model,omitempty"`
 	SystemInstruction *string `json:"system_instruction,omitempty"`
 
-	ReplaceHTTPURLsInPrompt bool `json:"replace_http_urls_in_prompt,omitempty"`
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
+
+	ReplaceHTTPURLsInPrompt      bool `json:"replace_http_urls_in_prompt,omitempty"`
+	ReplaceHTTPURLTimeoutSeconds int  `json:"replace_http_url_timeout_seconds,omitempty"`
 }
 
 // infisical setting struct
@@ -91,6 +96,14 @@ func readConfig(configFilepath string) (conf config, err error) {
 	if bytes, err = os.ReadFile(configFilepath); err == nil {
 		if bytes, err = standardizeJSON(bytes); err == nil {
 			if err = json.Unmarshal(bytes, &conf); err == nil {
+				// set default values
+				if conf.TimeoutSeconds <= 0 {
+					conf.TimeoutSeconds = defaultTimeoutSeconds
+				}
+				if conf.ReplaceHTTPURLTimeoutSeconds <= 0 {
+					conf.ReplaceHTTPURLTimeoutSeconds = defaultFetchURLTimeoutSeconds
+				}
+
 				if conf.GoogleAIAPIKey == nil && conf.Infisical != nil {
 					// read token and api key from infisical
 					client := infisical.NewInfisicalClient(infisical.Config{
@@ -121,6 +134,7 @@ func readConfig(configFilepath string) (conf config, err error) {
 						return config{}, fmt.Errorf("failed to retrieve `google_ai_api_key` from Infisical: %s", err)
 					}
 				}
+
 				return conf, nil
 			}
 		}
@@ -154,7 +168,7 @@ func run(p params) {
 			p.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		log("Failed to read configuration: %s", err)
+		logg("Failed to read configuration: %s", err)
 	}
 
 	// override parameters with command arguments
@@ -172,6 +186,9 @@ func run(p params) {
 	if p.SystemInstruction == nil {
 		p.SystemInstruction = ptr(defaultSystemInstruction(conf))
 	}
+	if p.UserAgent == nil {
+		p.UserAgent = ptr(defaultUserAgent)
+	}
 
 	// check existence of essential parameters here
 	if conf.GoogleAIAPIKey == nil {
@@ -180,23 +197,23 @@ func run(p params) {
 
 	// replace urls in the prompt
 	if conf.ReplaceHTTPURLsInPrompt {
-		p.Prompt = replaceHTTPURLsInPromptToBodyTexts(p.Prompt, p.Verbose)
+		p.Prompt = replaceHTTPURLsInPromptToBodyTexts(conf, *p.UserAgent, p.Prompt, p.Verbose)
 
 		if p.Verbose {
-			log("[verbose] replaced prompt: %s", p.Prompt)
+			logg("[verbose] replaced prompt: %s", p.Prompt)
 		}
 	}
 
 	// do the actual job
 	if p.Verbose {
-		log("[verbose] parameters: %s", prettify(p))
+		logg("[verbose] parameters: %s", prettify(p))
 	}
-	doGeneration(context.TODO(), *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepaths, p.OmitTokenCounts)
+	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepaths, p.OmitTokenCounts)
 }
 
 // generate with given things
-func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepaths []*string, omitTokenCounts bool) {
-	ctx, cancel := context.WithTimeout(ctx, timeoutSeconds*time.Second)
+func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepaths []*string, omitTokenCounts bool) {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(googleAIAPIKey))
@@ -301,12 +318,12 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 				if text, ok := part.(genai.Text); ok { // (text)
 					fmt.Print(string(text))
 				} else {
-					log("# Unsupported type of part for streaming: %s", prettify(part))
+					logg("# Unsupported type of part for streaming: %s", prettify(part))
 				}
 			}
 		} else {
 			if err != iterator.Done {
-				log("# Failed to iterate stream: %s", errorString(err))
+				logg("# Failed to iterate stream: %s", errorString(err))
 			}
 			break
 		}
@@ -314,7 +331,7 @@ func doGeneration(ctx context.Context, googleAIAPIKey, googleAIModel, systemInst
 
 	// print the number of tokens
 	if !omitTokenCounts {
-		log("\n> input tokens: %d / output tokens: %d", numTokensInput, numTokensOutput)
+		logg("\n> input tokens: %d / output tokens: %d", numTokensInput, numTokensOutput)
 	}
 }
 

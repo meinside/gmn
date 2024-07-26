@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	httpUserAgent = `GMN/url2text`
-
 	// for replacing URLs in prompt to body texts
 	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
@@ -43,10 +41,10 @@ func stripCharsetFromMimeType(mimeType string) string {
 }
 
 // replace all http urls in given text to body texts
-func replaceHTTPURLsInPromptToBodyTexts(prompt string, verbose bool) string {
+func replaceHTTPURLsInPromptToBodyTexts(conf config, userAgent, prompt string, verbose bool) string {
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
-		if converted, err := urlToText(url, verbose); err == nil {
+		if converted, err := urlToText(conf, userAgent, url, verbose); err == nil {
 			prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", converted), 1)
 		}
 	}
@@ -55,20 +53,20 @@ func replaceHTTPURLsInPromptToBodyTexts(prompt string, verbose bool) string {
 }
 
 // fetch the content from given url and convert it to text for prompting.
-func urlToText(url string, verbose bool) (body string, err error) {
+func urlToText(conf config, userAgent, url string, verbose bool) (body string, err error) {
 	client := &http.Client{
-		Timeout: time.Duration(fetchURLTimeoutSeconds) * time.Second,
+		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
 	if verbose {
-		log("[verbose] fetching from url: %s", url)
+		logg("[verbose] fetching from url: %s", url)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create http request: %s", err)
 	}
-	req.Header.Set("User-Agent", httpUserAgent)
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -79,7 +77,7 @@ func urlToText(url string, verbose bool) (body string, err error) {
 	contentType := resp.Header.Get("Content-Type")
 
 	if verbose {
-		log("[verbose] fetched '%s' from url: %s", contentType, url)
+		logg("[verbose] fetched '%s' from url: %s", contentType, url)
 	}
 
 	if resp.StatusCode == 200 {
@@ -128,7 +126,7 @@ func urlToText(url string, verbose bool) (body string, err error) {
 	}
 
 	if verbose {
-		log("[verbose] fetched body =\n%s\n", body)
+		logg("[verbose] fetched body =\n%s\n", body)
 	}
 
 	return body, err
@@ -240,7 +238,7 @@ func ptr[T any](v T) *T {
 }
 
 // print given strings to stdout
-func log(format string, v ...any) {
+func logg(format string, v ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
@@ -250,7 +248,7 @@ func log(format string, v ...any) {
 
 // print given strings and exit with code
 func logAndExit(code int, format string, v ...any) {
-	log(format, v...)
+	logg(format, v...)
 
 	os.Exit(code)
 }

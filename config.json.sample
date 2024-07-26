@@ -16,5 +16,8 @@
   //"google_ai_model": "gemini-1.5-flash-latest",
   //"system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
 
+  "timeout_seconds": 300,
+
   "replace_http_urls_in_prompt": false,
+  "replace_http_url_timeout_seconds": 10,
 }
