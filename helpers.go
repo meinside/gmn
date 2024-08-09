@@ -209,6 +209,9 @@ func supportedFileMimeType(mimeType string) bool {
 			"text/xml",
 			"application/rtf",
 			"text/rtf",
+
+			// FIXME: not stated in the document yet
+			"application/pdf",
 		}, mimeType):
 			return true
 		default:
