@@ -22,10 +22,14 @@ type params struct {
 	Verbose         bool    `short:"v" long:"verbose" description:"Show verbose logs"`
 }
 
+var _verbose bool
+
 // main
 func main() {
 	var p params
 	if _, err := flags.Parse(&p); err == nil {
+		_verbose = p.Verbose
+
 		run(p)
 	} else {
 		log.Printf("failed to parse flags: %s", err)

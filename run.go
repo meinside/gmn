@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -196,23 +197,25 @@ func run(p params) {
 	}
 
 	// replace urls in the prompt
+	promptFiles := map[string][]byte{}
 	if conf.ReplaceHTTPURLsInPrompt {
-		p.Prompt = replaceHTTPURLsInPromptToBodyTexts(conf, *p.UserAgent, p.Prompt, p.Verbose)
+		p.Prompt, promptFiles = replaceURLsInPrompt(conf, *p.UserAgent, p.Prompt)
 
 		if p.Verbose {
 			logg("[verbose] replaced prompt: %s", p.Prompt)
 		}
 	}
 
-	// do the actual job
 	if p.Verbose {
 		logg("[verbose] parameters: %s", prettify(p))
 	}
-	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, p.Filepaths, p.OmitTokenCounts)
+
+	// do the actual job
+	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, promptFiles, p.Filepaths, p.OmitTokenCounts)
 }
 
 // generate with given things
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, filepaths []*string, omitTokenCounts bool) {
+func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, omitTokenCounts bool) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
@@ -236,12 +239,39 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	model.SafetySettings = safetySettings(genai.HarmBlockThreshold(genai.HarmBlockOnlyHigh))
 
 	// prompt (text)
-	parts := []genai.Part{
+	prompts := []genai.Part{
 		genai.Text(prompt),
 	}
 
-	// prompt (file)
+	// prompt (files: from urls in the prompt)
 	fileNames := []string{}
+	if len(promptFiles) > 0 {
+		for url, file := range promptFiles {
+			if mime := mimetype.Detect(file); err == nil {
+				mimeType := stripCharsetFromMimeType(mime.String())
+
+				if supportedFileMimeType(mimeType) {
+					if file, err := client.UploadFile(ctx, "", bytes.NewReader(file), &genai.UploadFileOptions{
+						MIMEType: mimeType,
+					}); err == nil {
+						prompts = append(prompts, genai.FileData{
+							MIMEType: file.MIMEType,
+							URI:      file.URI,
+						})
+
+						fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
+					} else {
+						logAndExit(1, "Failed to upload file '%s' for prompt: %s", url, err)
+					}
+				} else {
+					logAndExit(1, "File type (%s) not supported: '%s'", mimeType, url)
+				}
+			} else {
+				logAndExit(1, "Failed to detect MIME type of '%s': %s", url, err)
+			}
+		}
+	}
+	// prompt (files: from files param)
 	if len(filepaths) > 0 {
 		for _, filepath := range filepaths {
 			if file, err := os.Open(*filepath); err == nil {
@@ -254,26 +284,26 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 								DisplayName: path.Base(*filepath),
 								MIMEType:    mimeType,
 							}); err == nil {
-								parts = append(parts, genai.FileData{
+								prompts = append(prompts, genai.FileData{
 									MIMEType: file.MIMEType,
 									URI:      file.URI,
 								})
 
 								fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
 							} else {
-								logAndExit(1, "Failed to upload file %s for prompt: %s", *filepath, err)
+								logAndExit(1, "Failed to upload file '%s' for prompt: %s", *filepath, err)
 							}
 						} else {
-							logAndExit(1, "Failed to seek to start of file: %s", *filepath)
+							logAndExit(1, "Failed to seek to start of file '%s': %s", *filepath, err)
 						}
 					} else {
-						logAndExit(1, "File type (%s) not supported: %s", mimeType, *filepath)
+						logAndExit(1, "File type (%s) not supported: '%s'", mimeType, *filepath)
 					}
 				} else {
-					logAndExit(1, "Failed to detect MIME type of %s: %s", *filepath, err)
+					logAndExit(1, "Failed to detect MIME type of '%s': %s", *filepath, err)
 				}
 			} else {
-				logAndExit(1, "Failed to open file %s: %s", *filepath, err)
+				logAndExit(1, "Failed to open file '%s': %s", *filepath, err)
 			}
 		}
 	}
@@ -286,7 +316,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	var numTokensOutput int32 = 0
 
 	// generate and stream response
-	iter := model.GenerateContentStream(ctx, parts...)
+	iter := model.GenerateContentStream(ctx, prompts...)
 	for {
 		if it, err := iter.Next(); err == nil {
 			var candidate *genai.Candidate
