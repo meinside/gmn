@@ -28,7 +28,7 @@ const (
 
 	defaultConfigFilename          = "config.json"
 	defaultGoogleAIModel           = "gemini-1.5-flash-latest"
-	defaultSystemInstructionFormat = `You are a chat bot which is built with Golang and Google Gemini API(model: %[1]s).
+	defaultSystemInstructionFormat = `You are a CLI which uses Google Gemini API(model: %[1]s).
 
 Current datetime is %[2]s, and hostname is '%[3]s'.
 
@@ -37,8 +37,6 @@ Respond to user messages according to the following principles:
 - Be as accurate as possible.
 - Be as truthful as possible.
 - Be as comprehensive and informative as possible.
-- Be as concise and meaningful as possible.
-- Your response must be in plain text, so do not try to emphasize words with markdown characters.
 `
 
 	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
