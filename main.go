@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	flags "github.com/jessevdk/go-flags"
 )
@@ -27,11 +28,21 @@ var _verbose bool
 // main
 func main() {
 	var p params
-	if _, err := flags.Parse(&p); err == nil {
+	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
+
+	if _, err := parser.Parse(); err == nil {
 		_verbose = p.Verbose
 
 		run(p)
 	} else {
+		if e, ok := err.(*flags.Error); ok {
+			if e.Type == flags.ErrRequired || e.Type == flags.ErrHelp {
+				parser.WriteHelp(os.Stdout)
+
+				os.Exit(1)
+			}
+		}
+
 		log.Printf("failed to parse flags: %s", err)
 	}
 }
