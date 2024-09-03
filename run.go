@@ -418,7 +418,7 @@ func waitForFiles(ctx context.Context, client *genai.Client, fileNames []string)
 
 // generate a default system instruction with given configuration
 func defaultSystemInstruction(conf config) string {
-	datetime := time.Now().Format("2006-01-02 15:04:05 (Mon)")
+	datetime := time.Now().Format("2006-01-02 15:04:05 MST (Mon)")
 	hostname, _ := os.Hostname()
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
