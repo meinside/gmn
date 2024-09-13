@@ -11,16 +11,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 	"time"
 
-	"github.com/gabriel-vasile/mimetype"
-	"github.com/google/generative-ai-go/genai"
+	gt "github.com/meinside/gemini-things-go"
+
 	infisical "github.com/infisical/go-sdk"
 	"github.com/infisical/go-sdk/packages/models"
 	"github.com/tailscale/hujson"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 const (
@@ -42,15 +39,6 @@ Respond to user messages according to the following principles:
 	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
 	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
 	defaultUserAgent              = `GMN/url2text`
-
-	uploadedFileStateCheckIntervalMilliseconds = 300 // 300 milliseconds
-)
-
-type role string
-
-const (
-	roleModel role = "model"
-	roleUser  role = "user"
 )
 
 type config struct {
@@ -217,203 +205,56 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(googleAIAPIKey))
-	if err != nil {
-		logAndExit(1, "Failed to create API client: %s", err)
+	// gemini things client
+	client := gt.NewClient(googleAIModel, googleAIAPIKey)
+	client.SetTimeout(timeoutSeconds)
+	client.SetSystemInstructionFunc(func() string {
+		return systemInstruction
+	})
+
+	// read & close files
+	files := []io.Reader{}
+	filesToClose := []*os.File{}
+	for _, file := range promptFiles {
+		files = append(files, bytes.NewReader(file))
 	}
-	defer client.Close()
-
-	model := client.GenerativeModel(googleAIModel)
-
-	// system instruction
-	model.SystemInstruction = &genai.Content{
-		Role: string(roleModel),
-		Parts: []genai.Part{
-			genai.Text(systemInstruction),
-		},
-	}
-
-	// safety filters (block only high)
-	model.SafetySettings = safetySettings(genai.HarmBlockThreshold(genai.HarmBlockOnlyHigh))
-
-	// prompt (text)
-	prompts := []genai.Part{
-		genai.Text(prompt),
-	}
-
-	// prompt (files: from urls in the prompt)
-	fileNames := []string{}
-	if len(promptFiles) > 0 {
-		for url, file := range promptFiles {
-			if mime := mimetype.Detect(file); err == nil {
-				mimeType := stripCharsetFromMimeType(mime.String())
-
-				if supportedFileMimeType(mimeType) {
-					if file, err := client.UploadFile(ctx, "", bytes.NewReader(file), &genai.UploadFileOptions{
-						MIMEType: mimeType,
-					}); err == nil {
-						prompts = append(prompts, genai.FileData{
-							MIMEType: file.MIMEType,
-							URI:      file.URI,
-						})
-
-						fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
-					} else {
-						logAndExit(1, "Failed to upload file '%s' for prompt: %s", url, err)
-					}
-				} else {
-					logAndExit(1, "File type (%s) not supported: '%s'", mimeType, url)
-				}
-			} else {
-				logAndExit(1, "Failed to detect MIME type of '%s': %s", url, err)
-			}
-		}
-	}
-	// prompt (files: from files param)
-	if len(filepaths) > 0 {
-		for _, filepath := range filepaths {
-			if file, err := os.Open(*filepath); err == nil {
-				if mime, err := mimetype.DetectReader(file); err == nil {
-					mimeType := stripCharsetFromMimeType(mime.String())
-
-					if supportedFileMimeType(mimeType) {
-						if _, err := file.Seek(0, io.SeekStart); err == nil {
-							if file, err := client.UploadFile(ctx, "", file, &genai.UploadFileOptions{
-								DisplayName: path.Base(*filepath),
-								MIMEType:    mimeType,
-							}); err == nil {
-								prompts = append(prompts, genai.FileData{
-									MIMEType: file.MIMEType,
-									URI:      file.URI,
-								})
-
-								fileNames = append(fileNames, file.Name) // FIXME: will wait synchronously for it to become active
-							} else {
-								logAndExit(1, "Failed to upload file '%s' for prompt: %s", *filepath, err)
-							}
-						} else {
-							logAndExit(1, "Failed to seek to start of file '%s': %s", *filepath, err)
-						}
-					} else {
-						logAndExit(1, "File type (%s) not supported: '%s'", mimeType, *filepath)
-					}
-				} else {
-					logAndExit(1, "Failed to detect MIME type of '%s': %s", *filepath, err)
-				}
-			} else {
-				logAndExit(1, "Failed to open file '%s': %s", *filepath, err)
-			}
-		}
-	}
-
-	// FIXME: wait for all files to become active
-	waitForFiles(ctx, client, fileNames)
-
-	// number of tokens for logging
-	var numTokensInput int32 = 0
-	var numTokensOutput int32 = 0
-
-	// generate and stream response
-	iter := model.GenerateContentStream(ctx, prompts...)
-	for {
-		if it, err := iter.Next(); err == nil {
-			var candidate *genai.Candidate
-			var content *genai.Content
-			var parts []genai.Part
-
-			if len(it.Candidates) > 0 {
-				// update number of tokens
-				numTokensInput = it.UsageMetadata.PromptTokenCount
-				numTokensOutput = it.UsageMetadata.TotalTokenCount - it.UsageMetadata.PromptTokenCount
-
-				candidate = it.Candidates[0]
-				content = candidate.Content
-
-				if content != nil && len(content.Parts) > 0 {
-					parts = content.Parts
-				} else if candidate.FinishReason > 0 {
-					parts = []genai.Part{
-						genai.Text(fmt.Sprintf("<<<FinishReason: %s>>>", candidate.FinishReason.String())),
-					}
-				} else {
-					parts = []genai.Part{
-						genai.Text(`<<<Error: no content in candidate>>>`),
-					}
-				}
-			}
-
-			for _, part := range parts {
-				if text, ok := part.(genai.Text); ok { // (text)
-					fmt.Print(string(text))
-				} else {
-					logg("# Unsupported type of part for streaming: %s", prettify(part))
-				}
-			}
+	for _, fp := range filepaths {
+		if opened, err := os.Open(*fp); err == nil {
+			files = append(files, opened)
+			filesToClose = append(filesToClose, opened)
 		} else {
-			if err != iterator.Done {
-				logg("# Failed to iterate stream: %s", errorString(err))
-			}
-			break
+			logAndExit(1, "Failed to open file: %s", err)
 		}
 	}
-
-	// print the number of tokens
-	if !omitTokenCounts {
-		logg("\n> input tokens: %d / output tokens: %d", numTokensInput, numTokensOutput)
-	}
-}
-
-// generate safety settings for all supported harm categories
-func safetySettings(threshold genai.HarmBlockThreshold) (settings []*genai.SafetySetting) {
-	for _, category := range []genai.HarmCategory{
-		/*
-			// categories for PaLM 2 (Legacy) models
-			genai.HarmCategoryUnspecified,
-			genai.HarmCategoryDerogatory,
-			genai.HarmCategoryToxicity,
-			genai.HarmCategoryViolence,
-			genai.HarmCategorySexual,
-			genai.HarmCategoryMedical,
-			genai.HarmCategoryDangerous,
-		*/
-
-		// all categories supported by Gemini models
-		genai.HarmCategoryHarassment,
-		genai.HarmCategoryHateSpeech,
-		genai.HarmCategorySexuallyExplicit,
-		genai.HarmCategoryDangerousContent,
-	} {
-		settings = append(settings, &genai.SafetySetting{
-			Category:  category,
-			Threshold: threshold,
-		})
-	}
-
-	return settings
-}
-
-// wait for all files to be active
-func waitForFiles(ctx context.Context, client *genai.Client, fileNames []string) {
-	var wg sync.WaitGroup
-	for _, fileName := range fileNames {
-		wg.Add(1)
-
-		go func(name string) {
-			for {
-				if file, err := client.GetFile(ctx, name); err == nil {
-					if file.State == genai.FileStateActive {
-						wg.Done()
-						break
-					} else {
-						time.Sleep(uploadedFileStateCheckIntervalMilliseconds * time.Millisecond)
-					}
-				} else {
-					time.Sleep(uploadedFileStateCheckIntervalMilliseconds * time.Millisecond)
-				}
+	defer func() {
+		for _, toClose := range filesToClose {
+			if err := toClose.Close(); err != nil {
+				logg("Failed to close file: %s", err)
 			}
-		}(fileName)
+		}
+	}()
+
+	// generate
+	if err := client.GenerateStreamed(
+		ctx,
+		prompt,
+		files,
+		func(data gt.StreamCallbackData) {
+			if data.TextDelta != nil {
+				fmt.Print(*data.TextDelta)
+			} else if data.NumTokens != nil {
+				// print the number of tokens
+				if !omitTokenCounts {
+					logg("\n> input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
+				}
+			} else if data.Error != nil {
+				logAndExit(1, "Streaming failed: %s", data.Error)
+			}
+		},
+		nil,
+	); err != nil {
+		logAndExit(1, "Generation failed: %s", err)
 	}
-	wg.Wait()
 }
 
 // generate a default system instruction with given configuration
