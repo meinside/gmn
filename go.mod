@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/infisical/go-sdk v0.3.3
 	github.com/jessevdk/go-flags v1.6.1
-	github.com/meinside/gemini-things-go v0.0.2
+	github.com/meinside/gemini-things-go v0.0.3
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	google.golang.org/api v0.197.0
 )
@@ -37,7 +37,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-resty/resty/v2 v2.15.0 // indirect
+	github.com/go-resty/resty/v2 v2.15.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/generative-ai-go v0.18.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
