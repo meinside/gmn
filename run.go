@@ -206,9 +206,9 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	defer cancel()
 
 	// gemini things client
-	client := gt.NewClient(googleAIModel, googleAIAPIKey)
-	client.SetTimeout(timeoutSeconds)
-	client.SetSystemInstructionFunc(func() string {
+	gtc := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
 	})
 
@@ -235,7 +235,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	}()
 
 	// generate
-	if err := client.GenerateStreamed(
+	if err := gtc.GenerateStreamed(
 		ctx,
 		prompt,
 		files,
