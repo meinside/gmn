@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,7 +14,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"google.golang.org/api/googleapi"
+	"github.com/fatih/color"
+	"github.com/jwalton/go-supportscolor"
 )
 
 const (
@@ -23,22 +23,6 @@ const (
 	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
 )
-
-// convert error to string
-func errorString(err error) (error string) {
-	var gerr *googleapi.Error
-	if errors.As(err, &gerr) {
-		return fmt.Sprintf("googleapi error: %s", gerr.Body)
-	} else {
-		return err.Error()
-	}
-}
-
-// strip trailing charset text from given mime type
-func stripCharsetFromMimeType(mimeType string) string {
-	splitted := strings.Split(mimeType, ";")
-	return splitted[0]
-}
 
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string, files map[string][]byte) {
@@ -48,12 +32,16 @@ func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string
 	for _, url := range re.FindAllString(prompt, -1) {
 		if fetched, contentType, err := fetchContent(conf, userAgent, url); err == nil {
 			if supportedHTTPContentType(contentType) {
-				verbose("[verbose] text content (%s) fetched from '%s' is supported", contentType, url)
+				if checkVerbosity(_verbose) >= verboseMaximum {
+					verbose("text content (%s) fetched from '%s' is supported", contentType, url)
+				}
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 			} else if supportedFileMimeType(contentType) {
-				verbose("[verbose] file content (%s) fetched from '%s' is supported", contentType, url)
+				if checkVerbosity(_verbose) >= verboseMaximum {
+					verbose("file content (%s) fetched from '%s' is supported", contentType, url)
+				}
 
 				// replace prompt text,
 				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, contentType, ""), 1)
@@ -61,10 +49,14 @@ func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string
 				// and add bytes as a file
 				files[url] = fetched
 			} else {
-				verbose("[verbose] fetched content (%s) from '%s' is not supported", contentType, url)
+				if checkVerbosity(_verbose) >= verboseMaximum {
+					verbose("fetched content (%s) from '%s' is not supported", contentType, url)
+				}
 			}
 		} else {
-			verbose("[verbose] failed to fetch content from '%s': %s", url, err)
+			if checkVerbosity(_verbose) >= verboseMedium {
+				verbose("failed to fetch content from '%s': %s", url, err)
+			}
 		}
 	}
 
@@ -77,7 +69,9 @@ func fetchContent(conf config, userAgent, url string) (converted []byte, content
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	verbose("[verbose] fetching content from '%s'", url)
+	if checkVerbosity(_verbose) >= verboseMaximum {
+		verbose("fetching content from '%s'", url)
+	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -93,7 +87,9 @@ func fetchContent(conf config, userAgent, url string) (converted []byte, content
 
 	contentType = resp.Header.Get("Content-Type")
 
-	verbose("[verbose] fetched content (%s) from '%s'", contentType, url)
+	if checkVerbosity(_verbose) >= verboseMaximum {
+		verbose("fetched content (%s) from '%s'", contentType, url)
+	}
 
 	if resp.StatusCode == 200 {
 		if supportedHTTPContentType(contentType) {
@@ -145,7 +141,9 @@ func fetchContent(conf config, userAgent, url string) (converted []byte, content
 		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
 	}
 
-	verbose("[verbose] fetched body =\n%s\n", string(converted))
+	if checkVerbosity(_verbose) >= verboseMaximum {
+		verbose("fetched body =\n%s", string(converted))
+	}
 
 	return converted, contentType, err
 }
@@ -258,25 +256,59 @@ func ptr[T any](v T) *T {
 	return &val
 }
 
+// verbosity level constants
+type verbosity uint
+
+const (
+	verboseNone    verbosity = iota
+	verboseMinimum verbosity = iota
+	verboseMedium  verbosity = iota
+	verboseMaximum verbosity = iota
+)
+
+// check level of verbosity
+func checkVerbosity(verbose []bool) verbosity {
+	if len(verbose) == 1 {
+		return verboseMinimum
+	} else if len(verbose) == 2 {
+		return verboseMedium
+	} else if len(verbose) >= 3 {
+		return verboseMaximum
+	}
+
+	return verboseNone
+}
+
 // print given strings to stdout
 func logg(format string, v ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
 
-	fmt.Printf(format, v...)
+	if supportscolor.Stdout().SupportsColor { // if color is supported,
+		c := color.New(color.FgYellow)
+		c.Printf(format, v...)
+	} else {
+		fmt.Printf(format, v...)
+	}
 }
 
 // print verbose message
 func verbose(format string, v ...any) {
-	if _verbose {
+	if vb := checkVerbosity(_verbose); vb != verboseNone {
+		format = fmt.Sprintf(">>> %s", format)
+
 		logg(format, v...)
 	}
 }
 
 // print given strings and exit with code
 func logAndExit(code int, format string, v ...any) {
-	logg(format, v...)
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+
+	fmt.Printf(format, v...)
 
 	os.Exit(code)
 }

@@ -155,7 +155,7 @@ func run(p params) {
 			p.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		logg("Failed to read configuration: %s", err)
+		logAndExit(1, "Failed to read configuration: %s", err)
 	}
 
 	// override parameters with command arguments
@@ -187,21 +187,21 @@ func run(p params) {
 	if conf.ReplaceHTTPURLsInPrompt {
 		p.Prompt, promptFiles = replaceURLsInPrompt(conf, *p.UserAgent, p.Prompt)
 
-		if p.Verbose {
-			logg("[verbose] replaced prompt: %s", p.Prompt)
+		if checkVerbosity(p.Verbose) >= verboseMedium {
+			verbose("replaced prompt: %s\n\n", p.Prompt)
 		}
 	}
 
-	if p.Verbose {
-		logg("[verbose] parameters: %s", prettify(p))
+	if checkVerbosity(p.Verbose) >= verboseMaximum {
+		verbose("requesting with parameters: %s\n\n", prettify(p))
 	}
 
 	// do the actual job
-	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, promptFiles, p.Filepaths, p.OmitTokenCounts)
+	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, promptFiles, p.Filepaths, p.Verbose)
 }
 
 // generate with given things
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, omitTokenCounts bool) {
+func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, vb []bool) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
@@ -243,9 +243,11 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 			if data.TextDelta != nil {
 				fmt.Print(*data.TextDelta)
 			} else if data.NumTokens != nil {
+				fmt.Print("\n") // FIXME: append a new line to the end of generated output
+
 				// print the number of tokens
-				if !omitTokenCounts {
-					logg("\n> input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
+				if checkVerbosity(vb) >= verboseMinimum {
+					verbose("input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
 				}
 			} else if data.Error != nil {
 				logAndExit(1, "Streaming failed: %s", data.Error)

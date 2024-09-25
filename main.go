@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	flags "github.com/jessevdk/go-flags"
@@ -18,12 +18,12 @@ type params struct {
 	GoogleAIModel     *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
 	SystemInstruction *string `short:"s" long:"system" description:"System instruction (can be omitted)"`
 
-	OmitTokenCounts bool    `short:"o" long:"omit-token-counts" description:"Do not print input/output token counts"`
-	UserAgent       *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
-	Verbose         bool    `short:"v" long:"verbose" description:"Show verbose logs"`
+	UserAgent *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
+
+	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs"`
 }
 
-var _verbose bool
+var _verbose []bool
 
 // main
 func main() {
@@ -43,6 +43,6 @@ func main() {
 			}
 		}
 
-		log.Printf("failed to parse flags: %s", err)
+		fmt.Printf("Failed to parse flags: %s\n", err)
 	}
 }
