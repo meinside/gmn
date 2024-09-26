@@ -185,15 +185,15 @@ func run(p params) {
 	// replace urls in the prompt
 	promptFiles := map[string][]byte{}
 	if conf.ReplaceHTTPURLsInPrompt {
-		p.Prompt, promptFiles = replaceURLsInPrompt(conf, *p.UserAgent, p.Prompt)
+		p.Prompt, promptFiles = replaceURLsInPrompt(conf, p)
 
 		if checkVerbosity(p.Verbose) >= verboseMedium {
-			verbose("replaced prompt: %s\n\n", p.Prompt)
+			verbose(p.Verbose, "replaced prompt: %s\n\n", p.Prompt)
 		}
 	}
 
 	if checkVerbosity(p.Verbose) >= verboseMaximum {
-		verbose("requesting with parameters: %s\n\n", prettify(p))
+		verbose(p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
 	}
 
 	// do the actual job
@@ -247,7 +247,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 
 				// print the number of tokens
 				if checkVerbosity(vb) >= verboseMinimum {
-					verbose("input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
+					verbose(vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
 				}
 			} else if data.Error != nil {
 				logAndExit(1, "Streaming failed: %s", data.Error)

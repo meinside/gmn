@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	flags "github.com/jessevdk/go-flags"
+	"github.com/jessevdk/go-flags"
 )
 
 // parameter definitions
@@ -23,16 +23,12 @@ type params struct {
 	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs"`
 }
 
-var _verbose []bool
-
 // main
 func main() {
 	var p params
 	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
 
 	if _, err := parser.Parse(); err == nil {
-		_verbose = p.Verbose
-
 		run(p)
 	} else {
 		if e, ok := err.(*flags.Error); ok {
