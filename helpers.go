@@ -25,22 +25,26 @@ const (
 )
 
 // replace all http urls in given text to body texts
-func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string, files map[string][]byte) {
+func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
+	userAgent := *p.UserAgent
+	prompt := p.Prompt
+	vb := p.Verbose
+
 	files = map[string][]byte{}
 
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
-		if fetched, contentType, err := fetchContent(conf, userAgent, url); err == nil {
+		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
 			if supportedHTTPContentType(contentType) {
-				if checkVerbosity(_verbose) >= verboseMaximum {
-					verbose("text content (%s) fetched from '%s' is supported", contentType, url)
+				if checkVerbosity(vb) >= verboseMaximum {
+					verbose(vb, "text content (%s) fetched from '%s' is supported", contentType, url)
 				}
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 			} else if supportedFileMimeType(contentType) {
-				if checkVerbosity(_verbose) >= verboseMaximum {
-					verbose("file content (%s) fetched from '%s' is supported", contentType, url)
+				if checkVerbosity(vb) >= verboseMaximum {
+					verbose(vb, "file content (%s) fetched from '%s' is supported", contentType, url)
 				}
 
 				// replace prompt text,
@@ -49,13 +53,13 @@ func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string
 				// and add bytes as a file
 				files[url] = fetched
 			} else {
-				if checkVerbosity(_verbose) >= verboseMaximum {
-					verbose("fetched content (%s) from '%s' is not supported", contentType, url)
+				if checkVerbosity(vb) >= verboseMaximum {
+					verbose(vb, "fetched content (%s) from '%s' is not supported", contentType, url)
 				}
 			}
 		} else {
-			if checkVerbosity(_verbose) >= verboseMedium {
-				verbose("failed to fetch content from '%s': %s", url, err)
+			if checkVerbosity(vb) >= verboseMedium {
+				verbose(vb, "failed to fetch content from '%s': %s", url, err)
 			}
 		}
 	}
@@ -64,13 +68,13 @@ func replaceURLsInPrompt(conf config, userAgent, prompt string) (replaced string
 }
 
 // fetch the content from given url and convert it to text for prompting.
-func fetchContent(conf config, userAgent, url string) (converted []byte, contentType string, err error) {
+func fetchContent(conf config, userAgent, url string, vb []bool) (converted []byte, contentType string, err error) {
 	client := &http.Client{
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	if checkVerbosity(_verbose) >= verboseMaximum {
-		verbose("fetching content from '%s'", url)
+	if checkVerbosity(vb) >= verboseMaximum {
+		verbose(vb, "fetching content from '%s'", url)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -87,8 +91,8 @@ func fetchContent(conf config, userAgent, url string) (converted []byte, content
 
 	contentType = resp.Header.Get("Content-Type")
 
-	if checkVerbosity(_verbose) >= verboseMaximum {
-		verbose("fetched content (%s) from '%s'", contentType, url)
+	if checkVerbosity(vb) >= verboseMaximum {
+		verbose(vb, "fetched content (%s) from '%s'", contentType, url)
 	}
 
 	if resp.StatusCode == 200 {
@@ -141,8 +145,8 @@ func fetchContent(conf config, userAgent, url string) (converted []byte, content
 		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
 	}
 
-	if checkVerbosity(_verbose) >= verboseMaximum {
-		verbose("fetched body =\n%s", string(converted))
+	if checkVerbosity(vb) >= verboseMaximum {
+		verbose(vb, "fetched body =\n%s", string(converted))
 	}
 
 	return converted, contentType, err
@@ -308,8 +312,8 @@ func errr(format string, v ...any) {
 }
 
 // print verbose message
-func verbose(format string, v ...any) {
-	if vb := checkVerbosity(_verbose); vb != verboseNone {
+func verbose(verbose []bool, format string, v ...any) {
+	if vb := checkVerbosity(verbose); vb != verboseNone {
 		format = fmt.Sprintf(">>> %s", format)
 
 		logg(format, v...)
