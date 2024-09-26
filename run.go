@@ -229,7 +229,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				logg("Failed to close file: %s", err)
+				errr("Failed to close file: %s", err)
 			}
 		}
 	}()
