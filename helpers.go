@@ -279,7 +279,7 @@ func checkVerbosity(verbose []bool) verbosity {
 	return verboseNone
 }
 
-// print given strings to stdout
+// print given log string to stdout
 func logg(format string, v ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
@@ -287,6 +287,20 @@ func logg(format string, v ...any) {
 
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
 		c := color.New(color.FgYellow)
+		c.Printf(format, v...)
+	} else {
+		fmt.Printf(format, v...)
+	}
+}
+
+// print given error string to stdout
+func errr(format string, v ...any) {
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+
+	if supportscolor.Stdout().SupportsColor { // if color is supported,
+		c := color.New(color.FgRed)
 		c.Printf(format, v...)
 	} else {
 		fmt.Printf(format, v...)
@@ -304,11 +318,7 @@ func verbose(format string, v ...any) {
 
 // print given strings and exit with code
 func logAndExit(code int, format string, v ...any) {
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-
-	fmt.Printf(format, v...)
+	errr(format, v...)
 
 	os.Exit(code)
 }
