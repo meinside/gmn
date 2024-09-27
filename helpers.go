@@ -36,16 +36,12 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 	for _, url := range re.FindAllString(prompt, -1) {
 		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
 			if supportedHTTPContentType(contentType) {
-				if checkVerbosity(vb) >= verboseMaximum {
-					verbose(vb, "text content (%s) fetched from '%s' is supported", contentType, url)
-				}
+				logVerbose(verboseMaximum, vb, "text content (%s) fetched from '%s' is supported", contentType, url)
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 			} else if supportedFileMimeType(contentType) {
-				if checkVerbosity(vb) >= verboseMaximum {
-					verbose(vb, "file content (%s) fetched from '%s' is supported", contentType, url)
-				}
+				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", contentType, url)
 
 				// replace prompt text,
 				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, contentType, ""), 1)
@@ -53,14 +49,10 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 				// and add bytes as a file
 				files[url] = fetched
 			} else {
-				if checkVerbosity(vb) >= verboseMaximum {
-					verbose(vb, "fetched content (%s) from '%s' is not supported", contentType, url)
-				}
+				logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s' is not supported", contentType, url)
 			}
 		} else {
-			if checkVerbosity(vb) >= verboseMedium {
-				verbose(vb, "failed to fetch content from '%s': %s", url, err)
-			}
+			logVerbose(verboseMedium, vb, "failed to fetch content from '%s': %s", url, err)
 		}
 	}
 
@@ -73,9 +65,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	if checkVerbosity(vb) >= verboseMaximum {
-		verbose(vb, "fetching content from '%s'", url)
-	}
+	logVerbose(verboseMaximum, vb, "fetching content from '%s'", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -91,9 +81,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 
 	contentType = resp.Header.Get("Content-Type")
 
-	if checkVerbosity(vb) >= verboseMaximum {
-		verbose(vb, "fetched content (%s) from '%s'", contentType, url)
-	}
+	logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s'", contentType, url)
 
 	if resp.StatusCode == 200 {
 		if supportedHTTPContentType(contentType) {
@@ -145,9 +133,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
 	}
 
-	if checkVerbosity(vb) >= verboseMaximum {
-		verbose(vb, "fetched body =\n%s", string(converted))
-	}
+	logVerbose(verboseMaximum, vb, "fetched body =\n%s", string(converted))
 
 	return converted, contentType, err
 }
@@ -271,7 +257,7 @@ const (
 )
 
 // check level of verbosity
-func checkVerbosity(verbose []bool) verbosity {
+func verboseLevel(verbose []bool) verbosity {
 	if len(verbose) == 1 {
 		return verboseMinimum
 	} else if len(verbose) == 2 {
@@ -283,14 +269,24 @@ func checkVerbosity(verbose []bool) verbosity {
 	return verboseNone
 }
 
-// print given log string to stdout
-func logg(format string, v ...any) {
+// print given string to stdout
+func logMessage(level verbosity, format string, v ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
 
+	var c color.Attribute
+	switch level {
+	case verboseMinimum:
+		c = color.FgGreen
+	case verboseMedium, verboseMaximum:
+		c = color.FgYellow
+	default:
+		c = color.FgWhite
+	}
+
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(color.FgYellow)
+		c := color.New(c)
 		c.Printf(format, v...)
 	} else {
 		fmt.Printf(format, v...)
@@ -298,7 +294,7 @@ func logg(format string, v ...any) {
 }
 
 // print given error string to stdout
-func errr(format string, v ...any) {
+func logError(format string, v ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
@@ -311,18 +307,20 @@ func errr(format string, v ...any) {
 	}
 }
 
-// print verbose message
-func verbose(verbose []bool, format string, v ...any) {
-	if vb := checkVerbosity(verbose); vb != verboseNone {
+// print logVerbose message
+//
+// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
+func logVerbose(targetLevel verbosity, verbosityFromParams []bool, format string, v ...any) {
+	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
 		format = fmt.Sprintf(">>> %s", format)
 
-		logg(format, v...)
+		logMessage(targetLevel, format, v...)
 	}
 }
 
 // print given strings and exit with code
 func logAndExit(code int, format string, v ...any) {
-	errr(format, v...)
+	logError(format, v...)
 
 	os.Exit(code)
 }

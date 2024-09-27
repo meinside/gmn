@@ -187,14 +187,10 @@ func run(p params) {
 	if conf.ReplaceHTTPURLsInPrompt {
 		p.Prompt, promptFiles = replaceURLsInPrompt(conf, p)
 
-		if checkVerbosity(p.Verbose) >= verboseMedium {
-			verbose(p.Verbose, "replaced prompt: %s\n\n", p.Prompt)
-		}
+		logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", p.Prompt)
 	}
 
-	if checkVerbosity(p.Verbose) >= verboseMaximum {
-		verbose(p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
-	}
+	logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
 
 	// do the actual job
 	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, promptFiles, p.Filepaths, p.Verbose)
@@ -229,7 +225,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				errr("Failed to close file: %s", err)
+				logError("Failed to close file: %s", err)
 			}
 		}
 	}()
@@ -246,9 +242,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 				fmt.Print("\n") // FIXME: append a new line to the end of generated output
 
 				// print the number of tokens
-				if checkVerbosity(vb) >= verboseMinimum {
-					verbose(vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
-				}
+				logVerbose(verboseMinimum, vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
 			} else if data.Error != nil {
 				logAndExit(1, "Streaming failed: %s", data.Error)
 			}
