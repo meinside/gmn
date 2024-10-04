@@ -8,7 +8,7 @@ require (
 	github.com/infisical/go-sdk v0.3.3
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.0.6
+	github.com/meinside/gemini-things-go v0.0.7
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 )
 
