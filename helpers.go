@@ -9,13 +9,13 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/fatih/color"
 	"github.com/jwalton/go-supportscolor"
+	gt "github.com/meinside/gemini-things-go"
 )
 
 const (
@@ -35,20 +35,20 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
 		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
-			if supportedHTTPContentType(contentType) {
+			if mimeType, supported := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
+				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", mimeType, url)
+
+				// replace prompt text,
+				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
+
+				// and add bytes as a file
+				files[url] = fetched
+			} else if supportedTextContentType(contentType) { // if it is a text of supported types,
 				logVerbose(verboseMaximum, vb, "text content (%s) fetched from '%s' is supported", contentType, url)
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
-			} else if supportedFileMimeType(contentType) {
-				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", contentType, url)
-
-				// replace prompt text,
-				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, contentType, ""), 1)
-
-				// and add bytes as a file
-				files[url] = fetched
-			} else {
+			} else { // otherwise, (not supported in anyways)
 				logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s' is not supported", contentType, url)
 			}
 		} else {
@@ -79,12 +79,13 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 	}
 	defer resp.Body.Close()
 
+	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
 	logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s'", contentType, url)
 
 	if resp.StatusCode == 200 {
-		if supportedHTTPContentType(contentType) {
+		if supportedTextContentType(contentType) {
 			if strings.HasPrefix(contentType, "text/html") {
 				var doc *goquery.Document
 				if doc, err = goquery.NewDocumentFromReader(resp.Body); err == nil {
@@ -119,14 +120,16 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 				converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType)))
 				err = fmt.Errorf("content (%s) from '%s' not supported", contentType, url)
 			}
-		} else if supportedFileMimeType(contentType) {
-			if converted, err = io.ReadAll(resp.Body); err != nil {
+		} else {
+			if converted, err = io.ReadAll(resp.Body); err == nil {
+				if matched, supported := gt.SupportedMimeType(converted); !supported {
+					converted = []byte(fmt.Sprintf(urlToTextFormat, url, matched, fmt.Sprintf("Content type '%s' not supported.", matched)))
+					err = fmt.Errorf("content (%s) from '%s' not supported", matched, url)
+				}
+			} else {
 				converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this file."))
 				err = fmt.Errorf("failed to read file (%s) from '%s': %s", contentType, url, err)
 			}
-		} else {
-			converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType)))
-			err = fmt.Errorf("content (%s) from '%s' not supported", contentType, url)
 		}
 	} else {
 		converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("HTTP Error %d", resp.StatusCode)))
@@ -152,82 +155,8 @@ func removeConsecutiveEmptyLines(input string) string {
 	return regex.ReplaceAllString(input, "\n")
 }
 
-// check if given file's mime type is supported
-//
-// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#supported_file_formats
-func supportedFileMimeType(mimeType string) bool {
-	return func(mimeType string) bool {
-		switch {
-		// images
-		//
-		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#image_formats
-		case slices.Contains([]string{
-			"image/png",
-			"image/jpeg",
-			"image/webp",
-			"image/heic",
-			"image/heif",
-		}, mimeType):
-			return true
-		// audios
-		//
-		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#audio_formats
-		case slices.Contains([]string{
-			"audio/wav",
-			"audio/mp3",
-			"audio/aiff",
-			"audio/aac",
-			"audio/ogg",
-			"audio/flac",
-		}, mimeType):
-			return true
-		// videos
-		//
-		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#video_formats
-		case slices.Contains([]string{
-			"video/mp4",
-			"video/mpeg",
-			"video/mov",
-			"video/avi",
-			"video/x-flv",
-			"video/mpg",
-			"video/webm",
-			"video/wmv",
-			"video/3gpp",
-		}, mimeType):
-			return true
-		// plain text formats
-		//
-		// https://ai.google.dev/gemini-api/docs/prompting_with_media?lang=go#plain_text_formats
-		case slices.Contains([]string{
-			"text/plain",
-			"text/html",
-			"text/css",
-			"text/javascript",
-			"application/x-javascript",
-			"text/x-typescript",
-			"application/x-typescript",
-			"text/csv",
-			"text/markdown",
-			"text/x-python",
-			"application/x-python-code",
-			"application/json",
-			"text/xml",
-			"application/rtf",
-			"text/rtf",
-
-			// FIXME: not stated in the document yet
-			"application/pdf",
-		}, mimeType):
-			return true
-		default:
-			return false
-		}
-	}(mimeType)
-}
-
-// check if given HTTP content type is supported
-func supportedHTTPContentType(contentType string) bool {
+// check if given HTTP content type is a supported text type
+func supportedTextContentType(contentType string) bool {
 	return func(contentType string) bool {
 		switch {
 		case strings.HasPrefix(contentType, "text/"):
