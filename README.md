@@ -80,7 +80,7 @@ $ gmn -p "tell me about these files" -f "./README.md" -f "./main.go"
 $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 
 # pipe the output of another command as the prompt
-$ echo "summarize the following list of files:\n`ls -al`" | gmn
+$ echo "summarize the following list of files:\n$(ls -al)" | gmn
 ```
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
