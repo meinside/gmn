@@ -22,9 +22,7 @@ with following content:
 ```json
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
-
   "google_ai_model": "gemini-1.5-flash-latest",
-  "replace_http_urls_in_prompt": false,
 }
 ```
 
@@ -34,7 +32,7 @@ You can get your Google AI API key [here](https://aistudio.google.com/app/apikey
 
 ### Fetch URL Contents from the Prompt
 
-Set `replace_http_urls_in_prompt` to true, then it will try fetching contents from all urls in the given prompt.
+Run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all urls in the given prompt.
 
 Supported content types are:
 
@@ -59,7 +57,6 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   },
 
   "google_ai_model": "gemini-1.5-flash-latest",
-  "replace_http_urls_in_prompt": false,
 }
 ```
 
@@ -80,9 +77,7 @@ $ gmn -p "summarize this csv file" -f "~/files/mydata.csv"
 $ gmn -p "tell me about these files" -f "./README.md" -f "./main.go"
 
 # generate with a text prompt which includes some urls in it 
-#
-# (set `replace_http_urls_in_prompt` to true)
-$ gmn -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
+$ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n`ls -al`" | gmn
