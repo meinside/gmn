@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"io"
 	"os"
 
 	"github.com/jessevdk/go-flags"
@@ -25,20 +25,49 @@ type params struct {
 
 // main
 func main() {
+	// read from standard input, if any
+	var stdin []byte
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		stdin, _ = io.ReadAll(os.Stdin)
+	}
+
+	// parse params,
 	var p params
 	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
-
 	if _, err := parser.Parse(); err == nil {
+		if len(stdin) > 0 { // if `prompt` is given from both standard input and parameter, warn the user about it
+			logMessage(verboseMedium, "Warning: `prompt` is given from both standard input and parameter; using the parameter.")
+		}
+
 		run(p)
 	} else {
 		if e, ok := err.(*flags.Error); ok {
-			if e.Type == flags.ErrRequired || e.Type == flags.ErrHelp {
-				parser.WriteHelp(os.Stdout)
+			if e.Type == flags.ErrRequired { // when required parameter (`prompt`) is missing,
+				if len(stdin) > 0 { // when `prompt` is given from standard input, use it
+					p.Prompt = string(stdin)
 
-				os.Exit(1)
+					run(p)
+				} else {
+					printHelpAndExit(parser)
+				}
+			} else if e.Type == flags.ErrHelp { // for help,
+				printHelpAndExit(parser)
 			}
 		}
 
-		fmt.Printf("Failed to parse flags: %s\n", err)
+		printErrorAndExit("Failed to parse flags: %s\n", err)
 	}
+}
+
+// print help message and exit(1)
+func printHelpAndExit(parser *flags.Parser) {
+	parser.WriteHelp(os.Stdout)
+	os.Exit(1)
+}
+
+// print error and exit(1)
+func printErrorAndExit(format string, a ...any) {
+	logMessage(verboseMaximum, format, a...)
+	os.Exit(1)
 }

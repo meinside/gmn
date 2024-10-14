@@ -66,7 +66,7 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
 ## Run
 
 ```bash
-# help message
+# show the help message
 $ gmn -h
 
 # generate with a text prompt
@@ -83,6 +83,9 @@ $ gmn -p "tell me about these files" -f "./README.md" -f "./main.go"
 #
 # (set `replace_http_urls_in_prompt` to true)
 $ gmn -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
+
+# pipe the output of another command as the prompt
+$ echo "summarize the following list of files:\n`ls -al`" | gmn
 ```
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.

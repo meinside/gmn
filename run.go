@@ -145,7 +145,7 @@ func resolveConfigFilepath(configFilepath *string) string {
 	return filepath.Join(os.Getenv("HOME"), ".config", appName, defaultConfigFilename)
 }
 
-// run with params
+// run with params (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
 func run(p params) {
 	var err error
 	var conf config
@@ -244,6 +244,9 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 
 				// print the number of tokens
 				logVerbose(verboseMinimum, vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
+
+				// success
+				os.Exit(0)
 			} else if data.Error != nil {
 				logAndExit(1, "Streaming failed: %s", data.Error)
 			}
