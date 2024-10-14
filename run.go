@@ -51,8 +51,7 @@ type config struct {
 
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 
-	ReplaceHTTPURLsInPrompt      bool `json:"replace_http_urls_in_prompt,omitempty"`
-	ReplaceHTTPURLTimeoutSeconds int  `json:"replace_http_url_timeout_seconds,omitempty"`
+	ReplaceHTTPURLTimeoutSeconds int `json:"replace_http_url_timeout_seconds,omitempty"`
 }
 
 // infisical setting struct
@@ -185,7 +184,7 @@ func run(p params) {
 
 	// replace urls in the prompt
 	promptFiles := map[string][]byte{}
-	if conf.ReplaceHTTPURLsInPrompt {
+	if p.ReplaceHTTPURLsInPrompt {
 		p.Prompt, promptFiles = replaceURLsInPrompt(conf, p)
 
 		logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", p.Prompt)

@@ -18,6 +18,5 @@
 
   "timeout_seconds": 300,
 
-  "replace_http_urls_in_prompt": false,
   "replace_http_url_timeout_seconds": 10,
 }
