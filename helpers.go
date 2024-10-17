@@ -69,13 +69,13 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, contentType, fmt.Errorf("failed to create http request: %s", err)
+		return nil, contentType, fmt.Errorf("failed to create http request: %w", err)
 	}
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, contentType, fmt.Errorf("failed to fetch contents from '%s': %s", url, err)
+		return nil, contentType, fmt.Errorf("failed to fetch contents from '%s': %w", url, err)
 	}
 	defer resp.Body.Close()
 
@@ -97,7 +97,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text())))
 				} else {
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this HTML document."))
-					err = fmt.Errorf("failed to read document (%s) from '%s': %s", contentType, url, err)
+					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
 				}
 			} else if strings.HasPrefix(contentType, "text/") {
 				var bytes []byte
@@ -106,7 +106,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes)))) // NOTE: removing redundant empty lines
 				} else {
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document."))
-					err = fmt.Errorf("failed to read document (%s) from '%s': %s", contentType, url, err)
+					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
 				}
 			} else if strings.HasPrefix(contentType, "application/json") {
 				var bytes []byte
@@ -114,7 +114,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, string(bytes)))
 				} else {
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document."))
-					err = fmt.Errorf("failed to read document (%s) from '%s': %s", contentType, url, err)
+					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
 				}
 			} else {
 				converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType)))
@@ -128,7 +128,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 				}
 			} else {
 				converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this file."))
-				err = fmt.Errorf("failed to read file (%s) from '%s': %s", contentType, url, err)
+				err = fmt.Errorf("failed to read file (%s) from '%s': %w", contentType, url, err)
 			}
 		}
 	} else {

@@ -100,7 +100,7 @@ func readConfig(configFilepath string) (conf config, err error) {
 
 					_, err = client.Auth().UniversalAuthLogin(conf.Infisical.ClientID, conf.Infisical.ClientSecret)
 					if err != nil {
-						return config{}, fmt.Errorf("failed to authenticate with Infisical: %s", err)
+						return config{}, fmt.Errorf("failed to authenticate with Infisical: %w", err)
 					}
 
 					var keyPath string
@@ -119,7 +119,7 @@ func readConfig(configFilepath string) (conf config, err error) {
 						val := secret.SecretValue
 						conf.GoogleAIAPIKey = &val
 					} else {
-						return config{}, fmt.Errorf("failed to retrieve `google_ai_api_key` from Infisical: %s", err)
+						return config{}, fmt.Errorf("failed to retrieve `google_ai_api_key` from Infisical: %w", err)
 					}
 				}
 
@@ -283,12 +283,12 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 				// success
 				os.Exit(0)
 			} else if data.Error != nil {
-				logAndExit(1, "Streaming failed: %s", data.Error)
+				logAndExit(1, "Streaming failed: %s", gt.ErrToStr(data.Error))
 			}
 		},
 		opts,
 	); err != nil {
-		logAndExit(1, "Generation failed: %s", err)
+		logAndExit(1, "Generation failed: %s", gt.ErrToStr(err))
 	}
 }
 
