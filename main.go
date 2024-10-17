@@ -13,10 +13,13 @@ type params struct {
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
 	// prompt and filepaths for generation
-	Prompt            string    `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)" required:"true"`
-	Filepaths         []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
-	CacheContext      bool      `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
-	CachedContextName *string   `short:"n" long:"context-name" description:"Name of the cached context"`
+	Prompt    string    `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)" required:"true"`
+	Filepaths []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
+
+	// for cached contexts
+	CacheContext       bool    `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
+	CachedContextName  *string `short:"N" long:"context-name" description:"Name of the cached context to use"`
+	ListCachedContexts bool    `short:"L" long:"list-cached-contexts" description:"List all cached contexts"`
 
 	// for gemini model
 	GoogleAIAPIKey    *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
@@ -48,7 +51,7 @@ func main() {
 			logMessage(verboseMedium, "Warning: `prompt` is given from both standard input and parameter; using the parameter.")
 		}
 
-		run(p)
+		run(parser, p)
 	} else {
 		if e, ok := err.(*flags.Error); ok {
 			if e.Type == flags.ErrRequired { // when required parameter (`prompt`) is missing,
@@ -56,7 +59,9 @@ func main() {
 					p.Prompt = string(stdin)
 
 					// run with the params
-					run(p)
+					run(parser, p)
+				} else if p.ListCachedContexts { // when listing cached contexts,
+					run(parser, p)
 				} else {
 					printHelpAndExit(parser)
 				}

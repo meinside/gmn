@@ -15,6 +15,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/fatih/color"
 	"github.com/jwalton/go-supportscolor"
+
 	gt "github.com/meinside/gemini-things-go"
 )
 
