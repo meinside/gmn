@@ -8,7 +8,7 @@ require (
 	github.com/infisical/go-sdk v0.3.3
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.0.15
+	github.com/meinside/gemini-things-go v0.1.0
 	github.com/tailscale/hujson v0.0.0-20241010212012-29efb4a0184b
 )
 
@@ -22,7 +22,7 @@ require (
 	cloud.google.com/go/longrunning v0.6.1 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.32.2 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.27.43 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.28.0 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.41 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.17 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.21 // indirect

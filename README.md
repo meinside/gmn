@@ -22,7 +22,7 @@ with following content:
 ```json
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
-  "google_ai_model": "gemini-1.5-flash-latest",
+  "google_ai_model": "gemini-1.5-flash-002",
 }
 ```
 
@@ -56,7 +56,7 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
     "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
   },
 
-  "google_ai_model": "gemini-1.5-flash-latest",
+  "google_ai_model": "gemini-1.5-flash-002",
 }
 ```
 
@@ -81,6 +81,10 @@ $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https:
 
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
+
+# cache context and reuse it
+$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -p "caching context...")"
+$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -n="$C_C_NAME"
 ```
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.

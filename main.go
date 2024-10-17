@@ -9,18 +9,25 @@ import (
 
 // parameter definitions
 type params struct {
-	Prompt    string    `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)" required:"true"`
-	Filepaths []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
-
+	// config file's path
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
-	GoogleAIAPIKey          *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
-	GoogleAIModel           *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
-	SystemInstruction       *string `short:"s" long:"system" description:"System instruction (can be omitted)"`
+	// prompt and filepaths for generation
+	Prompt            string    `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)" required:"true"`
+	Filepaths         []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
+	CacheContext      bool      `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
+	CachedContextName *string   `short:"n" long:"context-name" description:"Name of the cached context"`
+
+	// for gemini model
+	GoogleAIAPIKey    *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
+	GoogleAIModel     *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
+	SystemInstruction *string `short:"s" long:"system" description:"System instruction (can be omitted)"`
+
+	// for fetching contents
 	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representation"`
+	UserAgent               *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
-	UserAgent *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
-
+	// other options
 	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs"`
 }
 
@@ -48,6 +55,7 @@ func main() {
 				if len(stdin) > 0 { // when `prompt` is given from standard input, use it
 					p.Prompt = string(stdin)
 
+					// run with the params
 					run(p)
 				} else {
 					printHelpAndExit(parser)
