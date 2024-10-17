@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -24,7 +25,7 @@ const (
 	appName = "gmn"
 
 	defaultConfigFilename          = "config.json"
-	defaultGoogleAIModel           = "gemini-1.5-flash-latest"
+	defaultGoogleAIModel           = "gemini-1.5-flash-002"
 	defaultSystemInstructionFormat = `You are a CLI which uses Google Gemini API(model: %[1]s).
 
 Current datetime is %[2]s, and hostname is '%[3]s'.
@@ -193,16 +194,44 @@ func run(p params) {
 	logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
 
 	// do the actual job
-	doGeneration(context.TODO(), conf.TimeoutSeconds, *p.GoogleAIAPIKey, *p.GoogleAIModel, *p.SystemInstruction, p.Prompt, promptFiles, p.Filepaths, p.Verbose)
+	if p.CacheContext {
+		// cache context
+		cacheContext(context.TODO(),
+			conf.TimeoutSeconds,
+			*p.GoogleAIAPIKey,
+			*p.GoogleAIModel,
+			*p.SystemInstruction,
+			p.Prompt,
+			promptFiles,
+			p.Filepaths)
+	} else {
+		// do the generation
+		doGeneration(context.TODO(),
+			conf.TimeoutSeconds,
+			*p.GoogleAIAPIKey,
+			*p.GoogleAIModel,
+			*p.SystemInstruction,
+			p.Prompt,
+			promptFiles,
+			p.Filepaths,
+			p.CachedContextName,
+			p.Verbose)
+	}
 }
 
 // generate with given things
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, vb []bool) {
+func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
 	// gemini things client
-	gtc := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	if err != nil {
+		logAndExit(1, "Failed to initialize client: %s", err)
+	}
+	defer gtc.Close()
+
+	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
@@ -230,6 +259,13 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 		}
 	}()
 
+	// generation options
+	opts := &gt.GenerationOptions{}
+	if cachedContextName != nil {
+		name := strings.TrimSpace(*cachedContextName)
+		opts.CachedContextName = &name
+	}
+
 	// generate
 	if err := gtc.GenerateStreamed(
 		ctx,
@@ -250,9 +286,57 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 				logAndExit(1, "Streaming failed: %s", data.Error)
 			}
 		},
-		nil,
+		opts,
 	); err != nil {
 		logAndExit(1, "Generation failed: %s", err)
+	}
+}
+
+// cache context
+func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt string, promptFiles map[string][]byte, filepaths []*string) {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	// gemini things client
+	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	if err != nil {
+		logAndExit(1, "Failed to initialize client: %s", err)
+	}
+	defer gtc.Close()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetSystemInstructionFunc(func() string {
+		return systemInstruction
+	})
+
+	// read & close files
+	files := []io.Reader{}
+	filesToClose := []*os.File{}
+	for _, file := range promptFiles {
+		files = append(files, bytes.NewReader(file))
+	}
+	for _, fp := range filepaths {
+		if opened, err := os.Open(*fp); err == nil {
+			files = append(files, opened)
+			filesToClose = append(filesToClose, opened)
+		} else {
+			logAndExit(1, "Failed to open file: %s", err)
+		}
+	}
+	defer func() {
+		for _, toClose := range filesToClose {
+			if err := toClose.Close(); err != nil {
+				logError("Failed to close file: %s", err)
+			}
+		}
+	}()
+
+	// cache context and print the cached context's name
+	if name, err := gtc.CacheContext(ctx, &systemInstruction, &prompt, files, nil, nil); err == nil {
+		fmt.Print(name)
+	} else {
+		logError("Failed to cache context: %s", err)
 	}
 }
 
