@@ -83,8 +83,13 @@ $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https:
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
 
 # cache context and reuse it
-$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -p "caching context...")"
-$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -n="$C_C_NAME"
+#
+# NOTE: when caching, `-p` parameter will be used as a cached context's display name
+$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -p "cached system instruction")"
+# list cached contexts
+$ gmn -L
+# generate with a cached context
+$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -N="$C_C_NAME"
 ```
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
