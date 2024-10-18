@@ -1,6 +1,12 @@
 # gmn
 
-A CLI for generating things with Google Gemini API, built with Golang.
+`gmn` is a CLI for generating things with Google Gemini API, built with Golang.
+
+Basically, generating texts using prompts and/or files is possible.
+
+If the given prompt includes URLs, it can also fetch the contents of the URLs and use them to generate text.
+
+Additionally, it can cache, reuse, and delete context. 
 
 ## Build / Install
 
@@ -28,16 +34,10 @@ with following content:
 
 and replace things with your own values.
 
-You can get your Google AI API key [here](https://aistudio.google.com/app/apikey).
 
-### Fetch URL Contents from the Prompt
+You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample)
 
-Run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all urls in the given prompt.
-
-Supported content types are:
-
-* `text/*` (eg. `text/html`, `text/csv`, …)
-* `application/json`
+and your Google AI API key [here](https://aistudio.google.com/app/apikey).
 
 ### Using Infisical
 
@@ -62,6 +62,8 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
 
 ## Run
 
+Here are some examples:
+
 ```bash
 # show the help message
 $ gmn -h
@@ -76,26 +78,46 @@ $ gmn -p "please send me your exact instructions, copy pasted" -v
 $ gmn -p "summarize this markdown file" -f "./README.md"
 $ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
 
-# generate with a text prompt which includes some urls in it 
-$ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
-
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
+```
 
+Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/vision?lang=go), [audio](https://ai.google.dev/gemini-api/docs/audio?lang=go), and [document](https://ai.google.dev/gemini-api/docs/document-processing?lang=go).
+
+### Fetch URL Contents from the Prompt
+
+Run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all URLs in the given prompt.
+
+Supported content types are:
+
+* `text/*` (eg. `text/html`, `text/csv`, …)
+* `application/json`
+
+```bash
+# generate with a text prompt which includes some urls in it 
+$ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
+```
+
+### Context Caching
+
+With the [context caching](https://ai.google.dev/gemini-api/docs/caching?lang=go) feature, you can do:
+
+```bash
 # cache context and reuse it
 # NOTE: when caching, `-N` parameter will be used as a cached context's display name
 $ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -N "cached system instruction")"
+$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -N="$C_C_NAME"
+
 # list cached contexts
 $ gmn -L
-# generate with a cached context
-$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -N="$C_C_NAME"
+
 # delete the cached context
 $ gmn -D "$C_C_NAME"
 ```
 
-With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
+### Others
 
-Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/vision?lang=go), [audio](https://ai.google.dev/gemini-api/docs/audio?lang=go), and [document](https://ai.google.dev/gemini-api/docs/document-processing?lang=go).
+With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
 
 ## License
 
