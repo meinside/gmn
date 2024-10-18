@@ -79,7 +79,11 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 	if err != nil {
 		return nil, contentType, fmt.Errorf("failed to fetch contents from '%s': %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logError("Failed to close response body: %s", err)
+		}
+	}()
 
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
@@ -218,7 +222,7 @@ func logMessage(level verbosity, format string, v ...any) {
 
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
 		c := color.New(c)
-		c.Printf(format, v...)
+		_, _ = c.Printf(format, v...)
 	} else {
 		fmt.Printf(format, v...)
 	}
@@ -232,7 +236,7 @@ func logError(format string, v ...any) {
 
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
 		c := color.New(color.FgRed)
-		c.Printf(format, v...)
+		_, _ = c.Printf(format, v...)
 	} else {
 		fmt.Printf(format, v...)
 	}

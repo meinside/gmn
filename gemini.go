@@ -26,7 +26,11 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	if err != nil {
 		logAndExit(1, "Failed to initialize client: %s", err)
 	}
-	defer gtc.Close()
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
 
 	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
@@ -101,7 +105,11 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	if err != nil {
 		logAndExit(1, "Failed to initialize client: %s", err)
 	}
-	defer gtc.Close()
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
 
 	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
@@ -151,7 +159,11 @@ func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey,
 	if err != nil {
 		logAndExit(1, "Failed to initialize client: %s", err)
 	}
-	defer gtc.Close()
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
@@ -187,7 +199,11 @@ func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey
 	if err != nil {
 		logAndExit(1, "Failed to initialize client: %s", err)
 	}
-	defer gtc.Close()
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
 		logAndExit(1, "Failed to delete context: %s", err)
