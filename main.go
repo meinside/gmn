@@ -16,24 +16,24 @@ type params struct {
 	// config file's path
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
+	// for gemini model
+	GoogleAIAPIKey *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
+	GoogleAIModel  *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
+
 	// prompt and filepaths for generation
-	Prompt    *string   `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)"`
-	Filepaths []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
+	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
+	Prompt            *string   `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)"`
+	Filepaths         []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
+
+	// for fetching contents
+	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representation"`
+	UserAgent               *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 	// for cached contexts
 	CacheContext        bool    `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
 	ListCachedContexts  bool    `short:"L" long:"list-cached-contexts" description:"List all cached contexts"`
 	CachedContextName   *string `short:"N" long:"context-name" description:"Name of the cached context to use"`
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
-
-	// for gemini model
-	GoogleAIAPIKey    *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
-	GoogleAIModel     *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
-	SystemInstruction *string `short:"s" long:"system" description:"System instruction (can be omitted)"`
-
-	// for fetching contents
-	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representation"`
-	UserAgent               *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 	// other options
 	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs"`
