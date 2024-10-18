@@ -3,28 +3,21 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	infisical "github.com/infisical/go-sdk"
 	"github.com/infisical/go-sdk/packages/models"
 	"github.com/jessevdk/go-flags"
 	"github.com/tailscale/hujson"
-
-	gt "github.com/meinside/gemini-things-go"
 )
 
 const (
-	appName = "gmn"
-
 	defaultConfigFilename          = "config.json"
 	defaultGoogleAIModel           = "gemini-1.5-flash-002"
 	defaultSystemInstructionFormat = `You are a CLI which uses Google Gemini API(model: %[1]s).
@@ -184,29 +177,20 @@ func run(parser *flags.Parser, p params) {
 		logAndExit(1, "Google AI API Key is missing")
 	}
 
-	if len(p.Prompt) > 0 {
+	if p.hasPrompt() { // if prompt is given,
 		// replace urls in the prompt
+		replacedPrompt := *p.Prompt
 		promptFiles := map[string][]byte{}
 		if p.ReplaceHTTPURLsInPrompt {
-			p.Prompt, promptFiles = replaceURLsInPrompt(conf, p)
+			replacedPrompt, promptFiles = replaceURLsInPrompt(conf, p)
+			p.Prompt = &replacedPrompt
 
-			logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", p.Prompt)
+			logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", replacedPrompt)
 		}
 
 		logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
 
-		// do the actual job
-		if p.CacheContext {
-			if p.CachedContextName != nil {
-				logMessage(verboseMedium, "Warning: both `cache-context` and `context-name` is given; ignoring `context-name`.")
-			}
-
-			// NOTE: using `prompt` as a cached context's display name
-			var cachedContextDisplayName *string = nil
-			if len(p.Prompt) <= 128 {
-				cachedContextDisplayName = &p.Prompt
-			}
-
+		if p.CacheContext { // cache context
 			// cache context
 			cacheContext(context.TODO(),
 				conf.TimeoutSeconds,
@@ -216,185 +200,51 @@ func run(parser *flags.Parser, p params) {
 				p.Prompt,
 				promptFiles,
 				p.Filepaths,
-				cachedContextDisplayName)
-		} else {
-			// do the generation
+				p.CachedContextName,
+				p.Verbose)
+		} else { // generate
 			doGeneration(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
 				*p.SystemInstruction,
-				p.Prompt,
+				*p.Prompt,
 				promptFiles,
 				p.Filepaths,
 				p.CachedContextName,
 				p.Verbose)
 		}
-	} else {
-		if p.ListCachedContexts {
+	} else { // if prompt is not given
+		if p.CacheContext { // cache context
+			cacheContext(context.TODO(),
+				conf.TimeoutSeconds,
+				*p.GoogleAIAPIKey,
+				*p.GoogleAIModel,
+				*p.SystemInstruction,
+				nil, // prompt not given
+				nil, // prompt not given
+				p.Filepaths,
+				p.CachedContextName,
+				p.Verbose)
+		} else if p.ListCachedContexts { // list cached contexts
 			listCachedContexts(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel)
-		} else {
+				*p.GoogleAIModel,
+				p.Verbose)
+		} else if p.DeleteCachedContext != nil { // delete cached context
+			deleteCachedContext(context.TODO(),
+				conf.TimeoutSeconds,
+				*p.GoogleAIAPIKey,
+				*p.GoogleAIModel,
+				*p.DeleteCachedContext,
+				p.Verbose)
+		} else { // otherwise,
+			logMessage(verboseMedium, "Parameter `prompt` is missing for your requested task.")
+
 			printHelpAndExit(parser)
 		}
 	}
-}
-
-// generate with given things
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
-	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
-	}
-	defer gtc.Close()
-
-	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
-	gtc.SetSystemInstructionFunc(func() string {
-		return systemInstruction
-	})
-
-	// read & close files
-	files := []io.Reader{}
-	filesToClose := []*os.File{}
-	for _, file := range promptFiles {
-		files = append(files, bytes.NewReader(file))
-	}
-	for _, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files = append(files, opened)
-			filesToClose = append(filesToClose, opened)
-		} else {
-			logAndExit(1, "Failed to open file: %s", err)
-		}
-	}
-	defer func() {
-		for _, toClose := range filesToClose {
-			if err := toClose.Close(); err != nil {
-				logError("Failed to close file: %s", err)
-			}
-		}
-	}()
-
-	// generation options
-	opts := &gt.GenerationOptions{}
-	if cachedContextName != nil {
-		name := strings.TrimSpace(*cachedContextName)
-		opts.CachedContextName = &name
-	}
-
-	// generate
-	if err := gtc.GenerateStreamed(
-		ctx,
-		prompt,
-		files,
-		func(data gt.StreamCallbackData) {
-			if data.TextDelta != nil {
-				fmt.Print(*data.TextDelta)
-			} else if data.NumTokens != nil {
-				fmt.Print("\n") // FIXME: append a new line to the end of generated output
-
-				// print the number of tokens
-				logVerbose(verboseMinimum, vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
-
-				// success
-				os.Exit(0)
-			} else if data.Error != nil {
-				logAndExit(1, "Streaming failed: %s", gt.ErrToStr(data.Error))
-			}
-		},
-		opts,
-	); err != nil {
-		logAndExit(1, "Generation failed: %s", gt.ErrToStr(err))
-	}
-}
-
-// cache context
-func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextDisplayName *string) {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
-	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
-	}
-	defer gtc.Close()
-
-	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
-	gtc.SetSystemInstructionFunc(func() string {
-		return systemInstruction
-	})
-
-	// read & close files
-	files := []io.Reader{}
-	filesToClose := []*os.File{}
-	for _, file := range promptFiles {
-		files = append(files, bytes.NewReader(file))
-	}
-	for _, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files = append(files, opened)
-			filesToClose = append(filesToClose, opened)
-		} else {
-			logAndExit(1, "Failed to open file: %s", err)
-		}
-	}
-	defer func() {
-		for _, toClose := range filesToClose {
-			if err := toClose.Close(); err != nil {
-				logError("Failed to close file: %s", err)
-			}
-		}
-	}()
-
-	// cache context and print the cached context's name
-	if name, err := gtc.CacheContext(ctx, &systemInstruction, &prompt, files, nil, nil, cachedContextDisplayName); err == nil {
-		fmt.Print(name)
-	} else {
-		logError("Failed to cache context: %s", err)
-	}
-}
-
-// list cached contexts
-func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string) {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
-	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
-	}
-	defer gtc.Close()
-
-	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
-		if len(listed) > 0 {
-			fmt.Printf("%-28s  %-28s %-20s %s\n", "Name", "Model", "Expires", "Display Name")
-
-			for _, content := range listed {
-				fmt.Printf("%-28s  %-28s %-20s %s\n",
-					content.Name,
-					content.Model,
-					content.Expiration.ExpireTime.Format("2006-01-02 15:04 MST"),
-					content.DisplayName)
-			}
-		} else {
-			logAndExit(1, "No cached contexts.")
-		}
-	} else {
-		logAndExit(1, "Failed to list cached contexts: %s", err)
-	}
-
-	// success
-	os.Exit(0)
 }
 
 // generate a default system instruction with given configuration

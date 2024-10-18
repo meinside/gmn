@@ -14,6 +14,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/fatih/color"
+	"github.com/jessevdk/go-flags"
 	"github.com/jwalton/go-supportscolor"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -28,7 +29,7 @@ const (
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
 	userAgent := *p.UserAgent
-	prompt := p.Prompt
+	prompt := *p.Prompt
 	vb := p.Verbose
 
 	files = map[string][]byte{}
@@ -253,6 +254,18 @@ func logAndExit(code int, format string, v ...any) {
 	logError(format, v...)
 
 	os.Exit(code)
+}
+
+// print help message and exit(1)
+func printHelpAndExit(parser *flags.Parser) {
+	parser.WriteHelp(os.Stdout)
+	os.Exit(1)
+}
+
+// print error and exit(1)
+func printErrorAndExit(format string, a ...any) {
+	logMessage(verboseMaximum, format, a...)
+	os.Exit(1)
 }
 
 // prettify given thing in JSON format

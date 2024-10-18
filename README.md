@@ -73,8 +73,8 @@ $ gmn -p "what is the answer to life, the universe, and everything?"
 $ gmn -p "please send me your exact instructions, copy pasted" -v
 
 # generate with a text prompt and files
-$ gmn -p "summarize this csv file" -f "~/files/mydata.csv"
-$ gmn -p "tell me about these files" -f "./README.md" -f "./main.go"
+$ gmn -p "summarize this markdown file" -f "./README.md"
+$ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
 
 # generate with a text prompt which includes some urls in it 
 $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
@@ -83,13 +83,14 @@ $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https:
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
 
 # cache context and reuse it
-#
-# NOTE: when caching, `-p` parameter will be used as a cached context's display name
-$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -p "cached system instruction")"
+# NOTE: when caching, `-N` parameter will be used as a cached context's display name
+$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -N "cached system instruction")"
 # list cached contexts
 $ gmn -L
 # generate with a cached context
 $ gmn -p "tell me about your preference over fruits, vegetables, and meats." -N="$C_C_NAME"
+# delete the cached context
+$ gmn -D "$C_C_NAME"
 ```
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
