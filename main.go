@@ -110,7 +110,9 @@ func main() {
 		run(parser, p)
 	} else {
 		if e, ok := err.(*flags.Error); ok {
-			logMessage(verboseMedium, "Input error: %s", e.Error())
+			if e.Type != flags.ErrHelp {
+				logMessage(verboseMedium, "Input error: %s", e.Error())
+			}
 
 			printHelpAndExit(parser)
 		}
