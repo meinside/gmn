@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/fatih/color v1.17.0
-	github.com/infisical/go-sdk v0.3.3
+	github.com/infisical/go-sdk v0.3.6
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
 	github.com/meinside/gemini-things-go v0.1.4
