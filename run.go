@@ -88,7 +88,7 @@ func readConfig(configFilepath string) (conf config, err error) {
 
 				if conf.GoogleAIAPIKey == nil && conf.Infisical != nil {
 					// read token and api key from infisical
-					client := infisical.NewInfisicalClient(infisical.Config{
+					client := infisical.NewInfisicalClient(context.TODO(), infisical.Config{
 						SiteUrl: "https://app.infisical.com",
 					})
 
@@ -188,7 +188,7 @@ func run(parser *flags.Parser, p params) {
 			logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", replacedPrompt)
 		}
 
-		logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p))
+		logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p.redact()))
 
 		if p.CacheContext { // cache context
 			// cache context
@@ -245,6 +245,13 @@ func run(parser *flags.Parser, p params) {
 			printHelpAndExit(parser)
 		}
 	}
+}
+
+// redact params for printing to stdout
+func (p *params) redact() params {
+	copied := *p
+	copied.GoogleAIAPIKey = ptr("REDACTED")
+	return copied
 }
 
 // generate a default system instruction with given configuration
