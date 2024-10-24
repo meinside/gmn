@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -39,14 +40,16 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	})
 
 	// read & close files
-	files := []io.Reader{}
+	files := map[string]io.Reader{}
 	filesToClose := []*os.File{}
-	for _, file := range promptFiles {
-		files = append(files, bytes.NewReader(file))
+	i := 0
+	for url, file := range promptFiles {
+		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
+		i++
 	}
-	for _, fp := range filepaths {
+	for i, fp := range filepaths {
 		if opened, err := os.Open(*fp); err == nil {
-			files = append(files, opened)
+			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
 			filesToClose = append(filesToClose, opened)
 		} else {
 			logAndExit(1, "Failed to open file: %s", err)
@@ -118,14 +121,16 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	})
 
 	// read & close files
-	files := []io.Reader{}
+	files := map[string]io.Reader{}
 	filesToClose := []*os.File{}
-	for _, file := range promptFiles {
-		files = append(files, bytes.NewReader(file))
+	i := 0
+	for url, file := range promptFiles {
+		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
+		i++
 	}
-	for _, fp := range filepaths {
+	for i, fp := range filepaths {
 		if opened, err := os.Open(*fp); err == nil {
-			files = append(files, opened)
+			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
 			filesToClose = append(filesToClose, opened)
 		} else {
 			logAndExit(1, "Failed to open file: %s", err)
