@@ -20,9 +20,9 @@ import (
 const (
 	defaultConfigFilename          = "config.json"
 	defaultGoogleAIModel           = "gemini-1.5-flash-002"
-	defaultSystemInstructionFormat = `You are a CLI which uses Google Gemini API(model: %[1]s).
+	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
 
-Current datetime is %[2]s, and hostname is '%[3]s'.
+Current datetime is %[3]s, and hostname is '%[4]s'.
 
 Respond to user messages according to the following principles:
 - Do not repeat the user's request and return only the response to the user's request.
@@ -260,6 +260,7 @@ func defaultSystemInstruction(conf config) string {
 	hostname, _ := os.Hostname()
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
+		appName,
 		*conf.GoogleAIModel,
 		datetime,
 		hostname,
