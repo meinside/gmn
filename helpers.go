@@ -260,10 +260,10 @@ func logAndExit(code int, format string, v ...any) {
 	os.Exit(code)
 }
 
-// print help message and exit(1)
-func printHelpAndExit(parser *flags.Parser) {
+// print help message and exit with given `code`
+func printHelpAndExit(code int, parser *flags.Parser) {
 	parser.WriteHelp(os.Stdout)
-	os.Exit(1)
+	os.Exit(code)
 }
 
 // print error and exit(1)
