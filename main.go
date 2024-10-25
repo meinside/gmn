@@ -103,18 +103,21 @@ func main() {
 		if p.multipleTaskRequested() {
 			logMessage(verboseMaximum, "Input error: multiple tasks were requested at a time.")
 
-			printHelpAndExit(parser)
+			printHelpAndExit(1, parser)
 		}
 
 		// run with params
 		run(parser, p)
 	} else {
 		if e, ok := err.(*flags.Error); ok {
+			helpExitCode := 0
 			if e.Type != flags.ErrHelp {
+				helpExitCode = 1
+
 				logMessage(verboseMedium, "Input error: %s", e.Error())
 			}
 
-			printHelpAndExit(parser)
+			printHelpAndExit(helpExitCode, parser)
 		}
 
 		printErrorAndExit("Failed to parse flags: %s\n", err)

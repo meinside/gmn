@@ -242,7 +242,7 @@ func run(parser *flags.Parser, p params) {
 		} else { // otherwise,
 			logMessage(verboseMedium, "Parameter `prompt` is missing for your requested task.")
 
-			printHelpAndExit(parser)
+			printHelpAndExit(1, parser)
 		}
 	}
 }
