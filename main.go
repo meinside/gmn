@@ -95,7 +95,11 @@ func main() {
 			if p.Prompt == nil {
 				p.Prompt = ptr(string(stdin))
 			} else {
-				logMessage(verboseMedium, "Warning: `prompt` is given from both standard input and parameter; using the parameter.")
+				// merge prompts from stdin and parameter
+				merged := string(stdin) + "\n\n" + *p.Prompt
+				p.Prompt = ptr(merged)
+
+				logVerbose(verboseMedium, p.Verbose, "merged prompt: %s\n\n", merged)
 			}
 		}
 

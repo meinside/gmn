@@ -80,6 +80,9 @@ $ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
 
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
+
+# if prompts are both given from stdin and prompt, they are merged
+$ ls -al | gmn -p "what is the largest file in the list, and how big is it?"
 ```
 
 Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/vision?lang=go), [audio](https://ai.google.dev/gemini-api/docs/audio?lang=go), and [document](https://ai.google.dev/gemini-api/docs/document-processing?lang=go).
