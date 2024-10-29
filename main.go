@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"strings"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -23,10 +24,10 @@ type params struct {
 	// prompt and filepaths for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
 	Prompt            *string   `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)"`
-	Filepaths         []*string `short:"f" long:"filepath" description:"Path(s) of file(s)"`
+	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file (can be used multiple times)"`
 
 	// for fetching contents
-	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representation"`
+	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`
 	UserAgent               *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 	// for cached contexts
@@ -36,7 +37,7 @@ type params struct {
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
 	// other options
-	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs"`
+	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 }
 
 // check if prompt is given in the params
@@ -90,7 +91,7 @@ func main() {
 	// parse params,
 	var p params
 	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
-	if _, err := parser.Parse(); err == nil {
+	if remaining, err := parser.Parse(); err == nil {
 		if len(stdin) > 0 {
 			if p.Prompt == nil {
 				p.Prompt = ptr(string(stdin))
@@ -106,6 +107,13 @@ func main() {
 		// check if multiple tasks were requested at a time
 		if p.multipleTaskRequested() {
 			logMessage(verboseMaximum, "Input error: multiple tasks were requested at a time.")
+
+			printHelpAndExit(1, parser)
+		}
+
+		// check if there was any parameter without flag
+		if len(remaining) > 0 {
+			logMessage(verboseMaximum, "Input error: parameters without flags: %s", strings.Join(remaining, " "))
 
 			printHelpAndExit(1, parser)
 		}
