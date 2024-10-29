@@ -15,7 +15,9 @@ import (
 	gt "github.com/meinside/gemini-things-go"
 )
 
-// generate with given things (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
+// generate text with given things
+//
+// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
 func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) {
 	logVerbose(verboseMedium, vb, "generating...")
 
@@ -96,7 +98,9 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	}
 }
 
-// cache context (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
+// cache context
+//
+// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
 func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt *string, promptFiles map[string][]byte, filepaths []*string, cachedContextDisplayName *string, vb []bool) {
 	logVerbose(verboseMedium, vb, "caching context...")
 
@@ -152,7 +156,9 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	}
 }
 
-// list cached contexts (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
+// list cached contexts
+//
+// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
 func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, vb []bool) {
 	logVerbose(verboseMedium, vb, "listing cached contexts...")
 
@@ -192,7 +198,9 @@ func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey,
 	os.Exit(0)
 }
 
-// delete cached context (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
+// delete cached context
+//
+// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
 func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, cachedContextName string, vb []bool) {
 	logVerbose(verboseMedium, vb, "deleting cached context...")
 

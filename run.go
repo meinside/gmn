@@ -245,6 +245,9 @@ func run(parser *flags.Parser, p params) {
 			printHelpAndExit(1, parser)
 		}
 	}
+
+	// NOTE: should not reach here
+	logAndExit(1, "Exiting with unhandled result.")
 }
 
 // redact params for printing to stdout
