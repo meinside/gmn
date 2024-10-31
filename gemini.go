@@ -96,6 +96,9 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	); err != nil {
 		logAndExit(1, "Generation failed: %s", gt.ErrToStr(err))
 	}
+
+	// not reachable
+	logAndExit(1, "Generation finished without proper handling of results.")
 }
 
 // cache context
@@ -154,6 +157,9 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	} else {
 		logError("Failed to cache context: %s", err)
 	}
+
+	// success
+	os.Exit(0)
 }
 
 // list cached contexts
