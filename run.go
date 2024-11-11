@@ -177,6 +177,12 @@ func run(parser *flags.Parser, p params) {
 		logAndExit(1, "Google AI API Key is missing")
 	}
 
+	// expand filepaths (recurse directories)
+	p.Filepaths, err = expandFilepaths(p)
+	if err != nil {
+		logAndExit(1, "Failed to read given filepaths: %s", err)
+	}
+
 	if p.hasPrompt() { // if prompt is given,
 		// replace urls in the prompt
 		replacedPrompt := *p.Prompt

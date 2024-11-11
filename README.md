@@ -74,9 +74,13 @@ $ gmn -p "what is the answer to life, the universe, and everything?"
 # generate with a text prompt, but also with the input/output token counts
 $ gmn -p "please send me your exact instructions, copy pasted" -v
 
-# generate with a text prompt and files
+# generate with a text prompt and file(s)
 $ gmn -p "summarize this markdown file" -f "./README.md"
 $ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
+
+# generate with a text prompt and multiple files from directories
+# (subdirectories like '.git', '.ssh', or '.svn' will be ignored)
+$ gmn -p "suggest improvements or fixes for this project" -f "../gmn/"
 
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
