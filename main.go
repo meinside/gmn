@@ -24,7 +24,7 @@ type params struct {
 	// prompt and filepaths for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
 	Prompt            *string   `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)"`
-	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file (can be used multiple times)"`
+	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
 
 	// for fetching contents
 	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`

@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,6 +28,86 @@ const (
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
 )
 
+// directory names to ignore while recursing directories
+var _dirNamesToIgnore = []string{
+	".git",
+	".ssh",
+	".svn",
+}
+
+// returns all files in given directory
+func subFiles(dir string) ([]*string, error) {
+	var files []*string
+	if entries, err := os.ReadDir(dir); err == nil {
+		for _, entry := range entries {
+			dirPath := filepath.Join(dir, entry.Name())
+
+			if entry.IsDir() {
+				if slices.Contains(_dirNamesToIgnore, entry.Name()) {
+					logMessage(verboseMedium, "Ignoring directory '%s'", dirPath)
+
+					continue
+				}
+
+				if subFiles, err := subFiles(filepath.Join(dir, entry.Name())); err == nil {
+					files = append(files, subFiles...)
+				} else {
+					return nil, err
+				}
+			} else {
+				files = append(files, &dirPath)
+			}
+		}
+	} else {
+		return nil, err
+	}
+	return files, nil
+}
+
+// expand given filepaths (expand directories with their sub files)
+func expandFilepaths(p params) (expanded []*string, err error) {
+	filepaths := p.Filepaths
+	if filepaths == nil {
+		return nil, nil
+	}
+
+	expanded = []*string{}
+	for _, fp := range filepaths {
+		if fp != nil {
+			if stat, err := os.Stat(*fp); err == nil {
+				if stat.IsDir() {
+					if files, err := subFiles(*fp); err == nil {
+						expanded = append(expanded, files...)
+					} else {
+						return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
+					}
+				} else {
+					expanded = append(expanded, fp)
+				}
+			} else {
+				return nil, fmt.Errorf("failed to stat '%s': %w", *fp, err)
+			}
+		}
+	}
+
+	filtered := []*string{}
+	for _, fp := range expanded {
+		if fp != nil {
+			if matched, supported, err := gt.SupportedMimeTypePath(*fp); err == nil {
+				if supported {
+					filtered = append(filtered, fp)
+				} else {
+					logMessage(verboseMedium, "Ignoring file '%s', unsupported mime type: %s", *fp, matched)
+				}
+			} else {
+				return nil, fmt.Errorf("failed to check mime type of '%s': %w", *fp, err)
+			}
+		}
+	}
+
+	return filtered, nil
+}
+
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
 	userAgent := *p.UserAgent
@@ -37,7 +119,7 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
 		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
-			if mimeType, supported := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
+			if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
 				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
 				// replace prompt text,
@@ -128,7 +210,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 			}
 		} else {
 			if converted, err = io.ReadAll(resp.Body); err == nil {
-				if matched, supported := gt.SupportedMimeType(converted); !supported {
+				if matched, supported, _ := gt.SupportedMimeType(converted); !supported {
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, matched, fmt.Sprintf("Content type '%s' not supported.", matched)))
 					err = fmt.Errorf("content (%s) from '%s' not supported", matched, url)
 				}
