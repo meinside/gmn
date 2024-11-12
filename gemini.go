@@ -16,9 +16,7 @@ import (
 )
 
 // generate text with given things
-//
-// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) {
+func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "generating...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -27,7 +25,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	// gemini things client
 	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
 	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
+		return 1, err
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
@@ -54,7 +52,7 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
 			filesToClose = append(filesToClose, opened)
 		} else {
-			logAndExit(1, "Failed to open file: %s", err)
+			return 1, err
 		}
 	}
 	defer func() {
@@ -73,38 +71,58 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	}
 
 	// generate
-	if err := gtc.GenerateStreamed(
-		ctx,
-		prompt,
-		files,
-		func(data gt.StreamCallbackData) {
-			if data.TextDelta != nil {
-				fmt.Print(*data.TextDelta)
-			} else if data.NumTokens != nil {
-				fmt.Print("\n") // FIXME: append a new line to the end of generated output
-
-				// print the number of tokens
-				logVerbose(verboseMinimum, vb, "input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output)
-
-				// success
-				os.Exit(0)
-			} else if data.Error != nil {
-				logAndExit(1, "Streaming failed: %s", gt.ErrToStr(data.Error))
-			}
-		},
-		opts,
-	); err != nil {
-		logAndExit(1, "Generation failed: %s", gt.ErrToStr(err))
+	type result struct {
+		exit int
+		err  error
 	}
+	ch := make(chan result, 1)
+	go func() {
+		if err := gtc.GenerateStreamed(
+			ctx,
+			prompt,
+			files,
+			func(data gt.StreamCallbackData) {
+				if data.TextDelta != nil {
+					fmt.Print(*data.TextDelta)
+				} else if data.NumTokens != nil {
+					// print the number of tokens
+					logVerbose(
+						verboseMinimum,
+						vb,
+						"input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output,
+					)
 
-	// not reachable
-	logAndExit(1, "Generation finished without proper handling of results.")
+					// success
+					ch <- result{
+						exit: 0,
+						err:  nil,
+					}
+				} else if data.Error != nil {
+					// error
+					ch <- result{
+						exit: 1,
+						err:  fmt.Errorf("streaming failed: %s", gt.ErrToStr(data.Error)),
+					}
+				}
+			},
+			opts,
+		); err != nil {
+			// error
+			ch <- result{
+				exit: 1,
+				err:  fmt.Errorf("generation failed: %s", gt.ErrToStr(err)),
+			}
+		}
+	}()
+
+	// wait for the generation to finish
+	res := <-ch
+
+	return res.exit, res.err
 }
 
 // cache context
-//
-// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
-func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt *string, promptFiles map[string][]byte, filepaths []*string, cachedContextDisplayName *string, vb []bool) {
+func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt *string, promptFiles map[string][]byte, filepaths []*string, cachedContextDisplayName *string, vb []bool) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "caching context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -113,7 +131,7 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	// gemini things client
 	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
 	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
+		return 1, err
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
@@ -140,7 +158,7 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
 			filesToClose = append(filesToClose, opened)
 		} else {
-			logAndExit(1, "Failed to open file: %s", err)
+			return 1, err
 		}
 	}
 	defer func() {
@@ -155,17 +173,15 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	if name, err := gtc.CacheContext(ctx, &systemInstruction, prompt, files, nil, nil, cachedContextDisplayName); err == nil {
 		fmt.Print(name)
 	} else {
-		logError("Failed to cache context: %s", err)
+		return 1, err
 	}
 
 	// success
-	os.Exit(0)
+	return 0, nil
 }
 
 // list cached contexts
-//
-// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
-func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, vb []bool) {
+func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, vb []bool) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "listing cached contexts...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -174,7 +190,7 @@ func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey,
 	// gemini things client
 	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
 	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
+		return 1, err
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
@@ -194,20 +210,18 @@ func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey,
 					content.DisplayName)
 			}
 		} else {
-			logAndExit(1, "No cached contexts.")
+			return 1, fmt.Errorf("no cached contexts.")
 		}
 	} else {
-		logAndExit(1, "Failed to list cached contexts: %s", err)
+		return 1, err
 	}
 
 	// success
-	os.Exit(0)
+	return 0, nil
 }
 
 // delete cached context
-//
-// (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
-func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, cachedContextName string, vb []bool) {
+func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, cachedContextName string, vb []bool) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "deleting cached context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -216,7 +230,7 @@ func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey
 	// gemini things client
 	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
 	if err != nil {
-		logAndExit(1, "Failed to initialize client: %s", err)
+		return 1, err
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
@@ -225,9 +239,9 @@ func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey
 	}()
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
-		logAndExit(1, "Failed to delete context: %s", err)
+		return 1, err
 	}
 
 	// success
-	os.Exit(0)
+	return 0, nil
 }

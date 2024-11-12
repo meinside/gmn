@@ -1,3 +1,4 @@
+// config.json.sample
 {
   // your google ai api key here:
   "google_ai_api_key": "ABCDEFGHIJK1234567890",

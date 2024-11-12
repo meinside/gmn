@@ -85,7 +85,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 					expanded = append(expanded, fp)
 				}
 			} else {
-				return nil, fmt.Errorf("failed to stat '%s': %w", *fp, err)
+				return nil, err
 			}
 		}
 	}
@@ -335,23 +335,20 @@ func logVerbose(targetLevel verbosity, verbosityFromParams []bool, format string
 	}
 }
 
-// print given strings and exit with code
-func logAndExit(code int, format string, v ...any) {
-	logError(format, v...)
-
-	os.Exit(code)
-}
-
-// print help message and exit with given `code`
-func printHelpAndExit(code int, parser *flags.Parser) {
+// print help message before os.Exit()
+func printHelpBeforeExit(code int, parser *flags.Parser) (exit int) {
 	parser.WriteHelp(os.Stdout)
-	os.Exit(code)
+
+	return code
 }
 
-// print error and exit(1)
-func printErrorAndExit(format string, a ...any) {
-	logMessage(verboseMaximum, format, a...)
-	os.Exit(1)
+// print error before os.Exit()
+func printErrorBeforeExit(code int, format string, a ...any) (exit int) {
+	if code > 0 {
+		logError(format, a...)
+	}
+
+	return code
 }
 
 // prettify given thing in JSON format

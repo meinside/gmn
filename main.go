@@ -1,3 +1,5 @@
+// main.go
+
 package main
 
 import (
@@ -108,18 +110,24 @@ func main() {
 		if p.multipleTaskRequested() {
 			logMessage(verboseMaximum, "Input error: multiple tasks were requested at a time.")
 
-			printHelpAndExit(1, parser)
+			os.Exit(printHelpBeforeExit(1, parser))
 		}
 
 		// check if there was any parameter without flag
 		if len(remaining) > 0 {
 			logMessage(verboseMaximum, "Input error: parameters without flags: %s", strings.Join(remaining, " "))
 
-			printHelpAndExit(1, parser)
+			os.Exit(printHelpBeforeExit(1, parser))
 		}
 
 		// run with params
-		run(parser, p)
+		exit, err := run(parser, p)
+
+		if err != nil {
+			os.Exit(printErrorBeforeExit(exit, "Error: %s", err))
+		} else {
+			os.Exit(exit)
+		}
 	} else {
 		if e, ok := err.(*flags.Error); ok {
 			helpExitCode := 0
@@ -129,9 +137,12 @@ func main() {
 				logMessage(verboseMedium, "Input error: %s", e.Error())
 			}
 
-			printHelpAndExit(helpExitCode, parser)
+			os.Exit(printHelpBeforeExit(helpExitCode, parser))
 		}
 
-		printErrorAndExit("Failed to parse flags: %s\n", err)
+		os.Exit(printErrorBeforeExit(1, "Failed to parse flags: %s", err))
 	}
+
+	// should not reach here
+	os.Exit(printErrorBeforeExit(1, "Unhandled error."))
 }
