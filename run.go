@@ -34,7 +34,7 @@ Respond to user messages according to the following principles:
 
 	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
 	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
-	defaultUserAgent              = `GMN/url2text`
+	defaultUserAgent              = `GMN/fetcher`
 )
 
 type config struct {
@@ -139,9 +139,8 @@ func resolveConfigFilepath(configFilepath *string) string {
 	return filepath.Join(os.Getenv("HOME"), ".config", appName, defaultConfigFilename)
 }
 
-// run with params (will `os.Exit(0)` on success, or `os.Exit(1)` on any error)
-func run(parser *flags.Parser, p params) {
-	var err error
+// run with params
+func run(parser *flags.Parser, p params) (exit int, err error) {
 	var conf config
 
 	// read and apply configs
@@ -150,7 +149,7 @@ func run(parser *flags.Parser, p params) {
 			p.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		logAndExit(1, "Failed to read configuration: %s", err)
+		return 1, fmt.Errorf("failed to read configuration: %w", err)
 	}
 
 	// override parameters with command arguments
@@ -174,13 +173,13 @@ func run(parser *flags.Parser, p params) {
 
 	// check existence of essential parameters here
 	if conf.GoogleAIAPIKey == nil {
-		logAndExit(1, "Google AI API Key is missing")
+		return 1, fmt.Errorf("Google AI API Key is missing")
 	}
 
 	// expand filepaths (recurse directories)
 	p.Filepaths, err = expandFilepaths(p)
 	if err != nil {
-		logAndExit(1, "Failed to read given filepaths: %s", err)
+		return 1, fmt.Errorf("failed to read given filepaths: %w", err)
 	}
 
 	if p.hasPrompt() { // if prompt is given,
@@ -198,7 +197,7 @@ func run(parser *flags.Parser, p params) {
 
 		if p.CacheContext { // cache context
 			// cache context
-			cacheContext(context.TODO(),
+			return cacheContext(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
@@ -209,7 +208,7 @@ func run(parser *flags.Parser, p params) {
 				p.CachedContextName,
 				p.Verbose)
 		} else { // generate
-			doGeneration(context.TODO(),
+			return doGeneration(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
@@ -222,7 +221,7 @@ func run(parser *flags.Parser, p params) {
 		}
 	} else { // if prompt is not given
 		if p.CacheContext { // cache context
-			cacheContext(context.TODO(),
+			return cacheContext(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
@@ -233,13 +232,13 @@ func run(parser *flags.Parser, p params) {
 				p.CachedContextName,
 				p.Verbose)
 		} else if p.ListCachedContexts { // list cached contexts
-			listCachedContexts(context.TODO(),
+			return listCachedContexts(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
 				p.Verbose)
 		} else if p.DeleteCachedContext != nil { // delete cached context
-			deleteCachedContext(context.TODO(),
+			return deleteCachedContext(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
 				*p.GoogleAIModel,
@@ -248,12 +247,9 @@ func run(parser *flags.Parser, p params) {
 		} else { // otherwise,
 			logMessage(verboseMedium, "Parameter `prompt` is missing for your requested task.")
 
-			printHelpAndExit(1, parser)
+			return printHelpBeforeExit(1, parser), nil
 		}
 	}
-
-	// NOTE: should not reach here
-	logAndExit(1, "Exiting with unhandled result.")
 }
 
 // redact params for printing to stdout
