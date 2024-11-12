@@ -77,6 +77,8 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 	}
 	ch := make(chan result, 1)
 	go func() {
+		endsWithNewLine := false
+
 		if err := gtc.GenerateStreamed(
 			ctx,
 			prompt,
@@ -84,7 +86,13 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 			func(data gt.StreamCallbackData) {
 				if data.TextDelta != nil {
 					fmt.Print(*data.TextDelta)
+
+					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
 				} else if data.NumTokens != nil {
+					if !endsWithNewLine {
+						fmt.Println()
+					}
+
 					// print the number of tokens
 					logVerbose(
 						verboseMinimum,

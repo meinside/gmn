@@ -40,15 +40,18 @@ var _fileNamesToIgnore = []string{
 	"Thumbs.db",
 }
 var _dirNamesToIgnore = []string{
+	".cache",
 	".config",
 	".git",
 	".ssh",
 	".svn",
+	".Trash",
 	".venv",
 	"build",
 	"dist",
 	"node_modules",
 	"target",
+	"tmp",
 }
 
 // check if given directory should be ignored
