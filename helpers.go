@@ -28,33 +28,74 @@ const (
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
 )
 
-// directory names to ignore while recursing directories
+// file/directory names to ignore while recursing directories
+var _fileNamesToIgnore = []string{
+	".DS_Store",
+	".env",
+	".env.local",
+	"config.json",
+	"config.toml",
+	"config.yaml",
+	"config.yml",
+	"Thumbs.db",
+}
 var _dirNamesToIgnore = []string{
+	".config",
 	".git",
 	".ssh",
 	".svn",
+	".venv",
+	"build",
+	"dist",
+	"node_modules",
+	"target",
 }
 
-// returns all files in given directory
-func subFiles(dir string) ([]*string, error) {
+// check if given directory should be ignored
+func ignoredDirectory(path string) bool {
+	if slices.Contains(_dirNamesToIgnore, filepath.Base(path)) {
+		logMessage(verboseMedium, "Ignoring directory '%s'", path)
+		return true
+	}
+	return false
+}
+
+// check if given file should be ignored
+func ignoredFile(path string) bool {
+	if slices.Contains(_fileNamesToIgnore, filepath.Base(path)) {
+		logMessage(verboseMedium, "Ignoring file '%s'", path)
+		return true
+	}
+	return false
+}
+
+// return all files in given directory
+func filesInDir(dir string) ([]*string, error) {
 	var files []*string
 	if entries, err := os.ReadDir(dir); err == nil {
 		for _, entry := range entries {
 			dirPath := filepath.Join(dir, entry.Name())
 
 			if entry.IsDir() {
-				if slices.Contains(_dirNamesToIgnore, entry.Name()) {
-					logMessage(verboseMedium, "Ignoring directory '%s'", dirPath)
-
+				if ignoredDirectory(dirPath) {
 					continue
 				}
 
-				if subFiles, err := subFiles(filepath.Join(dir, entry.Name())); err == nil {
-					files = append(files, subFiles...)
+				// recurse into sub directories
+				if subFiles, err := filesInDir(filepath.Join(dir, entry.Name())); err == nil {
+					for _, file := range subFiles {
+						if ignoredFile(*file) {
+							continue
+						}
+						files = append(files, file)
+					}
 				} else {
 					return nil, err
 				}
 			} else {
+				if ignoredFile(dirPath) {
+					continue
+				}
 				files = append(files, &dirPath)
 			}
 		}
@@ -71,17 +112,21 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 		return nil, nil
 	}
 
+	// expand directories with their sub files
 	expanded = []*string{}
 	for _, fp := range filepaths {
 		if fp != nil {
 			if stat, err := os.Stat(*fp); err == nil {
 				if stat.IsDir() {
-					if files, err := subFiles(*fp); err == nil {
+					if files, err := filesInDir(*fp); err == nil {
 						expanded = append(expanded, files...)
 					} else {
 						return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
 					}
 				} else {
+					if ignoredFile(*fp) {
+						continue
+					}
 					expanded = append(expanded, fp)
 				}
 			} else {
@@ -90,6 +135,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 		}
 	}
 
+	// filter filepaths by supported mime types
 	filtered := []*string{}
 	for _, fp := range expanded {
 		if fp != nil {
