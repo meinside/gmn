@@ -74,48 +74,65 @@ func ignoredDirectory(path string) bool {
 }
 
 // check if given file should be ignored
-func ignoredFile(path string) bool {
+func ignoredFile(path string, stat os.FileInfo) bool {
+	// ignore empty files,
+	if stat.Size() <= 0 {
+		logMessage(verboseMedium, "Ignoring empty file '%s'", path)
+		return true
+	}
+
+	// ignore files with ignored names,
 	if slices.Contains(_fileNamesToIgnore, filepath.Base(path)) {
 		logMessage(verboseMedium, "Ignoring file '%s'", path)
 		return true
 	}
+
 	return false
 }
 
 // return all files in given directory
 func filesInDir(dir string) ([]*string, error) {
 	var files []*string
-	if entries, err := os.ReadDir(dir); err == nil {
+
+	entries, err := os.ReadDir(dir)
+	if err == nil {
 		for _, entry := range entries {
-			dirPath := filepath.Join(dir, entry.Name())
+			fpath := filepath.Join(dir, entry.Name())
 
 			if entry.IsDir() {
-				if ignoredDirectory(dirPath) {
+				if ignoredDirectory(fpath) {
 					continue
 				}
 
 				// recurse into sub directories
 				if subFiles, err := filesInDir(filepath.Join(dir, entry.Name())); err == nil {
 					for _, file := range subFiles {
-						if ignoredFile(*file) {
-							continue
+						if stat, err := os.Stat(*file); err == nil {
+							if ignoredFile(*file, stat) {
+								continue
+							}
+							files = append(files, file)
+						} else {
+							return nil, err
 						}
-						files = append(files, file)
 					}
 				} else {
 					return nil, err
 				}
 			} else {
-				if ignoredFile(dirPath) {
-					continue
+				if stat, err := os.Stat(fpath); err == nil {
+					if ignoredFile(fpath, stat) {
+						continue
+					}
+					files = append(files, &fpath)
+				} else {
+					return nil, err
 				}
-				files = append(files, &dirPath)
 			}
 		}
-	} else {
-		return nil, err
 	}
-	return files, nil
+
+	return files, err
 }
 
 // expand given filepaths (expand directories with their sub files)
@@ -128,39 +145,43 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 	// expand directories with their sub files
 	expanded = []*string{}
 	for _, fp := range filepaths {
-		if fp != nil {
-			if stat, err := os.Stat(*fp); err == nil {
-				if stat.IsDir() {
-					if files, err := filesInDir(*fp); err == nil {
-						expanded = append(expanded, files...)
-					} else {
-						return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
-					}
+		if fp == nil {
+			continue
+		}
+
+		if stat, err := os.Stat(*fp); err == nil {
+			if stat.IsDir() {
+				if files, err := filesInDir(*fp); err == nil {
+					expanded = append(expanded, files...)
 				} else {
-					if ignoredFile(*fp) {
-						continue
-					}
-					expanded = append(expanded, fp)
+					return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
 				}
 			} else {
-				return nil, err
+				if ignoredFile(*fp, stat) {
+					continue
+				}
+				expanded = append(expanded, fp)
 			}
+		} else {
+			return nil, err
 		}
 	}
 
 	// filter filepaths by supported mime types
 	filtered := []*string{}
 	for _, fp := range expanded {
-		if fp != nil {
-			if matched, supported, err := gt.SupportedMimeTypePath(*fp); err == nil {
-				if supported {
-					filtered = append(filtered, fp)
-				} else {
-					logMessage(verboseMedium, "Ignoring file '%s', unsupported mime type: %s", *fp, matched)
-				}
+		if fp == nil {
+			continue
+		}
+
+		if matched, supported, err := gt.SupportedMimeTypePath(*fp); err == nil {
+			if supported {
+				filtered = append(filtered, fp)
 			} else {
-				return nil, fmt.Errorf("failed to check mime type of '%s': %w", *fp, err)
+				logMessage(verboseMedium, "Ignoring file '%s', unsupported mime type: %s", *fp, matched)
 			}
+		} else {
+			return nil, fmt.Errorf("failed to check mime type of '%s': %w", *fp, err)
 		}
 	}
 
@@ -249,7 +270,6 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 			} else if strings.HasPrefix(contentType, "text/") {
 				var bytes []byte
 				if bytes, err = io.ReadAll(resp.Body); err == nil {
-					// (success)
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes)))) // NOTE: removing redundant empty lines
 				} else {
 					converted = []byte(fmt.Sprintf(urlToTextFormat, url, contentType, "Failed to read this document."))
