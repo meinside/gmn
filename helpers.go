@@ -1,9 +1,10 @@
 // helpers.go
+//
+// helper functions and constants
 
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,9 +16,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/fatih/color"
-	"github.com/jessevdk/go-flags"
-	"github.com/jwalton/go-supportscolor"
+	"github.com/tailscale/hujson"
 
 	gt "github.com/meinside/gemini-things-go"
 )
@@ -52,6 +51,17 @@ var _dirNamesToIgnore = []string{
 	"node_modules",
 	"target",
 	"tmp",
+}
+
+// standardize given JSON (JWCC) bytes
+func standardizeJSON(b []byte) ([]byte, error) {
+	ast, err := hujson.Parse(b)
+	if err != nil {
+		return b, err
+	}
+	ast.Standardize()
+
+	return ast.Pack(), nil
 }
 
 // check if given directory should be ignored
@@ -310,100 +320,4 @@ func supportedTextContentType(contentType string) bool {
 func ptr[T any](v T) *T {
 	val := v
 	return &val
-}
-
-// verbosity level constants
-type verbosity uint
-
-const (
-	verboseNone    verbosity = iota
-	verboseMinimum verbosity = iota
-	verboseMedium  verbosity = iota
-	verboseMaximum verbosity = iota
-)
-
-// check level of verbosity
-func verboseLevel(verbose []bool) verbosity {
-	if len(verbose) == 1 {
-		return verboseMinimum
-	} else if len(verbose) == 2 {
-		return verboseMedium
-	} else if len(verbose) >= 3 {
-		return verboseMaximum
-	}
-
-	return verboseNone
-}
-
-// print given string to stdout
-func logMessage(level verbosity, format string, v ...any) {
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-
-	var c color.Attribute
-	switch level {
-	case verboseMinimum:
-		c = color.FgGreen
-	case verboseMedium, verboseMaximum:
-		c = color.FgYellow
-	default:
-		c = color.FgWhite
-	}
-
-	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(c)
-		_, _ = c.Printf(format, v...)
-	} else {
-		fmt.Printf(format, v...)
-	}
-}
-
-// print given error string to stdout
-func logError(format string, v ...any) {
-	if !strings.HasSuffix(format, "\n") {
-		format += "\n"
-	}
-
-	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(color.FgRed)
-		_, _ = c.Printf(format, v...)
-	} else {
-		fmt.Printf(format, v...)
-	}
-}
-
-// print logVerbose message
-//
-// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
-func logVerbose(targetLevel verbosity, verbosityFromParams []bool, format string, v ...any) {
-	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
-		format = fmt.Sprintf(">>> %s", format)
-
-		logMessage(targetLevel, format, v...)
-	}
-}
-
-// print help message before os.Exit()
-func printHelpBeforeExit(code int, parser *flags.Parser) (exit int) {
-	parser.WriteHelp(os.Stdout)
-
-	return code
-}
-
-// print error before os.Exit()
-func printErrorBeforeExit(code int, format string, a ...any) (exit int) {
-	if code > 0 {
-		logError(format, a...)
-	}
-
-	return code
-}
-
-// prettify given thing in JSON format
-func prettify(v any) string {
-	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
-		return string(bytes)
-	}
-	return fmt.Sprintf("%+v", v)
 }
