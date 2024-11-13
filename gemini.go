@@ -1,4 +1,6 @@
 // gemini.go
+//
+// things for using Gemini APIs
 
 package main
 
@@ -16,7 +18,15 @@ import (
 )
 
 // generate text with given things
-func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction, prompt string, promptFiles map[string][]byte, filepaths []*string, cachedContextName *string, vb []bool) (exit int, e error) {
+func doGeneration(
+	ctx context.Context,
+	timeoutSeconds int,
+	googleAIAPIKey, googleAIModel string,
+	systemInstruction string,
+	prompt string, promptFiles map[string][]byte, filepaths []*string,
+	cachedContextName *string,
+	vb []bool,
+) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "generating...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -130,7 +140,15 @@ func doGeneration(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 }
 
 // cache context
-func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel, systemInstruction string, prompt *string, promptFiles map[string][]byte, filepaths []*string, cachedContextDisplayName *string, vb []bool) (exit int, e error) {
+func cacheContext(
+	ctx context.Context,
+	timeoutSeconds int,
+	googleAIAPIKey, googleAIModel string,
+	systemInstruction string,
+	prompt *string, promptFiles map[string][]byte, filepaths []*string,
+	cachedContextDisplayName *string,
+	vb []bool,
+) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "caching context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -189,7 +207,12 @@ func cacheContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googl
 }
 
 // list cached contexts
-func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, vb []bool) (exit int, e error) {
+func listCachedContexts(
+	ctx context.Context,
+	timeoutSeconds int,
+	googleAIAPIKey, googleAIModel string,
+	vb []bool,
+) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "listing cached contexts...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -229,7 +252,13 @@ func listCachedContexts(ctx context.Context, timeoutSeconds int, googleAIAPIKey,
 }
 
 // delete cached context
-func deleteCachedContext(ctx context.Context, timeoutSeconds int, googleAIAPIKey, googleAIModel string, cachedContextName string, vb []bool) (exit int, e error) {
+func deleteCachedContext(
+	ctx context.Context,
+	timeoutSeconds int,
+	googleAIAPIKey, googleAIModel string,
+	cachedContextName string,
+	vb []bool,
+) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "deleting cached context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
