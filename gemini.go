@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/generative-ai-go/genai"
+
 	gt "github.com/meinside/gemini-things-go"
 )
 
@@ -25,6 +27,7 @@ func doGeneration(
 	systemInstruction string,
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
+	outputAsJSON bool,
 	vb []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vb, "generating...")
@@ -78,6 +81,11 @@ func doGeneration(
 	if cachedContextName != nil {
 		name := strings.TrimSpace(*cachedContextName)
 		opts.CachedContextName = &name
+	}
+	if outputAsJSON {
+		opts.Config = &genai.GenerationConfig{
+			ResponseMIMEType: "application/json",
+		}
 	}
 
 	// generate

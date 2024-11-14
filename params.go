@@ -29,7 +29,8 @@ type params struct {
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
 	// other options
-	Verbose []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
+	OutputAsJSON bool   `short:"j" long:"json" description:"Output generated results as JSON"`
+	Verbose      []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 }
 
 // check if prompt is given in the params
