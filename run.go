@@ -115,6 +115,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				promptFiles,
 				p.Filepaths,
 				p.CachedContextName,
+				p.OutputAsJSON,
 				p.Verbose)
 		}
 	} else { // if prompt is not given
