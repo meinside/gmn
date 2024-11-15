@@ -5,12 +5,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,20 +49,9 @@ func doGeneration(
 	})
 
 	// read & close files
-	files := map[string]io.Reader{}
-	filesToClose := []*os.File{}
-	i := 0
-	for url, file := range promptFiles {
-		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
-		i++
-	}
-	for i, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
-			filesToClose = append(filesToClose, opened)
-		} else {
-			return 1, err
-		}
+	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
+	if err != nil {
+		return 1, err
 	}
 	defer func() {
 		for _, toClose := range filesToClose {
@@ -79,8 +64,7 @@ func doGeneration(
 	// generation options
 	opts := &gt.GenerationOptions{}
 	if cachedContextName != nil {
-		name := strings.TrimSpace(*cachedContextName)
-		opts.CachedContextName = &name
+		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
 	}
 	if outputAsJSON {
 		opts.Config = &genai.GenerationConfig{
@@ -180,20 +164,9 @@ func cacheContext(
 	})
 
 	// read & close files
-	files := map[string]io.Reader{}
-	filesToClose := []*os.File{}
-	i := 0
-	for url, file := range promptFiles {
-		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
-		i++
-	}
-	for i, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
-			filesToClose = append(filesToClose, opened)
-		} else {
-			return 1, err
-		}
+	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
+	if err != nil {
+		return 1, err
 	}
 	defer func() {
 		for _, toClose := range filesToClose {
@@ -236,6 +209,9 @@ func listCachedContexts(
 			logError("Failed to close client: %s", err)
 		}
 	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
@@ -282,6 +258,9 @@ func deleteCachedContext(
 			logError("Failed to close client: %s", err)
 		}
 	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
 		return 1, err

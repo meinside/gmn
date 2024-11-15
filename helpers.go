@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -344,4 +345,26 @@ func uniqPtrs[T comparable](slice []*T) []*T {
 		}
 	}
 	return list
+}
+
+// open and return files for prompt (`filesToClose` should be closed manually)
+func openFilesForPrompt(promptFiles map[string][]byte, filepaths []*string) (files map[string]io.Reader, filesToClose []*os.File, err error) {
+	files = map[string]io.Reader{}
+	filesToClose = []*os.File{}
+
+	i := 0
+	for url, file := range promptFiles {
+		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
+		i++
+	}
+	for i, fp := range filepaths {
+		if opened, err := os.Open(*fp); err == nil {
+			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
+			filesToClose = append(filesToClose, opened)
+		} else {
+			return nil, nil, err
+		}
+	}
+
+	return files, filesToClose, nil
 }

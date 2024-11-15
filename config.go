@@ -44,9 +44,13 @@ type infisicalSetting struct {
 // read config from given filepath
 func readConfig(configFilepath string) (conf config, err error) {
 	var bytes []byte
-	if bytes, err = os.ReadFile(configFilepath); err == nil {
-		if bytes, err = standardizeJSON(bytes); err == nil {
-			if err = json.Unmarshal(bytes, &conf); err == nil {
+
+	bytes, err = os.ReadFile(configFilepath)
+	if err == nil {
+		bytes, err = standardizeJSON(bytes)
+		if err == nil {
+			err = json.Unmarshal(bytes, &conf)
+			if err == nil {
 				// set default values
 				if conf.TimeoutSeconds <= 0 {
 					conf.TimeoutSeconds = defaultTimeoutSeconds
