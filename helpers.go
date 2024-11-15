@@ -184,15 +184,15 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
 	userAgent := *p.UserAgent
 	prompt := *p.Prompt
-	vb := p.Verbose
+	vbs := p.Verbose
 
 	files = map[string][]byte{}
 
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
-		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
+		if fetched, contentType, err := fetchContent(conf, userAgent, url, vbs); err == nil {
 			if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", mimeType, url)
+				logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
 				// replace prompt text,
 				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
@@ -200,15 +200,15 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 				// and add bytes as a file
 				files[url] = fetched
 			} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-				logVerbose(verboseMaximum, vb, "text content (%s) fetched from '%s' is supported", contentType, url)
+				logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 			} else { // otherwise, (not supported in anyways)
-				logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s' is not supported", contentType, url)
+				logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s' is not supported", contentType, url)
 			}
 		} else {
-			logVerbose(verboseMedium, vb, "failed to fetch content from '%s': %s", url, err)
+			logVerbose(verboseMedium, vbs, "failed to fetch content from '%s': %s", url, err)
 		}
 	}
 
@@ -216,12 +216,12 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 }
 
 // fetch the content from given url and convert it to text for prompting.
-func fetchContent(conf config, userAgent, url string, vb []bool) (converted []byte, contentType string, err error) {
+func fetchContent(conf config, userAgent, url string, vbs []bool) (converted []byte, contentType string, err error) {
 	client := &http.Client{
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	logVerbose(verboseMaximum, vb, "fetching content from '%s'", url)
+	logVerbose(verboseMaximum, vbs, "fetching content from '%s'", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -242,7 +242,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
-	logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s'", contentType, url)
+	logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s'", contentType, url)
 
 	if resp.StatusCode == 200 {
 		if supportedTextContentType(contentType) {
@@ -295,7 +295,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
 	}
 
-	logVerbose(verboseMaximum, vb, "fetched body =\n%s", string(converted))
+	logVerbose(verboseMaximum, vbs, "fetched body =\n%s", string(converted))
 
 	return converted, contentType, err
 }

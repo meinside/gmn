@@ -24,9 +24,9 @@ func doGeneration(
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
 	outputAsJSON bool,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "generating...")
+	logVerbose(verboseMedium, vbs, "generating...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -98,7 +98,7 @@ func doGeneration(
 					// print the number of tokens
 					logVerbose(
 						verboseMinimum,
-						vb,
+						vbs,
 						"input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output,
 					)
 
@@ -139,9 +139,9 @@ func cacheContext(
 	systemInstruction string,
 	prompt *string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextDisplayName *string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "caching context...")
+	logVerbose(verboseMedium, vbs, "caching context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -192,9 +192,9 @@ func listCachedContexts(
 	ctx context.Context,
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIModel string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "listing cached contexts...")
+	logVerbose(verboseMedium, vbs, "listing cached contexts...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -241,9 +241,9 @@ func deleteCachedContext(
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIModel string,
 	cachedContextName string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "deleting cached context...")
+	logVerbose(verboseMedium, vbs, "deleting cached context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()

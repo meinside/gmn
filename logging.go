@@ -26,12 +26,12 @@ const (
 )
 
 // check level of verbosity
-func verboseLevel(verbose []bool) verbosity {
-	if len(verbose) == 1 {
+func verboseLevel(verbosityFromParams []bool) verbosity {
+	if len(verbosityFromParams) == 1 {
 		return verboseMinimum
-	} else if len(verbose) == 2 {
+	} else if len(verbosityFromParams) == 2 {
 		return verboseMedium
-	} else if len(verbose) >= 3 {
+	} else if len(verbosityFromParams) >= 3 {
 		return verboseMaximum
 	}
 
