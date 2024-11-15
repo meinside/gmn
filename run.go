@@ -91,7 +91,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 			logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", replacedPrompt)
 		}
 
-		logVerbose(verboseMaximum, p.Verbose, "requesting with parameters: %s\n\n", prettify(p.redact()))
+		logVerbose(verboseMaximum, p.Verbose, "request params with prompt: %s\n\n", prettify(p.redact()))
 
 		if p.CacheContext { // cache context
 			// cache context
@@ -119,6 +119,8 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				p.Verbose)
 		}
 	} else { // if prompt is not given
+		logVerbose(verboseMaximum, p.Verbose, "request params without prompt: %s\n\n", prettify(p.redact()))
+
 		if p.CacheContext { // cache context
 			return cacheContext(context.TODO(),
 				conf.TimeoutSeconds,

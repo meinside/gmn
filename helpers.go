@@ -90,47 +90,33 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 	return false
 }
 
-// return all files in given directory
-func filesInDir(dir string) ([]*string, error) {
+// return all files' paths in the given directory
+func filesInDir(dir string, vbs []bool) ([]*string, error) {
 	var files []*string
 
-	entries, err := os.ReadDir(dir)
-	if err == nil {
-		for _, entry := range entries {
-			fpath := filepath.Join(dir, entry.Name())
-
-			if entry.IsDir() {
-				if ignoredDirectory(fpath) {
-					continue
-				}
-
-				// recurse into sub directories
-				if subFiles, err := filesInDir(filepath.Join(dir, entry.Name())); err == nil {
-					for _, file := range subFiles {
-						if stat, err := os.Stat(*file); err == nil {
-							if ignoredFile(*file, stat) {
-								continue
-							}
-							files = append(files, file)
-						} else {
-							return nil, err
-						}
-					}
-				} else {
-					return nil, err
-				}
-			} else {
-				if stat, err := os.Stat(fpath); err == nil {
-					if ignoredFile(fpath, stat) {
-						continue
-					}
-					files = append(files, &fpath)
-				} else {
-					return nil, err
-				}
+	// traverse directory
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if d.IsDir() {
+			if ignoredDirectory(path) {
+				return filepath.SkipDir
 			}
+		} else {
+			stat, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+
+			if ignoredFile(path, stat) {
+				return nil
+			}
+
+			logVerbose(verboseMedium, vbs, "attaching file '%s'", path)
+
+			files = append(files, &path)
 		}
-	}
+
+		return nil
+	})
 
 	return files, err
 }
@@ -151,7 +137,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 
 		if stat, err := os.Stat(*fp); err == nil {
 			if stat.IsDir() {
-				if files, err := filesInDir(*fp); err == nil {
+				if files, err := filesInDir(*fp, p.Verbose); err == nil {
 					expanded = append(expanded, files...)
 				} else {
 					return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
@@ -184,6 +170,11 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 			return nil, fmt.Errorf("failed to check mime type of '%s': %w", *fp, err)
 		}
 	}
+
+	// remove redundant paths
+	filtered = uniqPtrs(filtered)
+
+	logVerbose(verboseMedium, p.Verbose, "attaching %d unique file(s)", len(filtered))
 
 	return filtered, nil
 }
@@ -340,4 +331,17 @@ func supportedTextContentType(contentType string) bool {
 func ptr[T any](v T) *T {
 	val := v
 	return &val
+}
+
+// get unique elements of given slice of pointers
+func uniqPtrs[T comparable](slice []*T) []*T {
+	keys := map[T]bool{}
+	list := []*T{}
+	for _, entry := range slice {
+		if _, value := keys[*entry]; !value {
+			keys[*entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
