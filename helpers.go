@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -90,47 +91,33 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 	return false
 }
 
-// return all files in given directory
-func filesInDir(dir string) ([]*string, error) {
+// return all files' paths in the given directory
+func filesInDir(dir string, vbs []bool) ([]*string, error) {
 	var files []*string
 
-	entries, err := os.ReadDir(dir)
-	if err == nil {
-		for _, entry := range entries {
-			fpath := filepath.Join(dir, entry.Name())
-
-			if entry.IsDir() {
-				if ignoredDirectory(fpath) {
-					continue
-				}
-
-				// recurse into sub directories
-				if subFiles, err := filesInDir(filepath.Join(dir, entry.Name())); err == nil {
-					for _, file := range subFiles {
-						if stat, err := os.Stat(*file); err == nil {
-							if ignoredFile(*file, stat) {
-								continue
-							}
-							files = append(files, file)
-						} else {
-							return nil, err
-						}
-					}
-				} else {
-					return nil, err
-				}
-			} else {
-				if stat, err := os.Stat(fpath); err == nil {
-					if ignoredFile(fpath, stat) {
-						continue
-					}
-					files = append(files, &fpath)
-				} else {
-					return nil, err
-				}
+	// traverse directory
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if d.IsDir() {
+			if ignoredDirectory(path) {
+				return filepath.SkipDir
 			}
+		} else {
+			stat, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+
+			if ignoredFile(path, stat) {
+				return nil
+			}
+
+			logVerbose(verboseMedium, vbs, "attaching file '%s'", path)
+
+			files = append(files, &path)
 		}
-	}
+
+		return nil
+	})
 
 	return files, err
 }
@@ -151,7 +138,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 
 		if stat, err := os.Stat(*fp); err == nil {
 			if stat.IsDir() {
-				if files, err := filesInDir(*fp); err == nil {
+				if files, err := filesInDir(*fp, p.Verbose); err == nil {
 					expanded = append(expanded, files...)
 				} else {
 					return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
@@ -185,6 +172,11 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 		}
 	}
 
+	// remove redundant paths
+	filtered = uniqPtrs(filtered)
+
+	logVerbose(verboseMedium, p.Verbose, "attaching %d unique file(s)", len(filtered))
+
 	return filtered, nil
 }
 
@@ -192,15 +184,15 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
 	userAgent := *p.UserAgent
 	prompt := *p.Prompt
-	vb := p.Verbose
+	vbs := p.Verbose
 
 	files = map[string][]byte{}
 
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
-		if fetched, contentType, err := fetchContent(conf, userAgent, url, vb); err == nil {
+		if fetched, contentType, err := fetchContent(conf, userAgent, url, vbs); err == nil {
 			if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-				logVerbose(verboseMaximum, vb, "file content (%s) fetched from '%s' is supported", mimeType, url)
+				logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
 				// replace prompt text,
 				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
@@ -208,15 +200,15 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 				// and add bytes as a file
 				files[url] = fetched
 			} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-				logVerbose(verboseMaximum, vb, "text content (%s) fetched from '%s' is supported", contentType, url)
+				logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
 
 				// replace prompt text
 				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 			} else { // otherwise, (not supported in anyways)
-				logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s' is not supported", contentType, url)
+				logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s' is not supported", contentType, url)
 			}
 		} else {
-			logVerbose(verboseMedium, vb, "failed to fetch content from '%s': %s", url, err)
+			logVerbose(verboseMedium, vbs, "failed to fetch content from '%s': %s", url, err)
 		}
 	}
 
@@ -224,12 +216,12 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 }
 
 // fetch the content from given url and convert it to text for prompting.
-func fetchContent(conf config, userAgent, url string, vb []bool) (converted []byte, contentType string, err error) {
+func fetchContent(conf config, userAgent, url string, vbs []bool) (converted []byte, contentType string, err error) {
 	client := &http.Client{
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	logVerbose(verboseMaximum, vb, "fetching content from '%s'", url)
+	logVerbose(verboseMaximum, vbs, "fetching content from '%s'", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -250,7 +242,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
-	logVerbose(verboseMaximum, vb, "fetched content (%s) from '%s'", contentType, url)
+	logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s'", contentType, url)
 
 	if resp.StatusCode == 200 {
 		if supportedTextContentType(contentType) {
@@ -303,7 +295,7 @@ func fetchContent(conf config, userAgent, url string, vb []bool) (converted []by
 		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
 	}
 
-	logVerbose(verboseMaximum, vb, "fetched body =\n%s", string(converted))
+	logVerbose(verboseMaximum, vbs, "fetched body =\n%s", string(converted))
 
 	return converted, contentType, err
 }
@@ -340,4 +332,39 @@ func supportedTextContentType(contentType string) bool {
 func ptr[T any](v T) *T {
 	val := v
 	return &val
+}
+
+// get unique elements of given slice of pointers
+func uniqPtrs[T comparable](slice []*T) []*T {
+	keys := map[T]bool{}
+	list := []*T{}
+	for _, entry := range slice {
+		if _, value := keys[*entry]; !value {
+			keys[*entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+// open and return files for prompt (`filesToClose` should be closed manually)
+func openFilesForPrompt(promptFiles map[string][]byte, filepaths []*string) (files map[string]io.Reader, filesToClose []*os.File, err error) {
+	files = map[string]io.Reader{}
+	filesToClose = []*os.File{}
+
+	i := 0
+	for url, file := range promptFiles {
+		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
+		i++
+	}
+	for i, fp := range filepaths {
+		if opened, err := os.Open(*fp); err == nil {
+			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
+			filesToClose = append(filesToClose, opened)
+		} else {
+			return nil, nil, err
+		}
+	}
+
+	return files, filesToClose, nil
 }

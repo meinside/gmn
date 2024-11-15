@@ -5,12 +5,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,9 +24,9 @@ func doGeneration(
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
 	outputAsJSON bool,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "generating...")
+	logVerbose(verboseMedium, vbs, "generating...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -53,20 +49,9 @@ func doGeneration(
 	})
 
 	// read & close files
-	files := map[string]io.Reader{}
-	filesToClose := []*os.File{}
-	i := 0
-	for url, file := range promptFiles {
-		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
-		i++
-	}
-	for i, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
-			filesToClose = append(filesToClose, opened)
-		} else {
-			return 1, err
-		}
+	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
+	if err != nil {
+		return 1, err
 	}
 	defer func() {
 		for _, toClose := range filesToClose {
@@ -79,8 +64,7 @@ func doGeneration(
 	// generation options
 	opts := &gt.GenerationOptions{}
 	if cachedContextName != nil {
-		name := strings.TrimSpace(*cachedContextName)
-		opts.CachedContextName = &name
+		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
 	}
 	if outputAsJSON {
 		opts.Config = &genai.GenerationConfig{
@@ -114,7 +98,7 @@ func doGeneration(
 					// print the number of tokens
 					logVerbose(
 						verboseMinimum,
-						vb,
+						vbs,
 						"input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output,
 					)
 
@@ -155,9 +139,9 @@ func cacheContext(
 	systemInstruction string,
 	prompt *string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextDisplayName *string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "caching context...")
+	logVerbose(verboseMedium, vbs, "caching context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -180,20 +164,9 @@ func cacheContext(
 	})
 
 	// read & close files
-	files := map[string]io.Reader{}
-	filesToClose := []*os.File{}
-	i := 0
-	for url, file := range promptFiles {
-		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
-		i++
-	}
-	for i, fp := range filepaths {
-		if opened, err := os.Open(*fp); err == nil {
-			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
-			filesToClose = append(filesToClose, opened)
-		} else {
-			return 1, err
-		}
+	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
+	if err != nil {
+		return 1, err
 	}
 	defer func() {
 		for _, toClose := range filesToClose {
@@ -219,9 +192,9 @@ func listCachedContexts(
 	ctx context.Context,
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIModel string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "listing cached contexts...")
+	logVerbose(verboseMedium, vbs, "listing cached contexts...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -236,6 +209,9 @@ func listCachedContexts(
 			logError("Failed to close client: %s", err)
 		}
 	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
@@ -265,9 +241,9 @@ func deleteCachedContext(
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIModel string,
 	cachedContextName string,
-	vb []bool,
+	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vb, "deleting cached context...")
+	logVerbose(verboseMedium, vbs, "deleting cached context...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -282,6 +258,9 @@ func deleteCachedContext(
 			logError("Failed to close client: %s", err)
 		}
 	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
 		return 1, err

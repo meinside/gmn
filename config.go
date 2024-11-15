@@ -44,9 +44,13 @@ type infisicalSetting struct {
 // read config from given filepath
 func readConfig(configFilepath string) (conf config, err error) {
 	var bytes []byte
-	if bytes, err = os.ReadFile(configFilepath); err == nil {
-		if bytes, err = standardizeJSON(bytes); err == nil {
-			if err = json.Unmarshal(bytes, &conf); err == nil {
+
+	bytes, err = os.ReadFile(configFilepath)
+	if err == nil {
+		bytes, err = standardizeJSON(bytes)
+		if err == nil {
+			err = json.Unmarshal(bytes, &conf)
+			if err == nil {
 				// set default values
 				if conf.TimeoutSeconds <= 0 {
 					conf.TimeoutSeconds = defaultTimeoutSeconds
@@ -57,36 +61,11 @@ func readConfig(configFilepath string) (conf config, err error) {
 
 				if conf.GoogleAIAPIKey == nil && conf.Infisical != nil {
 					// read token and api key from infisical
-					client := infisical.NewInfisicalClient(context.TODO(), infisical.Config{
-						SiteUrl: "https://app.infisical.com",
-					})
-
-					_, err = client.Auth().UniversalAuthLogin(conf.Infisical.ClientID, conf.Infisical.ClientSecret)
+					conf, err = fetchConfFromInfisical(conf)
 					if err != nil {
-						return config{}, fmt.Errorf("failed to authenticate with Infisical: %w", err)
-					}
-
-					var keyPath string
-					var secret models.Secret
-
-					// google ai api key
-					keyPath = conf.Infisical.GoogleAIAPIKeyKeyPath
-					secret, err = client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
-						ProjectID:   conf.Infisical.ProjectID,
-						Type:        conf.Infisical.SecretType,
-						Environment: conf.Infisical.Environment,
-						SecretPath:  path.Dir(keyPath),
-						SecretKey:   path.Base(keyPath),
-					})
-					if err == nil {
-						val := secret.SecretValue
-						conf.GoogleAIAPIKey = &val
-					} else {
-						return config{}, fmt.Errorf("failed to retrieve `google_ai_api_key` from Infisical: %w", err)
+						return config{}, fmt.Errorf("failed to fetch config from Infisical: %w", err)
 					}
 				}
-
-				return conf, nil
 			}
 		}
 	}
@@ -106,4 +85,37 @@ func resolveConfigFilepath(configFilepath *string) string {
 	}
 
 	return filepath.Join(os.Getenv("HOME"), ".config", appName, defaultConfigFilename)
+}
+
+// fetch config values from infisical
+func fetchConfFromInfisical(conf config) (config, error) {
+	// read token and api key from infisical
+	client := infisical.NewInfisicalClient(context.TODO(), infisical.Config{
+		SiteUrl: "https://app.infisical.com",
+	})
+
+	_, err := client.Auth().UniversalAuthLogin(conf.Infisical.ClientID, conf.Infisical.ClientSecret)
+	if err != nil {
+		return config{}, err
+	}
+
+	var keyPath string
+	var secret models.Secret
+
+	// google ai api key
+	keyPath = conf.Infisical.GoogleAIAPIKeyKeyPath
+	secret, err = client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
+		ProjectID:   conf.Infisical.ProjectID,
+		Type:        conf.Infisical.SecretType,
+		Environment: conf.Infisical.Environment,
+		SecretPath:  path.Dir(keyPath),
+		SecretKey:   path.Base(keyPath),
+	})
+	if err != nil {
+		return config{}, err
+	}
+
+	val := secret.SecretValue
+	conf.GoogleAIAPIKey = &val
+	return conf, nil
 }
