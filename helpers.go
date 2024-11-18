@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -29,29 +28,39 @@ const (
 )
 
 // file/directory names to ignore while recursing directories
-var _fileNamesToIgnore = []string{
+var _namesToIgnore = []string{
+	"/", // NOTE: ignore root
+	".cache/",
+	".config/",
 	".DS_Store",
 	".env",
 	".env.local",
-	"config.json",
-	"config.toml",
-	"config.yaml",
-	"config.yml",
+	".git/",
+	".ssh/",
+	".svn/",
+	".Trash/",
+	".venv/",
+	"build/",
+	"config.json", "config.toml", "config.yaml", "config.yml",
 	"Thumbs.db",
+	"dist/",
+	"node_modules/",
+	"target/",
+	"tmp/",
 }
-var _dirNamesToIgnore = []string{
-	".cache",
-	".config",
-	".git",
-	".ssh",
-	".svn",
-	".Trash",
-	".venv",
-	"build",
-	"dist",
-	"node_modules",
-	"target",
-	"tmp",
+var _fileNamesToIgnore, _dirNamesToIgnore map[string]bool
+
+// initialize things
+func init() {
+	// files and directories' names to ignore
+	_fileNamesToIgnore, _dirNamesToIgnore = map[string]bool{}, map[string]bool{}
+	for _, name := range _namesToIgnore {
+		if strings.HasSuffix(name, "/") {
+			_dirNamesToIgnore[filepath.Dir(name)] = true
+		} else {
+			_fileNamesToIgnore[name] = true
+		}
+	}
 }
 
 // standardize given JSON (JWCC) bytes
@@ -67,7 +76,7 @@ func standardizeJSON(b []byte) ([]byte, error) {
 
 // check if given directory should be ignored
 func ignoredDirectory(path string) bool {
-	if slices.Contains(_dirNamesToIgnore, filepath.Base(path)) {
+	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
 		logMessage(verboseMedium, "Ignoring directory '%s'", path)
 		return true
 	}
@@ -83,7 +92,7 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 	}
 
 	// ignore files with ignored names,
-	if slices.Contains(_fileNamesToIgnore, filepath.Base(path)) {
+	if _, exists := _fileNamesToIgnore[filepath.Base(path)]; exists {
 		logMessage(verboseMedium, "Ignoring file '%s'", path)
 		return true
 	}
