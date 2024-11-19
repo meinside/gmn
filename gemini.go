@@ -62,7 +62,7 @@ func doGeneration(
 	}()
 
 	// generation options
-	opts := &gt.GenerationOptions{}
+	opts := gt.NewGenerationOptions()
 	if cachedContextName != nil {
 		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
 	}
