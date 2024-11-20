@@ -32,7 +32,7 @@ func doGeneration(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
 	if err != nil {
 		return 1, err
 	}
@@ -147,7 +147,7 @@ func cacheContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
 	if err != nil {
 		return 1, err
 	}
@@ -200,7 +200,7 @@ func listCachedContexts(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
 	if err != nil {
 		return 1, err
 	}
@@ -249,7 +249,7 @@ func deleteCachedContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIModel, googleAIAPIKey)
+	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
 	if err != nil {
 		return 1, err
 	}
