@@ -15,6 +15,15 @@ import (
 	gt "github.com/meinside/gemini-things-go"
 )
 
+// generation parameter constants
+//
+// (https://ai.google.dev/gemini-api/docs/text-generation?lang=go#configure)
+const (
+	generationTemperature = float32(1.0)
+	generationTopP        = float32(0.95)
+	generationTopK        = int32(20)
+)
+
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
@@ -66,10 +75,13 @@ func doGeneration(
 	if cachedContextName != nil {
 		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
 	}
+	opts.Config = &genai.GenerationConfig{
+		Temperature: ptr(generationTemperature),
+		TopP:        ptr(generationTopP),
+		TopK:        ptr(generationTopK),
+	}
 	if outputAsJSON {
-		opts.Config = &genai.GenerationConfig{
-			ResponseMIMEType: "application/json",
-		}
+		opts.Config.ResponseMIMEType = "application/json"
 	}
 
 	// generate
