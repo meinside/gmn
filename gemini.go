@@ -19,9 +19,9 @@ import (
 //
 // (https://ai.google.dev/gemini-api/docs/text-generation?lang=go#configure)
 const (
-	generationTemperature = float32(1.0)
-	generationTopP        = float32(0.95)
-	generationTopK        = int32(20)
+	defaultGenerationTemperature = float32(1.0)
+	defaultGenerationTopP        = float32(0.95)
+	defaultGenerationTopK        = int32(20)
 )
 
 // generate text with given things
@@ -29,7 +29,7 @@ func doGeneration(
 	ctx context.Context,
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIModel string,
-	systemInstruction string,
+	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
 	outputAsJSON bool,
@@ -75,6 +75,18 @@ func doGeneration(
 	if cachedContextName != nil {
 		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
 	}
+	generationTemperature := defaultGenerationTemperature
+	if temperature != nil {
+		generationTemperature = *temperature
+	}
+	generationTopP := defaultGenerationTopP
+	if topP != nil {
+		generationTopP = *topP
+	}
+	generationTopK := defaultGenerationTopK
+	if topK != nil {
+		generationTopK = *topK
+	}
 	opts.Config = &genai.GenerationConfig{
 		Temperature: ptr(generationTemperature),
 		TopP:        ptr(generationTopP),
@@ -83,6 +95,8 @@ func doGeneration(
 	if outputAsJSON {
 		opts.Config.ResponseMIMEType = "application/json"
 	}
+
+	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
 
 	// generate
 	type result struct {

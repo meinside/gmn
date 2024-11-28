@@ -15,12 +15,15 @@ type params struct {
 
 	// prompt and filepaths for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
-	Prompt            *string   `short:"p" long:"prompt" description:"Prompt to use (can also be read from stdin)"`
+	Temperature       *float32  `long:"temperature" description:"'temperature' for generation (can be omitted)"`
+	TopP              *float32  `long:"top-p" description:"'top_p' for generation (can be omitted)"`
+	TopK              *int32    `long:"top-k" description:"'top_k' for generation (can be omitted)"`
+	Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
 	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
 
 	// for fetching contents
 	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`
-	UserAgent               *string `short:"u" long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
+	UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 	// for cached contexts
 	CacheContext        bool    `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
