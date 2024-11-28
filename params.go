@@ -15,9 +15,9 @@ type params struct {
 
 	// prompt and filepaths for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
-	Temperature       *float32  `long:"temperature" description:"'temperature' for generation (can be omitted)"`
-	TopP              *float32  `long:"top-p" description:"'top_p' for generation (can be omitted)"`
-	TopK              *int32    `long:"top-k" description:"'top_k' for generation (can be omitted)"`
+	Temperature       *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
+	TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
+	TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
 	Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
 	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
 
