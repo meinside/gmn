@@ -63,7 +63,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 		p.GoogleAIModel = ptr(defaultGoogleAIModel)
 	}
 	if p.SystemInstruction == nil {
-		p.SystemInstruction = ptr(defaultSystemInstruction(conf))
+		p.SystemInstruction = ptr(defaultSystemInstruction(p))
 	}
 	if p.UserAgent == nil {
 		p.UserAgent = ptr(defaultUserAgent)
@@ -156,14 +156,14 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	}
 }
 
-// generate a default system instruction with given configuration
-func defaultSystemInstruction(conf config) string {
+// generate a default system instruction with given params
+func defaultSystemInstruction(p params) string {
 	datetime := time.Now().Format("2006-01-02 15:04:05 MST (Mon)")
 	hostname, _ := os.Hostname()
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
 		appName,
-		*conf.GoogleAIModel,
+		*p.GoogleAIModel,
 		datetime,
 		hostname,
 	)
