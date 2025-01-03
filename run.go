@@ -71,7 +71,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 
 	// check existence of essential parameters here
 	if conf.GoogleAIAPIKey == nil {
-		return 1, fmt.Errorf("Google AI API Key is missing")
+		return 1, fmt.Errorf("google AI API Key is missing")
 	}
 
 	// expand filepaths (recurse directories)

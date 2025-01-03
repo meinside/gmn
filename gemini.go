@@ -251,7 +251,7 @@ func listCachedContexts(
 					content.DisplayName)
 			}
 		} else {
-			return 1, fmt.Errorf("no cached contexts.")
+			return 1, fmt.Errorf("no cached contexts")
 		}
 	} else {
 		return 1, err
