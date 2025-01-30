@@ -152,9 +152,12 @@ func doGeneration(
 	}()
 
 	// wait for the generation to finish
-	res := <-ch
-
-	return res.exit, res.err
+	select {
+	case <-ctx.Done(): // timeout
+		return 1, fmt.Errorf("generation timed out: %w", ctx.Err())
+	case res := <-ch:
+		return res.exit, res.err
+	}
 }
 
 // cache context
