@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/jessevdk/go-flags"
+	gt "github.com/meinside/gemini-things-go"
 )
 
 const (
@@ -59,7 +60,11 @@ func main() {
 		exit, err := run(parser, p)
 
 		if err != nil {
-			os.Exit(printErrorBeforeExit(exit, "Error: %s", err))
+			if gt.IsQuotaExceeded(err) {
+				os.Exit(printErrorBeforeExit(exit, "API quota exceeded, try again later: %s", err))
+			} else {
+				os.Exit(printErrorBeforeExit(exit, "Error: %s", err))
+			}
 		} else {
 			os.Exit(exit)
 		}
