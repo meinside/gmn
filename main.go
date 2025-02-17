@@ -62,6 +62,8 @@ func main() {
 		if err != nil {
 			if gt.IsQuotaExceeded(err) {
 				os.Exit(printErrorBeforeExit(exit, "API quota exceeded, try again later: %s", err))
+			} else if gt.IsModelOverloaded(err) {
+				os.Exit(printErrorBeforeExit(exit, "Model overloaded, try again later: %s", err))
 			} else {
 				os.Exit(printErrorBeforeExit(exit, "Error: %s", err))
 			}
