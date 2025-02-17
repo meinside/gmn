@@ -3,13 +3,13 @@ module github.com/meinside/gmn
 go 1.23.2
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.1
+	github.com/PuerkitoBio/goquery v1.10.2
 	github.com/fatih/color v1.18.0
 	github.com/google/generative-ai-go v0.19.0
-	github.com/infisical/go-sdk v0.4.7
+	github.com/infisical/go-sdk v0.4.8
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.1.32
+	github.com/meinside/gemini-things-go v0.1.33
 	github.com/tailscale/hujson v0.0.0-20241010212012-29efb4a0184b
 )
 
@@ -44,6 +44,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
