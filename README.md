@@ -29,6 +29,7 @@ with following content:
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
   "google_ai_model": "gemini-1.5-flash-002",
+  "google_ai_embeddings_model": "text-embedding-004",
 }
 ```
 
@@ -57,6 +58,7 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   },
 
   "google_ai_model": "gemini-1.5-flash-002",
+  "google_ai_embeddings_model": "text-embedding-004",
 }
 ```
 
@@ -106,6 +108,15 @@ Supported content types are:
 ```bash
 # generate with a text prompt which includes some urls in it 
 $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
+```
+
+### Generate Embeddings
+
+You can generate embeddings with `-e` or `--generate-embeddings` parameter:
+
+```bash
+$ gmn -b "text-embedding-004" -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+```
 ```
 
 ### Context Caching

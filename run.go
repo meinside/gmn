@@ -12,8 +12,11 @@ import (
 )
 
 const (
-	defaultConfigFilename          = "config.json"
+	defaultConfigFilename = "config.json"
+
 	defaultGoogleAIModel           = "gemini-1.5-flash-002"
+	defaultGoogleAIEmbeddingsModel = "text-embedding-004"
+
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
 
 Current datetime is %[3]s, and hostname is '%[4]s'.
@@ -57,10 +60,16 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	if conf.GoogleAIModel != nil && p.GoogleAIModel == nil {
 		p.GoogleAIModel = conf.GoogleAIModel
 	}
+	if conf.GoogleAIEmbeddingsModel != nil && p.GoogleAIEmbeddingsModel == nil {
+		p.GoogleAIEmbeddingsModel = conf.GoogleAIEmbeddingsModel
+	}
 
 	// set default values
 	if p.GoogleAIModel == nil {
 		p.GoogleAIModel = ptr(defaultGoogleAIModel)
+	}
+	if p.GoogleAIEmbeddingsModel == nil {
+		p.GoogleAIEmbeddingsModel = ptr(defaultGoogleAIEmbeddingsModel)
 	}
 	if p.SystemInstruction == nil {
 		p.SystemInstruction = ptr(defaultSystemInstruction(p))
@@ -106,20 +115,32 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				p.CachedContextName,
 				p.Verbose)
 		} else { // generate
-			return doGeneration(context.TODO(),
-				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel,
-				*p.SystemInstruction,
-				p.Temperature,
-				p.TopP,
-				p.TopK,
-				*p.Prompt,
-				promptFiles,
-				p.Filepaths,
-				p.CachedContextName,
-				p.OutputAsJSON,
-				p.Verbose)
+			if !p.GenerateEmbeddings {
+				return doGeneration(context.TODO(),
+					conf.TimeoutSeconds,
+					*p.GoogleAIAPIKey,
+					*p.GoogleAIModel,
+					*p.SystemInstruction,
+					p.Temperature,
+					p.TopP,
+					p.TopK,
+					*p.Prompt,
+					promptFiles,
+					p.Filepaths,
+					p.CachedContextName,
+					p.OutputAsJSON,
+					p.Verbose)
+			} else {
+				return doEmbeddingsGeneration(context.TODO(),
+					conf.TimeoutSeconds,
+					*p.GoogleAIAPIKey,
+					*p.GoogleAIEmbeddingsModel,
+					p.Temperature,
+					p.TopP,
+					p.TopK,
+					*p.Prompt,
+					p.Verbose)
+			}
 		}
 	} else { // if prompt is not given
 		logVerbose(verboseMaximum, p.Verbose, "request params without prompt: %s\n\n", prettify(p.redact()))

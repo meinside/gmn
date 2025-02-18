@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -158,6 +159,51 @@ func doGeneration(
 	case res := <-ch:
 		return res.exit, res.err
 	}
+}
+
+// generate embeddings with given things
+func doEmbeddingsGeneration(
+	ctx context.Context,
+	timeoutSeconds int,
+	googleAIAPIKey, googleAIEmbeddingsModel string,
+	temperature, topP *float32, topK *int32,
+	prompt string,
+	vbs []bool,
+) (exit int, e error) {
+	logVerbose(verboseMedium, vbs, "generating embeddings...")
+
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	// gemini things client
+	gtc, err := gt.NewClient(googleAIAPIKey, googleAIEmbeddingsModel)
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
+
+	if vectors, err := gtc.GenerateEmbeddings(ctx, "", []genai.Part{
+		genai.Text(prompt),
+	}); err != nil {
+		e = fmt.Errorf("embeddings failed: %w", err)
+	} else {
+		if encoded, err := json.Marshal(vectors); err != nil {
+			e = fmt.Errorf("embeddings encoding failed: %w", err)
+		} else {
+			fmt.Printf("%s\n", string(encoded))
+
+			return 0, nil
+		}
+	}
+
+	return 1, e
 }
 
 // cache context

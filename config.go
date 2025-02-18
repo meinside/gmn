@@ -21,8 +21,9 @@ type config struct {
 	GoogleAIAPIKey *string           `json:"google_ai_api_key,omitempty"`
 	Infisical      *infisicalSetting `json:"infisical,omitempty"`
 
-	GoogleAIModel     *string `json:"google_ai_model,omitempty"`
-	SystemInstruction *string `json:"system_instruction,omitempty"`
+	GoogleAIModel           *string `json:"google_ai_model,omitempty"`
+	GoogleAIEmbeddingsModel *string `json:"google_ai_embeddings_model,omitempty"`
+	SystemInstruction       *string `json:"system_instruction,omitempty"`
 
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 
