@@ -10,16 +10,18 @@ type params struct {
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
 	// for gemini model
-	GoogleAIAPIKey *string `short:"k" long:"api-key" description:"API Key to use (can be ommitted if set in config)"`
-	GoogleAIModel  *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
+	GoogleAIAPIKey          *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
+	GoogleAIModel           *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
+	GoogleAIEmbeddingsModel *string `short:"b" long:"embeddings-model" description:"Embeddings model to use (can be omitted)"`
 
-	// prompt and filepaths for generation
-	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
-	Temperature       *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
-	TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
-	TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
-	Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
-	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
+	// system instruction, prompt, and other things for generation
+	SystemInstruction  *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
+	Temperature        *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
+	TopP               *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
+	TopK               *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
+	Prompt             *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
+	Filepaths          []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
+	GenerateEmbeddings bool      `short:"e" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
 
 	// for fetching contents
 	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`
