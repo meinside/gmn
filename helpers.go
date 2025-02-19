@@ -203,11 +203,17 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[stri
 			if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
 				logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
-				// replace prompt text,
-				prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
+				// NOTE: embeedings is for text only for now
+				if p.GenerateEmbeddings {
+					// replace prompt text
+					prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
+				} else {
+					// replace prompt text,
+					prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
 
-				// and add bytes as a file
-				files[url] = fetched
+					// and add bytes as a file
+					files[url] = fetched
+				}
 			} else if supportedTextContentType(contentType) { // if it is a text of supported types,
 				logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
 
