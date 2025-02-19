@@ -172,6 +172,16 @@ func doEmbeddingsGeneration(
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "generating embeddings...")
 
+	// chunk prompt text
+	chunks, err := gt.ChunkText(prompt, gt.TextChunkOption{
+		ChunkSize:      10240,
+		OverlappedSize: 128,
+		EllipsesText:   "...",
+	})
+	if err != nil {
+		return 1, fmt.Errorf("failed to chunk text: %w", err)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
@@ -189,21 +199,40 @@ func doEmbeddingsGeneration(
 	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
 
-	if vectors, err := gtc.GenerateEmbeddings(ctx, "", []genai.Part{
-		genai.Text(prompt),
-	}); err != nil {
-		e = fmt.Errorf("embeddings failed: %w", err)
-	} else {
-		if encoded, err := json.Marshal(vectors); err != nil {
-			e = fmt.Errorf("embeddings encoding failed: %w", err)
+	// iterate chunks and generate embeddings
+	type embedding struct {
+		Text    string    `json:"text"`
+		Vectors []float32 `json:"vectors"`
+	}
+	type embeddings struct {
+		Original string      `json:"original"`
+		Chunks   []embedding `json:"chunks"`
+	}
+	embeds := embeddings{
+		Original: prompt,
+		Chunks:   []embedding{},
+	}
+	for i, text := range chunks.Chunks {
+		if vectors, err := gtc.GenerateEmbeddings(ctx, "", []genai.Part{
+			genai.Text(text),
+		}); err != nil {
+			return 1, fmt.Errorf("embeddings failed for chunk[%d]: %w", i, err)
 		} else {
-			fmt.Printf("%s\n", string(encoded))
-
-			return 0, nil
+			embeds.Chunks = append(embeds.Chunks, embedding{
+				Text:    text,
+				Vectors: vectors,
+			})
 		}
 	}
 
-	return 1, e
+	// print result in JSON format
+	if encoded, err := json.Marshal(embeds); err != nil {
+		return 1, fmt.Errorf("embeddings encoding failed: %w", err)
+	} else {
+		fmt.Printf("%s\n", string(encoded))
+
+		return 0, nil
+	}
 }
 
 // cache context
