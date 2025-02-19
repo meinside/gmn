@@ -15,13 +15,17 @@ type params struct {
 	GoogleAIEmbeddingsModel *string `short:"b" long:"embeddings-model" description:"Embeddings model to use (can be omitted)"`
 
 	// system instruction, prompt, and other things for generation
-	SystemInstruction  *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
-	Temperature        *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
-	TopP               *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
-	TopK               *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
-	Prompt             *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
-	Filepaths          []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
-	GenerateEmbeddings bool      `short:"e" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
+	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
+	Temperature       *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
+	TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
+	TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
+	Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
+	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
+
+	// for embedding
+	GenerateEmbeddings            bool  `short:"e" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
+	EmbeddingsChunkSize           *uint `long:"embeddings-chunk-size" description:"Chunk size for embeddings (default: 10240)"`
+	EmbeddingsOverlappedChunkSize *uint `long:"embeddings-overlapped-chunk-size" description:"Overlapped size of chunks for embeddings (default: 512)"`
 
 	// for fetching contents
 	ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`
