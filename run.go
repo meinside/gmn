@@ -135,10 +135,9 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					conf.TimeoutSeconds,
 					*p.GoogleAIAPIKey,
 					*p.GoogleAIEmbeddingsModel,
-					p.Temperature,
-					p.TopP,
-					p.TopK,
 					*p.Prompt,
+					p.EmbeddingsChunkSize,
+					p.EmbeddingsOverlappedChunkSize,
 					p.Verbose)
 			}
 		}

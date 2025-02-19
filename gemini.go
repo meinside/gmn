@@ -23,6 +23,9 @@ const (
 	defaultGenerationTemperature = float32(1.0)
 	defaultGenerationTopP        = float32(0.95)
 	defaultGenerationTopK        = int32(20)
+
+	defaultEmbeddingsChunkSize           uint = 10 * 1024
+	defaultEmbeddingsChunkOverlappedSize uint = 512
 )
 
 // generate text with given things
@@ -166,16 +169,23 @@ func doEmbeddingsGeneration(
 	ctx context.Context,
 	timeoutSeconds int,
 	googleAIAPIKey, googleAIEmbeddingsModel string,
-	temperature, topP *float32, topK *int32,
 	prompt string,
+	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "generating embeddings...")
 
+	if chunkSize == nil {
+		chunkSize = ptr(defaultEmbeddingsChunkSize)
+	}
+	if overlappedChunkSize == nil {
+		overlappedChunkSize = ptr(defaultEmbeddingsChunkOverlappedSize)
+	}
+
 	// chunk prompt text
 	chunks, err := gt.ChunkText(prompt, gt.TextChunkOption{
-		ChunkSize:      10240,
-		OverlappedSize: 128,
+		ChunkSize:      *chunkSize,
+		OverlappedSize: *overlappedChunkSize,
 		EllipsesText:   "...",
 	})
 	if err != nil {
