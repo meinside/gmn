@@ -24,8 +24,9 @@ const (
 	defaultGenerationTopP        = float32(0.95)
 	defaultGenerationTopK        = int32(20)
 
-	defaultEmbeddingsChunkSize           uint = 10 * 1024
-	defaultEmbeddingsChunkOverlappedSize uint = 512
+	// https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding
+	defaultEmbeddingsChunkSize           uint = 2048 * 2
+	defaultEmbeddingsChunkOverlappedSize uint = 64
 )
 
 // generate text with given things
