@@ -72,6 +72,8 @@ github.com/googleapis/enterprise-certificate-proxy v0.3.5 h1:VgzTY2jogw3xt39CusE
 github.com/googleapis/enterprise-certificate-proxy v0.3.5/go.mod h1:MkHOF77EYAE7qfSuSS9PU6g4Nt4e11cnsDUowfwewLA=
 github.com/googleapis/gax-go/v2 v2.14.1 h1:hb0FFeiPaQskmvakKu5EbCbpntQn48jyHuvrkurSS/Q=
 github.com/googleapis/gax-go/v2 v2.14.1/go.mod h1:Hb/NubMaVM88SrNkvl8X/o8XWwDJEPqouaLeN2IUxoA=
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/infisical/go-sdk v0.5.0 h1:cY8vQ4j0+N/nSS+4eI7Gv/cwLnYVd5nuBvdiverKuk8=
@@ -84,8 +86,8 @@ github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHP
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/meinside/gemini-things-go v0.1.36 h1:NbrJz/7Hreqb7MhCz24IVxWNjUy+sLQUKh318z2Ogkk=
-github.com/meinside/gemini-things-go v0.1.36/go.mod h1:gwEgVyIq+sR1WexdY+YFp4oebdqzyVRc/TD1mWZuOxk=
+github.com/meinside/gemini-things-go v0.2.0 h1:0Gn751/jX1qllxDKemKUi26Lktb6rdbZlq1lb5S9FAg=
+github.com/meinside/gemini-things-go v0.2.0/go.mod h1:BipcLm2GQlmEwkapxJh5heM2UDh4Gli8GfMdPn0SyEk=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
@@ -193,6 +195,8 @@ golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d/go.mod h1:aiJjzUbINMkxb
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/api v0.225.0 h1:+4/IVqBQm0MV5S+JW3kdEGC1WtOmM2mXN1LKH1LdNlw=
 google.golang.org/api v0.225.0/go.mod h1:WP/0Xm4LVvMOCldfvOISnWquSRWbG2kArDZcg+W2DbY=
+google.golang.org/genai v0.5.0 h1:0Gg795HqLJ+fBisumETTV6qsIPWBXNqTGVdKAAenhcc=
+google.golang.org/genai v0.5.0/go.mod h1:yPyKKBezIg2rqZziLhHQ5CD62HWr7sLDLc2PDzdrNVs=
 google.golang.org/genproto/googleapis/api v0.0.0-20250311190419-81fb87f6b8bf h1:BdIVRm+fyDUn8lrZLPSlBCfM/YKDwUBYgDoLv9+DYo0=
 google.golang.org/genproto/googleapis/api v0.0.0-20250311190419-81fb87f6b8bf/go.mod h1:jbe3Bkdp+Dh2IrslsFCklNhweNTBgSYanP1UXhJDhKg=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20250311190419-81fb87f6b8bf h1:dHDlF3CWxQkefK9IJx+O8ldY0gLygvrlYRBNbPqDWuY=

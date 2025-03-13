@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 )
@@ -78,7 +78,7 @@ func doGeneration(
 	// generation options
 	opts := gt.NewGenerationOptions()
 	if cachedContextName != nil {
-		opts.CachedContextName = ptr(strings.TrimSpace(*cachedContextName))
+		opts.CachedContent = strings.TrimSpace(*cachedContextName)
 	}
 	generationTemperature := defaultGenerationTemperature
 	if temperature != nil {
@@ -95,7 +95,7 @@ func doGeneration(
 	opts.Config = &genai.GenerationConfig{
 		Temperature: ptr(generationTemperature),
 		TopP:        ptr(generationTopP),
-		TopK:        ptr(generationTopK),
+		TopK:        ptr(float32(generationTopK)),
 	}
 	if outputAsJSON {
 		opts.Config.ResponseMIMEType = "application/json"
@@ -112,10 +112,14 @@ func doGeneration(
 	go func() {
 		endsWithNewLine := false
 
+		prompts := []gt.Prompt{gt.NewTextPrompt(prompt)}
+		for filename, file := range files {
+			prompts = append(prompts, gt.NewFilePrompt(filename, file))
+		}
+
 		if err := gtc.GenerateStreamed(
 			ctx,
-			prompt,
-			files,
+			prompts,
 			func(data gt.StreamCallbackData) {
 				if data.TextDelta != nil {
 					fmt.Print(*data.TextDelta)
@@ -224,14 +228,14 @@ func doEmbeddingsGeneration(
 		Chunks:   []embedding{},
 	}
 	for i, text := range chunks.Chunks {
-		if vectors, err := gtc.GenerateEmbeddings(ctx, "", []genai.Part{
-			genai.Text(text),
+		if vectors, err := gtc.GenerateEmbeddings(ctx, "", []*genai.Content{
+			genai.NewUserContentFromText(text),
 		}); err != nil {
 			return 1, fmt.Errorf("embeddings failed for chunk[%d]: %w", i, err)
 		} else {
 			embeds.Chunks = append(embeds.Chunks, embedding{
 				Text:    text,
-				Vectors: vectors,
+				Vectors: vectors[0],
 			})
 		}
 	}
@@ -292,7 +296,18 @@ func cacheContext(
 	}()
 
 	// cache context and print the cached context's name
-	if name, err := gtc.CacheContext(ctx, &systemInstruction, prompt, files, nil, nil, cachedContextDisplayName); err == nil {
+	prompts := []gt.Prompt{gt.NewTextPrompt(*prompt)}
+	for filename, file := range files {
+		prompts = append(prompts, gt.NewFilePrompt(filename, file))
+	}
+	if name, err := gtc.CacheContext(
+		ctx,
+		&systemInstruction,
+		prompts,
+		nil,
+		nil,
+		cachedContextDisplayName,
+	); err == nil {
 		fmt.Print(name)
 	} else {
 		return 1, err
@@ -336,7 +351,7 @@ func listCachedContexts(
 				fmt.Printf("%-28s  %-28s %-20s %s\n",
 					content.Name,
 					content.Model,
-					content.Expiration.ExpireTime.Format("2006-01-02 15:04 MST"),
+					content.ExpireTime.Format("2006-01-02 15:04 MST"),
 					content.DisplayName)
 			}
 		} else {
