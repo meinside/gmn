@@ -5,12 +5,12 @@ go 1.23.2
 require (
 	github.com/PuerkitoBio/goquery v1.10.2
 	github.com/fatih/color v1.18.0
-	github.com/google/generative-ai-go v0.19.0
 	github.com/infisical/go-sdk v0.5.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.1.36
+	github.com/meinside/gemini-things-go v0.2.0
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
+	google.golang.org/genai v0.5.0
 )
 
 require (
@@ -40,10 +40,13 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
+	github.com/google/generative-ai-go v0.19.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.5 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
