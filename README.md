@@ -28,7 +28,7 @@ with following content:
 ```json
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
-  "google_ai_model": "gemini-1.5-flash-002",
+  "google_ai_model": "gemini-2.0-flash-001",
   "google_ai_embeddings_model": "text-embedding-004",
 }
 ```
@@ -57,7 +57,7 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
     "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
   },
 
-  "google_ai_model": "gemini-1.5-flash-002",
+  "google_ai_model": "gemini-2.0-flash-001",
   "google_ai_embeddings_model": "text-embedding-004",
 }
 ```
