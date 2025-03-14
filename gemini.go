@@ -112,9 +112,9 @@ func doGeneration(
 	go func() {
 		endsWithNewLine := false
 
-		prompts := []gt.Prompt{gt.NewTextPrompt(prompt)}
+		prompts := []gt.Prompt{gt.PromptFromText(prompt)}
 		for filename, file := range files {
-			prompts = append(prompts, gt.NewFilePrompt(filename, file))
+			prompts = append(prompts, gt.PromptFromFile(filename, file))
 		}
 
 		if err := gtc.GenerateStreamed(
@@ -296,9 +296,9 @@ func cacheContext(
 	}()
 
 	// cache context and print the cached context's name
-	prompts := []gt.Prompt{gt.NewTextPrompt(*prompt)}
+	prompts := []gt.Prompt{gt.PromptFromText(*prompt)}
 	for filename, file := range files {
-		prompts = append(prompts, gt.NewFilePrompt(filename, file))
+		prompts = append(prompts, gt.PromptFromFile(filename, file))
 	}
 	if name, err := gtc.CacheContext(
 		ctx,
