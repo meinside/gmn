@@ -137,6 +137,10 @@ func doGeneration(
 
 					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
 				} else if data.InlineData != nil {
+					if !endsWithNewLine {
+						fmt.Println()
+					}
+
 					// (images)
 					if strings.HasPrefix(data.InlineData.MIMEType, "image/") {
 						if saveImagesToFiles {
