@@ -8,7 +8,7 @@ If the given prompt includes URLs, it can also fetch the contents of the URLs an
 
 With a few more flags, it can also generate images along with the text.
 
-Additionally, it can cache, reuse, and delete contexts for later use.
+Additionally, it can cache, list, and delete contexts for later use.
 
 ## Build / Install
 
@@ -37,10 +37,9 @@ with following content:
 
 and replace things with your own values.
 
+---
 
-You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample)
-
-and your Google AI API key [here](https://aistudio.google.com/app/apikey).
+You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample), and your Google AI API key [here](https://aistudio.google.com/app/apikey).
 
 ### Using Infisical
 
@@ -66,14 +65,17 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
 
 ## Run
 
-### Generate Text
-
-Here are some examples:
+You can see help messages with `-h` or `--help` parameter:
 
 ```bash
-# show the help message
 $ gmn -h
+```
 
+### Generate Text
+
+You can generate text with:
+
+```bash
 # generate with a text prompt
 $ gmn -p "what is the answer to life, the universe, and everything?"
 
@@ -104,15 +106,15 @@ Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/visio
 
 Run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all URLs in the given prompt.
 
-Supported content types are:
-
-* `text/*` (eg. `text/html`, `text/csv`, …)
-* `application/json`
-
 ```bash
 # generate with a text prompt which includes some urls in it 
 $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 ```
+
+Supported content types of URLs are:
+
+* `text/*` (eg. `text/html`, `text/csv`, …)
+* `application/json`
 
 ### Generate Other Media
 
@@ -120,14 +122,16 @@ $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https:
 
 You can generate images with a text prompt and/or existing image files.
 
+(For now, only some models (eg. `gemini-2.0-flash-exp-image-generation`) support image generation.)
+
 ```bash
 # generate images and print them to terminal (will work only in terminals like kitty, wezterm, or iTerm)
 $ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images -p "generate an image of a cute cat"
 
-# or, generate images and save them to temp directory
+# or, generate images and save them in the tmp directory
 $ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images --save-images -p "generate an image of a cute cat"
 
-# edit an image with an existing image file
+# generate images by editing an existing image file
 $ gmn -m "gemini-2.0-flash-exp-image-generation" -f "./cats.png" --with-images -p "edit this image by replacing all cats with dogs"
 ```
 
@@ -169,4 +173,3 @@ With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed informati
 ## License
 
 MIT
-
