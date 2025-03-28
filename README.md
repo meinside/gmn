@@ -131,6 +131,8 @@ $ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images --save-images -p 
 $ gmn -m "gemini-2.0-flash-exp-image-generation" -f "./cats.png" --with-images -p "edit this image by replacing all cats with dogs"
 ```
 
+![image generation](https://github.com/user-attachments/assets/6213bcb8-74d1-433f-b6da-90c2927623ce)
+
 #### Audio
 
 TODO
