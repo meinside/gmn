@@ -6,7 +6,9 @@ Basically, generating texts using prompts and/or files is possible.
 
 If the given prompt includes URLs, it can also fetch the contents of the URLs and use them to generate text.
 
-Additionally, it can cache, reuse, and delete context. 
+With a few more flags, it can also generate images along with the text.
+
+Additionally, it can cache, reuse, and delete contexts for later use.
 
 ## Build / Install
 
@@ -64,6 +66,8 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
 
 ## Run
 
+### Generate Text
+
 Here are some examples:
 
 ```bash
@@ -110,6 +114,27 @@ Supported content types are:
 $ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
 ```
 
+### Generate Other Media
+
+#### Images
+
+You can generate images with a text prompt and/or existing image files.
+
+```bash
+# generate images and print them to terminal (will work only in terminals like kitty, wezterm, or iTerm)
+$ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images -p "generate an image of a cute cat"
+
+# or, generate images and save them to temp directory
+$ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images --save-images -p "generate an image of a cute cat"
+
+# edit an image with an existing image file
+$ gmn -m "gemini-2.0-flash-exp-image-generation" -f "./cats.png" --with-images -p "edit this image by replacing all cats with dogs"
+```
+
+#### Audio
+
+TODO
+
 ### Generate Embeddings
 
 You can generate embeddings with `-e` or `--generate-embeddings` parameter:
@@ -117,9 +142,8 @@ You can generate embeddings with `-e` or `--generate-embeddings` parameter:
 ```bash
 $ gmn -b "text-embedding-004" -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
 ```
-```
 
-### Context Caching
+### Cache Contexts
 
 With the [context caching](https://ai.google.dev/gemini-api/docs/caching?lang=go) feature, you can do:
 

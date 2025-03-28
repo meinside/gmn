@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ func doGeneration(
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
 	outputAsJSON bool,
+	generateImages, saveImagesToFiles bool,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "generating...")
@@ -100,6 +102,15 @@ func doGeneration(
 	if outputAsJSON {
 		opts.Config.ResponseMIMEType = "application/json"
 	}
+	if generateImages {
+		gtc.SetSystemInstructionFunc(nil)
+
+		opts.ResponseModalities = []string{
+			gt.ResponseModalityText,
+			gt.ResponseModalityImage,
+		}
+	}
+	opts.IgnoreUnsupportedType = true
 
 	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
 
@@ -125,6 +136,48 @@ func doGeneration(
 					fmt.Print(*data.TextDelta)
 
 					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
+				} else if data.InlineData != nil {
+					// (images)
+					if strings.HasPrefix(data.InlineData.MIMEType, "image/") {
+						if saveImagesToFiles {
+							fpath := tempFilepath(data.InlineData.MIMEType, "image")
+
+							logVerbose(
+								verboseMedium,
+								vbs,
+								"saving file (%s;%d bytes) to: %s...", data.InlineData.MIMEType, len(data.InlineData.Data), fpath,
+							)
+
+							if err := os.WriteFile(fpath, data.InlineData.Data, 0640); err != nil {
+								// error
+								ch <- result{
+									exit: 1,
+									err:  fmt.Errorf("saving file failed: %s", err),
+								}
+							} else {
+								logMessage(verboseMinimum, "Saved to file: %s", fpath)
+							}
+						} else {
+							logVerbose(
+								verboseMedium,
+								vbs,
+								"displaying image (%s;%d bytes) on terminal...", data.InlineData.MIMEType, len(data.InlineData.Data),
+							)
+
+							// display on terminal
+							if err := displayImageOnTerminal(data.InlineData.Data, data.InlineData.MIMEType); err != nil {
+								// error
+								ch <- result{
+									exit: 1,
+									err:  fmt.Errorf("image display failed: %s", err),
+								}
+							} else {
+								fmt.Println()
+							}
+						}
+					} else { // TODO: NOTE: add more types here
+						logError("Unsupported mime type of inline data: %s", data.InlineData.MIMEType)
+					}
 				} else if data.NumTokens != nil {
 					if !endsWithNewLine {
 						fmt.Println()
@@ -135,6 +188,23 @@ func doGeneration(
 						verboseMinimum,
 						vbs,
 						"input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output,
+					)
+
+					// success
+					ch <- result{
+						exit: 0,
+						err:  nil,
+					}
+				} else if data.FinishReason != nil {
+					if !endsWithNewLine {
+						fmt.Println()
+					}
+
+					// print the finish reason
+					logVerbose(
+						verboseMinimum,
+						vbs,
+						"finishing with reason: %s", *data.FinishReason,
 					)
 
 					// success
