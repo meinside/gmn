@@ -14,8 +14,8 @@ import (
 const (
 	defaultConfigFilename = "config.json"
 
-	defaultGoogleAIModel           = "gemini-1.5-flash-002"
-	defaultGoogleAIEmbeddingsModel = "text-embedding-004"
+	defaultGoogleAIModel           = "gemini-2.0-flash-001"
+	defaultGoogleAIEmbeddingsModel = "gemini-embedding-exp-03-07"
 
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
 
@@ -129,6 +129,8 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Filepaths,
 					p.CachedContextName,
 					p.OutputAsJSON,
+					p.GenerateImages,
+					p.SaveImagesToFiles,
 					p.Verbose)
 			} else {
 				return doEmbeddingsGeneration(context.TODO(),

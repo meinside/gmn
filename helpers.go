@@ -7,14 +7,20 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/tailscale/hujson"
 
@@ -382,4 +388,47 @@ func openFilesForPrompt(promptFiles map[string][]byte, filepaths []*string) (fil
 	}
 
 	return files, filesToClose, nil
+}
+
+// print image to terminal which supports sixel
+//
+// (referenced: https://github.com/BourgeoisBear/rasterm/blob/main/rasterm_test.go)
+func displayImageOnTerminal(imgBytes []byte, mimeType string) error {
+	if rasterm.IsKittyCapable() { // kitty
+		if strings.HasSuffix(mimeType, "png") {
+			return rasterm.KittyCopyPNGInline(os.Stdout, bytes.NewBuffer(imgBytes), rasterm.KittyImgOpts{})
+		} else {
+			if img, _, err := image.Decode(bytes.NewBuffer(imgBytes)); err == nil {
+				return rasterm.KittyWriteImage(os.Stdout, img, rasterm.KittyImgOpts{})
+			} else {
+				return fmt.Errorf("failed to decode %s: %w", mimeType, err)
+			}
+		}
+	} else if rasterm.IsItermCapable() { // iTerm
+		return rasterm.ItermCopyFileInline(os.Stdout, bytes.NewBuffer(imgBytes), int64(len(imgBytes)))
+	} else { // sixel
+		if img, _, err := image.Decode(bytes.NewBuffer(imgBytes)); err == nil {
+			if paletted, ok := img.(*image.Paletted); ok {
+				return rasterm.SixelWriteImage(os.Stdout, paletted)
+			} else {
+				return fmt.Errorf("not a paletted image")
+			}
+		} else {
+			return fmt.Errorf("failed to decode %s: %w", mimeType, err)
+		}
+	}
+}
+
+// generate a temporary filepath for given mime type
+func tempFilepath(mimeType, category string) string {
+	var ext string
+	var exists bool
+	if ext, exists = strings.CutPrefix(mimeType, category+"/"); !exists {
+		ext = "bin"
+	}
+	fpath := filepath.Join(
+		os.TempDir(),
+		fmt.Sprintf("%s_%s.%s", appName, strconv.FormatInt(time.Now().UTC().UnixNano(), 10), ext),
+	)
+	return fpath
 }
