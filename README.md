@@ -31,7 +31,8 @@ with following content:
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
   "google_ai_model": "gemini-2.0-flash-001",
-  "google_ai_embeddings_model": "text-embedding-004",
+  "google_ai_image_generation_model": "gemini-2.0-flash-exp-image-generation",
+  "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
 }
 ```
 
@@ -59,7 +60,8 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   },
 
   "google_ai_model": "gemini-2.0-flash-001",
-  "google_ai_embeddings_model": "text-embedding-004",
+  "google_ai_image_generation_model": "gemini-2.0-flash-exp-image-generation",
+  "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
 }
 ```
 
@@ -76,6 +78,11 @@ $ gmn -h
 You can generate text with:
 
 ```bash
+# generate with a specific model,
+$ gmn -m "gemini-2.0-flash-001" -p "hello"
+
+# or with the default/configured one:
+
 # generate with a text prompt
 $ gmn -p "what is the answer to life, the universe, and everything?"
 
@@ -125,14 +132,22 @@ You can generate images with a text prompt and/or existing image files.
 (For now, only some models (eg. `gemini-2.0-flash-exp-image-generation`) support image generation.)
 
 ```bash
-# generate images and print them to terminal (will work only in terminals like kitty, wezterm, or iTerm)
-$ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images -p "generate an image of a cute cat"
+# generate images with a specific image generation model,
+$ gmn -i "gemini-2.0-flash-exp-image-generation" --with-images -p "generate an image of a cute cat"
 
-# or, generate images and save them in the tmp directory
-$ gmn -m "gemini-2.0-flash-exp-image-generation" --with-images --save-images -p "generate an image of a cute cat"
+# or with the default/configured one:
+
+# generate images and print them to terminal (will work only in terminals like kitty, wezterm, or iTerm)
+$ gmn --with-images -p "generate an image of a cute cat"
+
+# generate images and save them in the $TMPDIR directory
+$ gmn --with-images --save-images -p "generate an image of a cute cat"
+
+# generate images and save them in a specific directory
+$ gmn --with-images --save-images-to-dir="~/images/" -p "generate images of a cute cat"
 
 # generate images by editing an existing image file
-$ gmn -m "gemini-2.0-flash-exp-image-generation" -f "./cats.png" --with-images -p "edit this image by replacing all cats with dogs"
+$ gmn --with-images -f "./cats.png" -p "edit this image by replacing all cats with dogs"
 ```
 
 ![image generation](https://github.com/user-attachments/assets/6213bcb8-74d1-433f-b6da-90c2927623ce)
@@ -146,7 +161,11 @@ TODO
 You can generate embeddings with `-e` or `--generate-embeddings` parameter:
 
 ```bash
-$ gmn -b "text-embedding-004" -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+# generate embeddings with a specific embeddings model,
+$ gmn -b "gemini-embedding-exp-03-07" -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+
+# or with the default/configured one:
+$ gmn -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
 ```
 
 ### Cache Contexts

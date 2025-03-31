@@ -10,9 +10,10 @@ type params struct {
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
 	// for gemini model
-	GoogleAIAPIKey          *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
-	GoogleAIModel           *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
-	GoogleAIEmbeddingsModel *string `short:"b" long:"embeddings-model" description:"Embeddings model to use (can be omitted)"`
+	GoogleAIAPIKey               *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
+	GoogleAIModel                *string `short:"m" long:"model" description:"Model for text generation (can be omitted)"`
+	GoogleAIImageGenerationModel *string `short:"i" long:"image-generation-model" description:"Model for image generation (can be omitted)"`
+	GoogleAIEmbeddingsModel      *string `short:"b" long:"embeddings-model" description:"Model for embeddings (can be omitted)"`
 
 	// system instruction, prompt, and other things for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
