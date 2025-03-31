@@ -38,10 +38,11 @@ type params struct {
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
 	// other options
-	OutputAsJSON      bool   `short:"j" long:"json" description:"Output generated results as JSON"`
-	GenerateImages    bool   `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
-	SaveImagesToFiles bool   `long:"save-images" description:"Save generated images to files"`
-	Verbose           []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
+	OutputAsJSON      bool    `short:"j" long:"json" description:"Output generated results as JSON"`
+	GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
+	SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
+	SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+	Verbose           []bool  `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 }
 
 // check if prompt is given in the params

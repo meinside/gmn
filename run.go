@@ -131,6 +131,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.OutputAsJSON,
 					p.GenerateImages,
 					p.SaveImagesToFiles,
+					p.SaveImagesToDir,
 					p.Verbose)
 			} else {
 				return doEmbeddingsGeneration(context.TODO(),

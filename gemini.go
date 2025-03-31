@@ -39,7 +39,7 @@ func doGeneration(
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
 	outputAsJSON bool,
-	generateImages, saveImagesToFiles bool,
+	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "generating...")
@@ -143,8 +143,12 @@ func doGeneration(
 
 					// (images)
 					if strings.HasPrefix(data.InlineData.MIMEType, "image/") {
-						if saveImagesToFiles {
-							fpath := tempFilepath(data.InlineData.MIMEType, "image")
+						if saveImagesToFiles || saveImagesToDir != nil {
+							fpath := genFilepath(
+								data.InlineData.MIMEType,
+								"image",
+								saveImagesToDir,
+							)
 
 							logVerbose(
 								verboseMedium,
