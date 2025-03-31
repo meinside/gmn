@@ -137,7 +137,7 @@ func doGeneration(
 
 					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
 				} else if data.InlineData != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
 						fmt.Println()
 					}
 
@@ -179,15 +179,17 @@ func doGeneration(
 									exit: 1,
 									err:  fmt.Errorf("image display failed: %s", err),
 								}
-							} else {
+							} else { // NOTE: make sure to insert a new line after an image
 								fmt.Println()
+
+								endsWithNewLine = true
 							}
 						}
 					} else { // TODO: NOTE: add more types here
 						logError("Unsupported mime type of inline data: %s", data.InlineData.MIMEType)
 					}
 				} else if data.NumTokens != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying tokens
 						fmt.Println()
 					}
 
@@ -204,7 +206,7 @@ func doGeneration(
 						err:  nil,
 					}
 				} else if data.FinishReason != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
 						fmt.Println()
 					}
 
