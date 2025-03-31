@@ -34,7 +34,7 @@ const (
 func doGeneration(
 	ctx context.Context,
 	timeoutSeconds int,
-	googleAIAPIKey, googleAIModel string,
+	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextName *string,
@@ -48,7 +48,7 @@ func doGeneration(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
+	gtc, err := gt.NewClient(apiKey, model)
 	if err != nil {
 		return 1, err
 	}
@@ -137,7 +137,7 @@ func doGeneration(
 
 					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
 				} else if data.InlineData != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
 						fmt.Println()
 					}
 
@@ -179,15 +179,17 @@ func doGeneration(
 									exit: 1,
 									err:  fmt.Errorf("image display failed: %s", err),
 								}
-							} else {
+							} else { // NOTE: make sure to insert a new line after an image
 								fmt.Println()
+
+								endsWithNewLine = true
 							}
 						}
 					} else { // TODO: NOTE: add more types here
 						logError("Unsupported mime type of inline data: %s", data.InlineData.MIMEType)
 					}
 				} else if data.NumTokens != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying tokens
 						fmt.Println()
 					}
 
@@ -204,7 +206,7 @@ func doGeneration(
 						err:  nil,
 					}
 				} else if data.FinishReason != nil {
-					if !endsWithNewLine {
+					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
 						fmt.Println()
 					}
 
@@ -251,7 +253,7 @@ func doGeneration(
 func doEmbeddingsGeneration(
 	ctx context.Context,
 	timeoutSeconds int,
-	googleAIAPIKey, googleAIEmbeddingsModel string,
+	apiKey, model string,
 	prompt string,
 	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
@@ -279,7 +281,7 @@ func doEmbeddingsGeneration(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIAPIKey, googleAIEmbeddingsModel)
+	gtc, err := gt.NewClient(apiKey, model)
 	if err != nil {
 		return 1, err
 	}
@@ -332,7 +334,7 @@ func doEmbeddingsGeneration(
 func cacheContext(
 	ctx context.Context,
 	timeoutSeconds int,
-	googleAIAPIKey, googleAIModel string,
+	apiKey, model string,
 	systemInstruction string,
 	prompt *string, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextDisplayName *string,
@@ -344,7 +346,7 @@ func cacheContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
+	gtc, err := gt.NewClient(apiKey, model)
 	if err != nil {
 		return 1, err
 	}
@@ -399,7 +401,7 @@ func cacheContext(
 func listCachedContexts(
 	ctx context.Context,
 	timeoutSeconds int,
-	googleAIAPIKey, googleAIModel string,
+	apiKey, model string,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "listing cached contexts...")
@@ -408,7 +410,7 @@ func listCachedContexts(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
+	gtc, err := gt.NewClient(apiKey, model)
 	if err != nil {
 		return 1, err
 	}
@@ -447,7 +449,7 @@ func listCachedContexts(
 func deleteCachedContext(
 	ctx context.Context,
 	timeoutSeconds int,
-	googleAIAPIKey, googleAIModel string,
+	apiKey, model string,
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -457,7 +459,7 @@ func deleteCachedContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(googleAIAPIKey, googleAIModel)
+	gtc, err := gt.NewClient(apiKey, model)
 	if err != nil {
 		return 1, err
 	}

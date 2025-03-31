@@ -57,6 +57,7 @@ func (p *params) taskRequested() bool {
 }
 
 // check if multiple tasks are requested
+//
 // FIXME: TODO: need to be fixed whenever a new task is added
 func (p *params) multipleTaskRequested() bool {
 	hasPrompt := p.hasPrompt()
