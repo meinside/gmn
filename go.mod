@@ -9,9 +9,9 @@ require (
 	github.com/infisical/go-sdk v0.5.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.2.10
+	github.com/meinside/gemini-things-go v0.2.11
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
-	google.golang.org/genai v0.6.1-0.20250326173329-d75d5288435a
+	google.golang.org/genai v0.6.1-0.20250328234609-e8608b19f7be
 )
 
 require (
