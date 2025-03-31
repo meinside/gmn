@@ -88,8 +88,8 @@ github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHP
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/meinside/gemini-things-go v0.2.10 h1:hKx5prt6monMWlCI8I4VicE+6LruK+suIzR1CACrQJQ=
-github.com/meinside/gemini-things-go v0.2.10/go.mod h1:jDS5sDUso/IKTHEJ7XwZf48HLoBBec2gjY6EO3Z9HaA=
+github.com/meinside/gemini-things-go v0.2.11 h1:zo0WNHx9NS+d+l/jllpdJC1X3VurlNW8GHeH10W6wmM=
+github.com/meinside/gemini-things-go v0.2.11/go.mod h1:eZJpTwosGCqlfMjuXegZfw9MPb33QxOS2M+lpCGMsbY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
@@ -199,8 +199,8 @@ golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d/go.mod h1:aiJjzUbINMkxb
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/api v0.228.0 h1:X2DJ/uoWGnY5obVjewbp8icSL5U4FzuCfy9OjbLSnLs=
 google.golang.org/api v0.228.0/go.mod h1:wNvRS1Pbe8r4+IfBIniV8fwCpGwTrYa+kMUDiC5z5a4=
-google.golang.org/genai v0.6.1-0.20250326173329-d75d5288435a h1:psDNk9Qhe5Maoqyq3Vevsex6QIt//9F7aSBJu1DzDO0=
-google.golang.org/genai v0.6.1-0.20250326173329-d75d5288435a/go.mod h1:yPyKKBezIg2rqZziLhHQ5CD62HWr7sLDLc2PDzdrNVs=
+google.golang.org/genai v0.6.1-0.20250328234609-e8608b19f7be h1:Z7G0rw84TENVide3rCtMU+Wfk+6aXn51wu4+RY+xcag=
+google.golang.org/genai v0.6.1-0.20250328234609-e8608b19f7be/go.mod h1:TyfOKRz/QyCaj6f/ZDt505x+YreXnY40l2I6k8TvgqY=
 google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463 h1:hE3bRWtU6uceqlh4fhrSnUyjKHMKB9KrTLLG+bc0ddM=
 google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463/go.mod h1:U90ffi8eUL9MwPcrJylN5+Mk2v3vuPDptd5yyNUiRR8=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 h1:e0AIkUUhxyBKh6ssZNrAMeqhA7RKUj42346d1y02i2g=

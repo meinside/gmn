@@ -303,7 +303,7 @@ func doEmbeddingsGeneration(
 	}
 	for i, text := range chunks.Chunks {
 		if vectors, err := gtc.GenerateEmbeddings(ctx, "", []*genai.Content{
-			genai.NewUserContentFromText(text),
+			genai.NewContentFromText(text, gt.RoleUser),
 		}); err != nil {
 			return 1, fmt.Errorf("embeddings failed for chunk[%d]: %w", i, err)
 		} else {
