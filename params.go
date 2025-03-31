@@ -10,9 +10,10 @@ type params struct {
 	ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
 	// for gemini model
-	GoogleAIAPIKey          *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
-	GoogleAIModel           *string `short:"m" long:"model" description:"Model to use (can be omitted)"`
-	GoogleAIEmbeddingsModel *string `short:"b" long:"embeddings-model" description:"Embeddings model to use (can be omitted)"`
+	GoogleAIAPIKey               *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
+	GoogleAIModel                *string `short:"m" long:"model" description:"Model for text generation (can be omitted)"`
+	GoogleAIImageGenerationModel *string `short:"i" long:"image-generation-model" description:"Model for image generation (can be omitted)"`
+	GoogleAIEmbeddingsModel      *string `short:"b" long:"embeddings-model" description:"Model for embeddings (can be omitted)"`
 
 	// system instruction, prompt, and other things for generation
 	SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
@@ -38,10 +39,11 @@ type params struct {
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
 	// other options
-	OutputAsJSON      bool   `short:"j" long:"json" description:"Output generated results as JSON"`
-	GenerateImages    bool   `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
-	SaveImagesToFiles bool   `long:"save-images" description:"Save generated images to files"`
-	Verbose           []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
+	OutputAsJSON      bool    `short:"j" long:"json" description:"Output generated results as JSON"`
+	GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
+	SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
+	SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+	Verbose           []bool  `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 }
 
 // check if prompt is given in the params

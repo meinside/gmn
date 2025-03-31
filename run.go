@@ -14,8 +14,9 @@ import (
 const (
 	defaultConfigFilename = "config.json"
 
-	defaultGoogleAIModel           = "gemini-2.0-flash-001"
-	defaultGoogleAIEmbeddingsModel = "gemini-embedding-exp-03-07"
+	defaultGoogleAIModel                = "gemini-2.0-flash-001"
+	defaultGoogleAIImageGenerationModel = "gemini-2.0-flash-exp-image-generation"
+	defaultGoogleAIEmbeddingsModel      = "gemini-embedding-exp-03-07"
 
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
 
@@ -60,6 +61,9 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	if conf.GoogleAIModel != nil && p.GoogleAIModel == nil {
 		p.GoogleAIModel = conf.GoogleAIModel
 	}
+	if conf.GoogleAIImageGenerationModel != nil && p.GoogleAIImageGenerationModel == nil {
+		p.GoogleAIImageGenerationModel = conf.GoogleAIImageGenerationModel
+	}
 	if conf.GoogleAIEmbeddingsModel != nil && p.GoogleAIEmbeddingsModel == nil {
 		p.GoogleAIEmbeddingsModel = conf.GoogleAIEmbeddingsModel
 	}
@@ -67,6 +71,9 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	// set default values
 	if p.GoogleAIModel == nil {
 		p.GoogleAIModel = ptr(defaultGoogleAIModel)
+	}
+	if p.GoogleAIImageGenerationModel == nil {
+		p.GoogleAIImageGenerationModel = ptr(defaultGoogleAIImageGenerationModel)
 	}
 	if p.GoogleAIEmbeddingsModel == nil {
 		p.GoogleAIEmbeddingsModel = ptr(defaultGoogleAIEmbeddingsModel)
@@ -116,10 +123,17 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				p.Verbose)
 		} else { // generate
 			if !p.GenerateEmbeddings {
+				var model string
+				if p.GenerateImages {
+					model = *p.GoogleAIImageGenerationModel
+				} else {
+					model = *p.GoogleAIModel
+				}
+
 				return doGeneration(context.TODO(),
 					conf.TimeoutSeconds,
 					*p.GoogleAIAPIKey,
-					*p.GoogleAIModel,
+					model,
 					*p.SystemInstruction,
 					p.Temperature,
 					p.TopP,
@@ -131,6 +145,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.OutputAsJSON,
 					p.GenerateImages,
 					p.SaveImagesToFiles,
+					p.SaveImagesToDir,
 					p.Verbose)
 			} else {
 				return doEmbeddingsGeneration(context.TODO(),

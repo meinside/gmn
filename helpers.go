@@ -419,16 +419,40 @@ func displayImageOnTerminal(imgBytes []byte, mimeType string) error {
 	}
 }
 
-// generate a temporary filepath for given mime type
-func tempFilepath(mimeType, category string) string {
+// generate a filepath for given mime type
+//
+// ($TMPDIR will be used if `destDir` is nil)
+func genFilepath(mimeType, category string, destDir *string) string {
 	var ext string
 	var exists bool
 	if ext, exists = strings.CutPrefix(mimeType, category+"/"); !exists {
 		ext = "bin"
 	}
-	fpath := filepath.Join(
-		os.TempDir(),
+
+	var dir string
+	if destDir == nil {
+		dir = os.TempDir()
+	} else {
+		dir = expandDir(*destDir)
+	}
+
+	return filepath.Join(
+		dir,
 		fmt.Sprintf("%s_%s.%s", appName, strconv.FormatInt(time.Now().UTC().UnixNano(), 10), ext),
 	)
-	return fpath
+}
+
+// expand given directory
+func expandDir(dir string) string {
+	// handle `~`,
+	if strings.HasPrefix(dir, "~/") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			dir = strings.Replace(dir, "~", homeDir, 1)
+		}
+	}
+
+	// clean,
+	dir = filepath.Clean(dir)
+
+	return dir
 }
