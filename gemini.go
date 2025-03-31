@@ -164,6 +164,8 @@ func doGeneration(
 								}
 							} else {
 								logMessage(verboseMinimum, "Saved to file: %s", fpath)
+
+								endsWithNewLine = true
 							}
 						} else {
 							logVerbose(
