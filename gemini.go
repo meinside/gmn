@@ -111,7 +111,6 @@ func doGeneration(
 			gt.ResponseModalityImage,
 		}
 	}
-	opts.IgnoreUnsupportedType = ignoreUnsupportedType
 
 	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
 
@@ -129,117 +128,148 @@ func doGeneration(
 			prompts = append(prompts, gt.PromptFromFile(filename, file))
 		}
 
-		if err := gtc.GenerateStreamed(
+		// iterate generated stream
+		for it, err := range gtc.GenerateStreamIterated(
 			ctx,
 			prompts,
-			func(data gt.StreamCallbackData) {
-				if data.TextDelta != nil {
-					fmt.Print(*data.TextDelta)
+			opts,
+		) {
+			if err == nil {
+				for _, cand := range it.Candidates {
+					// content
+					if cand.Content != nil {
+						for _, part := range cand.Content.Parts {
+							if part.Text != "" {
+								fmt.Print(part.Text)
 
-					endsWithNewLine = strings.HasSuffix(*data.TextDelta, "\n")
-				} else if data.InlineData != nil {
-					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
-						fmt.Println()
-					}
+								endsWithNewLine = strings.HasSuffix(part.Text, "\n")
+							} else if part.InlineData != nil {
+								if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
+									fmt.Println()
+								}
 
-					// (images)
-					if strings.HasPrefix(data.InlineData.MIMEType, "image/") {
-						if saveImagesToFiles || saveImagesToDir != nil {
-							fpath := genFilepath(
-								data.InlineData.MIMEType,
-								"image",
-								saveImagesToDir,
-							)
+								// (images)
+								if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
+									if saveImagesToFiles || saveImagesToDir != nil {
+										fpath := genFilepath(
+											part.InlineData.MIMEType,
+											"image",
+											saveImagesToDir,
+										)
 
-							logVerbose(
-								verboseMedium,
-								vbs,
-								"saving file (%s;%d bytes) to: %s...", data.InlineData.MIMEType, len(data.InlineData.Data), fpath,
-							)
+										logVerbose(
+											verboseMedium,
+											vbs,
+											"saving file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
+										)
 
-							if err := os.WriteFile(fpath, data.InlineData.Data, 0640); err != nil {
-								// error
-								ch <- result{
-									exit: 1,
-									err:  fmt.Errorf("saving file failed: %s", err),
+										if err := os.WriteFile(fpath, part.InlineData.Data, 0640); err != nil {
+											// error
+											ch <- result{
+												exit: 1,
+												err:  fmt.Errorf("saving file failed: %s", err),
+											}
+											return
+										} else {
+											logMessage(verboseMinimum, "Saved to file: %s", fpath)
+
+											endsWithNewLine = true
+										}
+									} else {
+										logVerbose(
+											verboseMedium,
+											vbs,
+											"displaying image (%s;%d bytes) on terminal...", part.InlineData.MIMEType, len(part.InlineData.Data),
+										)
+
+										// display on terminal
+										if err := displayImageOnTerminal(part.InlineData.Data, part.InlineData.MIMEType); err != nil {
+											// error
+											ch <- result{
+												exit: 1,
+												err:  fmt.Errorf("image display failed: %s", err),
+											}
+											return
+										} else { // NOTE: make sure to insert a new line after an image
+											fmt.Println()
+
+											endsWithNewLine = true
+										}
+									}
+								} else { // TODO: NOTE: add more types here
+									logError("Unsupported mime type of inline data: %s", part.InlineData.MIMEType)
 								}
 							} else {
-								logMessage(verboseMinimum, "Saved to file: %s", fpath)
-
-								endsWithNewLine = true
-							}
-						} else {
-							logVerbose(
-								verboseMedium,
-								vbs,
-								"displaying image (%s;%d bytes) on terminal...", data.InlineData.MIMEType, len(data.InlineData.Data),
-							)
-
-							// display on terminal
-							if err := displayImageOnTerminal(data.InlineData.Data, data.InlineData.MIMEType); err != nil {
-								// error
-								ch <- result{
-									exit: 1,
-									err:  fmt.Errorf("image display failed: %s", err),
+								if !ignoreUnsupportedType {
+									logError("Unsupported type of content part: %s", prettify(part))
 								}
-							} else { // NOTE: make sure to insert a new line after an image
-								fmt.Println()
-
-								endsWithNewLine = true
 							}
 						}
-					} else { // TODO: NOTE: add more types here
-						logError("Unsupported mime type of inline data: %s", data.InlineData.MIMEType)
 					}
-				} else if data.NumTokens != nil {
+
+					// finish reason
+					if cand.FinishReason != "" {
+						if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
+							fmt.Println()
+						}
+
+						// print the finish reason
+						logVerbose(
+							verboseMinimum,
+							vbs,
+							"finishing with reason: %s", cand.FinishReason,
+						)
+
+						// success
+						ch <- result{
+							exit: 0,
+							err:  nil,
+						}
+						return
+					}
+				}
+
+				// token usage
+				if it.UsageMetadata != nil &&
+					(it.UsageMetadata.PromptTokenCount != nil ||
+						it.UsageMetadata.CandidatesTokenCount != nil ||
+						it.UsageMetadata.CachedContentTokenCount != nil) {
 					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying tokens
 						fmt.Println()
+					}
+
+					tokens := []string{}
+					if it.UsageMetadata.PromptTokenCount != nil {
+						tokens = append(tokens, fmt.Sprintf("input: %d", *it.UsageMetadata.PromptTokenCount))
+					}
+					if it.UsageMetadata.CandidatesTokenCount != nil {
+						tokens = append(tokens, fmt.Sprintf("output: %d", *it.UsageMetadata.CandidatesTokenCount))
+					}
+					if it.UsageMetadata.CachedContentTokenCount != nil {
+						tokens = append(tokens, fmt.Sprintf("cached: %d", *it.UsageMetadata.CachedContentTokenCount))
 					}
 
 					// print the number of tokens
 					logVerbose(
 						verboseMinimum,
 						vbs,
-						"tokens input: %d / output: %d / cached: %d", data.NumTokens.Input, data.NumTokens.Output, data.NumTokens.Cached,
+						"tokens %s", strings.Join(tokens, ", "),
 					)
-
-					// success
-					ch <- result{
-						exit: 0,
-						err:  nil,
-					}
-				} else if data.FinishReason != nil {
-					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
-						fmt.Println()
-					}
-
-					// print the finish reason
-					logVerbose(
-						verboseMinimum,
-						vbs,
-						"finishing with reason: %s", *data.FinishReason,
-					)
-
-					// success
-					ch <- result{
-						exit: 0,
-						err:  nil,
-					}
-				} else if data.Error != nil {
-					// error
-					ch <- result{
-						exit: 1,
-						err:  fmt.Errorf("streaming failed: %s", gt.ErrToStr(data.Error)),
-					}
 				}
-			},
-			opts,
-		); err != nil {
-			// error
-			ch <- result{
-				exit: 1,
-				err:  fmt.Errorf("generation failed: %s", gt.ErrToStr(err)),
+			} else {
+				// error
+				ch <- result{
+					exit: 1,
+					err:  fmt.Errorf("stream iteration failed: %s", gt.ErrToStr(err)),
+				}
+				return
 			}
+		}
+
+		// finish anyway
+		ch <- result{
+			exit: 0,
+			err:  nil,
 		}
 	}()
 
