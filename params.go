@@ -43,7 +43,10 @@ type params struct {
 	GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
 	SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
 	SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
-	Verbose           []bool  `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
+
+	// for logging and debugging
+	ErrorOnUnsupportedType bool   `long:"error-on-unsupported-type" description:"Exit with error when unsupported type of stream is received"`
+	Verbose                []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 }
 
 // check if prompt is given in the params
