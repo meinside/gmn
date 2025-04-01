@@ -40,6 +40,7 @@ func doGeneration(
 	cachedContextName *string,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
+	ignoreUnsupportedType bool,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "generating...")
@@ -110,7 +111,7 @@ func doGeneration(
 			gt.ResponseModalityImage,
 		}
 	}
-	opts.IgnoreUnsupportedType = true
+	opts.IgnoreUnsupportedType = ignoreUnsupportedType
 
 	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
 
@@ -199,7 +200,7 @@ func doGeneration(
 					logVerbose(
 						verboseMinimum,
 						vbs,
-						"input tokens: %d / output tokens: %d", data.NumTokens.Input, data.NumTokens.Output,
+						"tokens input: %d / output: %d / cached: %d", data.NumTokens.Input, data.NumTokens.Output, data.NumTokens.Cached,
 					)
 
 					// success

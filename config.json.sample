@@ -3,7 +3,7 @@
   // your google ai api key here:
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
   /*
-  // or, for fetching google ai api key from infisicial:
+  // or, for fetching google ai api key from infisical:
   "infisical": {
     "client_id": "012345-abcdefg-987654321",
     "client_secret": "aAbBcCdDeEfFgG0123456789xyzwXYZW",

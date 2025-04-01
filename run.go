@@ -146,6 +146,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.GenerateImages,
 					p.SaveImagesToFiles,
 					p.SaveImagesToDir,
+					!p.ErrorOnUnsupportedType,
 					p.Verbose)
 			} else {
 				return doEmbeddingsGeneration(context.TODO(),
