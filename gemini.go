@@ -512,3 +512,45 @@ func deleteCachedContext(
 	// success
 	return 0, nil
 }
+
+// list models
+func listModels(
+	ctx context.Context,
+	timeoutSeconds int,
+	apiKey string,
+	vbs []bool,
+) (exit int, e error) {
+	logVerbose(verboseMedium, vbs, "listing models...")
+
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	// gemini things client
+	gtc, err := gt.NewClient(apiKey, "")
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			logError("Failed to close client: %s", err)
+		}
+	}()
+
+	// configure gemini things client
+	gtc.SetTimeout(timeoutSeconds)
+
+	if models, err := gtc.ListModels(ctx); err != nil {
+		return 1, err
+	} else {
+		for _, model := range models {
+			fmt.Printf(`%s (%s)
+  > input tokens: %d
+  > output tokens: %d
+  > supported actions: %s
+`, model.Name, model.DisplayName, model.InputTokenLimit, model.OutputTokenLimit, strings.Join(model.SupportedActions, ", "))
+		}
+	}
+
+	// success
+	return 0, nil
+}

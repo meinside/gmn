@@ -186,6 +186,11 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				*p.GoogleAIModel,
 				*p.DeleteCachedContext,
 				p.Verbose)
+		} else if p.ListModels { // list models
+			return listModels(context.TODO(),
+				conf.TimeoutSeconds,
+				*p.GoogleAIAPIKey,
+				p.Verbose)
 		} else { // otherwise, (should not reach here)
 			logMessage(verboseMedium, "Parameter error: no task was requested or handled properly.")
 
