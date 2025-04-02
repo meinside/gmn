@@ -38,6 +38,9 @@ type params struct {
 	CachedContextName   *string `short:"N" long:"context-name" description:"Name of the cached context to use"`
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
+	// for listing models
+	ListModels bool `long:"list-models" description:"List available models"`
+
 	// other options
 	OutputAsJSON      bool    `short:"j" long:"json" description:"Output generated results as JSON"`
 	GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
@@ -56,7 +59,7 @@ func (p *params) hasPrompt() bool {
 
 // check if any task is requested
 func (p *params) taskRequested() bool {
-	return p.hasPrompt() || p.CacheContext || p.ListCachedContexts || p.DeleteCachedContext != nil
+	return p.hasPrompt() || p.CacheContext || p.ListCachedContexts || p.DeleteCachedContext != nil || p.ListModels
 }
 
 // check if multiple tasks are requested
@@ -81,6 +84,13 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if p.DeleteCachedContext != nil { // delete cached context
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.ListModels { // list models
 		num++
 		if hasPrompt && !promptCounted {
 			num++

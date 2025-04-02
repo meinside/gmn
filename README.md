@@ -73,6 +73,12 @@ You can see help messages with `-h` or `--help` parameter:
 $ gmn -h
 ```
 
+and list models with their token limits and supported actions with `--list-models`:
+
+```bash
+$ gmn --list-models
+```
+
 ### Generate Text
 
 You can generate text with:

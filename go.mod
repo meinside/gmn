@@ -9,7 +9,7 @@ require (
 	github.com/infisical/go-sdk v0.5.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.2.13
+	github.com/meinside/gemini-things-go v0.2.14
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
 	google.golang.org/genai v0.7.0
 )
@@ -68,6 +68,6 @@ require (
 	google.golang.org/api v0.228.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
-	google.golang.org/grpc v1.71.0 // indirect
+	google.golang.org/grpc v1.71.1 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
