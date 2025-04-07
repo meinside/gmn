@@ -231,22 +231,22 @@ func doGeneration(
 
 				// token usage
 				if it.UsageMetadata != nil &&
-					(it.UsageMetadata.PromptTokenCount != nil ||
-						it.UsageMetadata.CandidatesTokenCount != nil ||
-						it.UsageMetadata.CachedContentTokenCount != nil) {
+					(it.UsageMetadata.PromptTokenCount != 0 ||
+						it.UsageMetadata.CandidatesTokenCount != 0 ||
+						it.UsageMetadata.CachedContentTokenCount != 0) {
 					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying tokens
 						fmt.Println()
 					}
 
 					tokens := []string{}
-					if it.UsageMetadata.PromptTokenCount != nil {
-						tokens = append(tokens, fmt.Sprintf("input: %d", *it.UsageMetadata.PromptTokenCount))
+					if it.UsageMetadata.PromptTokenCount != 0 {
+						tokens = append(tokens, fmt.Sprintf("input: %d", it.UsageMetadata.PromptTokenCount))
 					}
-					if it.UsageMetadata.CandidatesTokenCount != nil {
-						tokens = append(tokens, fmt.Sprintf("output: %d", *it.UsageMetadata.CandidatesTokenCount))
+					if it.UsageMetadata.CandidatesTokenCount != 0 {
+						tokens = append(tokens, fmt.Sprintf("output: %d", it.UsageMetadata.CandidatesTokenCount))
 					}
-					if it.UsageMetadata.CachedContentTokenCount != nil {
-						tokens = append(tokens, fmt.Sprintf("cached: %d", *it.UsageMetadata.CachedContentTokenCount))
+					if it.UsageMetadata.CachedContentTokenCount != 0 {
+						tokens = append(tokens, fmt.Sprintf("cached: %d", it.UsageMetadata.CachedContentTokenCount))
 					}
 
 					// print the number of tokens
