@@ -162,6 +162,10 @@ $ gmn --with-images -f "./cats.png" -p "edit this image by replacing all cats wi
 
 TODO
 
+#### Video
+
+TODO
+
 ### Generate Embeddings
 
 You can generate embeddings with `-e` or `--generate-embeddings` parameter:
@@ -194,6 +198,23 @@ $ gmn -D "$C_C_NAME"
 ### Others
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.
+
+## Example of Shell Aliases
+
+```bash
+# for text generation with a plain text
+gmnp() {
+    gmn -p "$*"
+}
+# for image generation with a plain text
+gmni() {
+    gmn --with-images --save-images-to-dir=~/files/images -p "$*"
+}
+# for URL summarization
+gmnu() {
+    gmn -x -p "Summarize the content of following URL: $*"
+}
+```
 
 ## License
 
