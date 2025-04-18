@@ -185,8 +185,8 @@ With the [context caching](https://ai.google.dev/gemini-api/docs/caching?lang=go
 ```bash
 # cache context and reuse it
 # NOTE: when caching, `-N` parameter will be used as a cached context's display name
-$ C_C_NAME="$(gmn -C -s "you are an arrogant chat bot who hates vegetables." -N "cached system instruction")"
-$ gmn -p "tell me about your preference over fruits, vegetables, and meats." -N="$C_C_NAME"
+$ C_C_NAME="$(gmn -C -s "you are a precise code analyzier." -f "./" -N "cached files and a system instruction")"
+$ gmn -p "tell me about the source codes in this directory" -N="$C_C_NAME"
 
 # list cached contexts
 $ gmn -L
@@ -194,6 +194,10 @@ $ gmn -L
 # delete the cached context
 $ gmn -D "$C_C_NAME"
 ```
+
+If the provided content is too small for caching, it will fail with an error.
+
+It may also fail with some models on free-tier.
 
 ### Others
 

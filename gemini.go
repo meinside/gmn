@@ -409,7 +409,10 @@ func cacheContext(
 	}()
 
 	// cache context and print the cached context's name
-	prompts := []gt.Prompt{gt.PromptFromText(*prompt)}
+	prompts := []gt.Prompt{}
+	if prompt != nil {
+		prompts = append(prompts, gt.PromptFromText(*prompt))
+	}
 	for filename, file := range files {
 		prompts = append(prompts, gt.PromptFromFile(filename, file))
 	}
