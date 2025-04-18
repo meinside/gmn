@@ -22,6 +22,8 @@ type params struct {
 	TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
 	Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
 	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
+	ThinkingOn        bool      `long:"with-thinking" description:"Generate with thinking on"`
+	ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
 
 	// for embedding
 	GenerateEmbeddings            bool  `short:"e" long:"gen-embeddings" description:"Generate embeddings of the prompt"`

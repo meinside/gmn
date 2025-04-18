@@ -37,6 +37,7 @@ func doGeneration(
 	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
+	withThinking bool, thinkingBudget *int32,
 	cachedContextName *string,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
@@ -111,6 +112,10 @@ func doGeneration(
 			gt.ResponseModalityImage,
 		}
 	}
+	opts.ThinkingOn = withThinking
+	if thinkingBudget != nil {
+		opts.ThinkingBudget = *thinkingBudget
+	}
 
 	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
 
@@ -139,6 +144,11 @@ func doGeneration(
 					// content
 					if cand.Content != nil {
 						for _, part := range cand.Content.Parts {
+							// FIXME: not tested
+							if part.Thought {
+								fmt.Print("<thought>")
+							}
+
 							if part.Text != "" {
 								fmt.Print(part.Text)
 
