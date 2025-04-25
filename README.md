@@ -218,6 +218,10 @@ gmni() {
 gmnu() {
     gmn -x -p "Summarize the content of following URL: $*"
 }
+# for translation
+gmnt() {
+  gmn -p "Translate following text to ko_KR: $*"
+}
 ```
 
 ## License
