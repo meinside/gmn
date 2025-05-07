@@ -140,6 +140,23 @@ func doGeneration(
 			opts,
 		) {
 			if err == nil {
+				// save token usages
+				tokenUsages := []string{}
+				if it.UsageMetadata != nil &&
+					(it.UsageMetadata.PromptTokenCount != 0 ||
+						it.UsageMetadata.CandidatesTokenCount != 0 ||
+						it.UsageMetadata.CachedContentTokenCount != 0) {
+					if it.UsageMetadata.PromptTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("input: %d", it.UsageMetadata.PromptTokenCount))
+					}
+					if it.UsageMetadata.CandidatesTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("output: %d", it.UsageMetadata.CandidatesTokenCount))
+					}
+					if it.UsageMetadata.CachedContentTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("cached: %d", it.UsageMetadata.CachedContentTokenCount))
+					}
+				}
+
 				for _, cand := range it.Candidates {
 					// content
 					if cand.Content != nil {
@@ -223,6 +240,15 @@ func doGeneration(
 							fmt.Println()
 						}
 
+						// print the number of tokens before priting the finish reason
+						if len(tokenUsages) > 0 {
+							logVerbose(
+								verboseMinimum,
+								vbs,
+								"tokens %s", strings.Join(tokenUsages, ", "),
+							)
+						}
+
 						// print the finish reason
 						logVerbose(
 							verboseMinimum,
@@ -237,34 +263,6 @@ func doGeneration(
 						}
 						return
 					}
-				}
-
-				// token usage
-				if it.UsageMetadata != nil &&
-					(it.UsageMetadata.PromptTokenCount != 0 ||
-						it.UsageMetadata.CandidatesTokenCount != 0 ||
-						it.UsageMetadata.CachedContentTokenCount != 0) {
-					if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying tokens
-						fmt.Println()
-					}
-
-					tokens := []string{}
-					if it.UsageMetadata.PromptTokenCount != 0 {
-						tokens = append(tokens, fmt.Sprintf("input: %d", it.UsageMetadata.PromptTokenCount))
-					}
-					if it.UsageMetadata.CandidatesTokenCount != 0 {
-						tokens = append(tokens, fmt.Sprintf("output: %d", it.UsageMetadata.CandidatesTokenCount))
-					}
-					if it.UsageMetadata.CachedContentTokenCount != 0 {
-						tokens = append(tokens, fmt.Sprintf("cached: %d", it.UsageMetadata.CachedContentTokenCount))
-					}
-
-					// print the number of tokens
-					logVerbose(
-						verboseMinimum,
-						vbs,
-						"tokens %s", strings.Join(tokens, ", "),
-					)
 				}
 			} else {
 				// error
