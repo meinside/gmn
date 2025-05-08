@@ -142,18 +142,24 @@ func doGeneration(
 			if err == nil {
 				// save token usages
 				tokenUsages := []string{}
-				if it.UsageMetadata != nil &&
-					(it.UsageMetadata.PromptTokenCount != 0 ||
-						it.UsageMetadata.CandidatesTokenCount != 0 ||
-						it.UsageMetadata.CachedContentTokenCount != 0) {
+				if it.UsageMetadata != nil {
 					if it.UsageMetadata.PromptTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("input: %d", it.UsageMetadata.PromptTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf("prompt: %d", it.UsageMetadata.PromptTokenCount))
 					}
 					if it.UsageMetadata.CandidatesTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("output: %d", it.UsageMetadata.CandidatesTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf("candidates: %d", it.UsageMetadata.CandidatesTokenCount))
 					}
 					if it.UsageMetadata.CachedContentTokenCount != 0 {
 						tokenUsages = append(tokenUsages, fmt.Sprintf("cached: %d", it.UsageMetadata.CachedContentTokenCount))
+					}
+					if it.UsageMetadata.ToolUsePromptTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("tool use: %d", it.UsageMetadata.ToolUsePromptTokenCount))
+					}
+					if it.UsageMetadata.ThoughtsTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("thoughts: %d", it.UsageMetadata.ThoughtsTokenCount))
+					}
+					if it.UsageMetadata.TotalTokenCount != 0 {
+						tokenUsages = append(tokenUsages, fmt.Sprintf("total: %d", it.UsageMetadata.TotalTokenCount))
 					}
 				}
 
