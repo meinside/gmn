@@ -16,6 +16,34 @@ import (
 	"github.com/infisical/go-sdk/packages/models"
 )
 
+const (
+	// default config file's name
+	defaultConfigFilename = "config.json"
+
+	// default model names
+	defaultGoogleAIModel                = "gemini-2.0-flash"
+	defaultGoogleAIImageGenerationModel = "gemini-2.0-flash-preview-image-generation"
+	defaultGoogleAIEmbeddingsModel      = "gemini-embedding-exp-03-07"
+
+	// default system instruction
+	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
+
+Current datetime is %[3]s, and hostname is '%[4]s'.
+
+Respond to user messages according to the following principles:
+- Do not repeat the user's request and return only the response to the user's request.
+- Unless otherwise specified, respond in the same language as used in the user's request.
+- Be as accurate as possible.
+- Be as truthful as possible.
+- Be as comprehensive and informative as possible.
+`
+
+	// other default parameters
+	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
+	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
+	defaultUserAgent              = `GMN/fetcher`
+)
+
 // config struct
 type config struct {
 	GoogleAIAPIKey *string           `json:"google_ai_api_key,omitempty"`

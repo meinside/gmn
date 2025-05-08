@@ -30,8 +30,8 @@ with following content:
 ```json
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
-  "google_ai_model": "gemini-2.0-flash-001",
-  "google_ai_image_generation_model": "gemini-2.0-flash-exp-image-generation",
+  "google_ai_model": "gemini-2.0-flash",
+  "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
   "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
 }
 ```
@@ -59,8 +59,8 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
     "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
   },
 
-  "google_ai_model": "gemini-2.0-flash-001",
-  "google_ai_image_generation_model": "gemini-2.0-flash-exp-image-generation",
+  "google_ai_model": "gemini-2.0-flash",
+  "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
   "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
 }
 ```
@@ -135,11 +135,11 @@ Supported content types of URLs are:
 
 You can generate images with a text prompt and/or existing image files.
 
-(For now, only some models (eg. `gemini-2.0-flash-exp-image-generation`) support image generation.)
+(For now, only some models (eg. `gemini-2.0-flash-preview-image-generation`) support image generation.)
 
 ```bash
 # generate images with a specific image generation model,
-$ gmn -i "gemini-2.0-flash-exp-image-generation" --with-images -p "generate an image of a cute cat"
+$ gmn -i "gemini-2.0-flash-preview-image-generation" --with-images -p "generate an image of a cute cat"
 
 # or with the default/configured one:
 
@@ -211,8 +211,12 @@ gmnp() {
     gmn -p "$*"
 }
 # for image generation with a plain text
-gmni() {
-    gmn --with-images --save-images-to-dir=~/files/images -p "$*"
+gmni() { # for image generation
+    if [ -z "$TMUX" ]; then
+        gmn --with-images -p "$*"
+    else
+        gmn --with-images --save-images-to-dir=~/Downloads -p "$*"
+    fi
 }
 # for URL summarization
 gmnu() {
