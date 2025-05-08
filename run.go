@@ -11,30 +11,6 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-const (
-	defaultConfigFilename = "config.json"
-
-	defaultGoogleAIModel                = "gemini-2.0-flash-001"
-	defaultGoogleAIImageGenerationModel = "gemini-2.0-flash-exp-image-generation"
-	defaultGoogleAIEmbeddingsModel      = "gemini-embedding-exp-03-07"
-
-	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
-
-Current datetime is %[3]s, and hostname is '%[4]s'.
-
-Respond to user messages according to the following principles:
-- Do not repeat the user's request and return only the response to the user's request.
-- Unless otherwise specified, respond in the same language as used in the user's request.
-- Be as accurate as possible.
-- Be as truthful as possible.
-- Be as comprehensive and informative as possible.
-`
-
-	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
-	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
-	defaultUserAgent              = `GMN/fetcher`
-)
-
 // run with params
 func run(parser *flags.Parser, p params) (exit int, err error) {
 	// early return if no task was requested
