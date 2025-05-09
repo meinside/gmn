@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -475,14 +476,20 @@ func listCachedContexts(
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
-			fmt.Printf("%-28s  %-28s %-20s %s\n", "Name", "Model", "Expires", "Display Name")
-
 			for _, content := range listed {
-				fmt.Printf("%-28s  %-28s %-20s %s\n",
-					content.Name,
+				printColored(color.FgGreen, "%s", content.Name)
+				if len(content.DisplayName) > 0 {
+					printColored(color.FgWhite, " (%s)", content.DisplayName)
+				}
+				printColored(color.FgWhite, `
+  > model: %s
+  > created: %s
+  > expires: %s
+`,
 					content.Model,
+					content.CreateTime.Format("2006-01-02 15:04 MST"),
 					content.ExpireTime.Format("2006-01-02 15:04 MST"),
-					content.DisplayName)
+				)
 			}
 		} else {
 			return 1, fmt.Errorf("no cached contexts")
@@ -560,11 +567,13 @@ func listModels(
 		return 1, err
 	} else {
 		for _, model := range models {
-			fmt.Printf(`%s (%s)
+			printColored(color.FgGreen, "%s", model.Name)
+
+			printColored(color.FgWhite, ` (%s)
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s
-`, model.Name, model.DisplayName, model.InputTokenLimit, model.OutputTokenLimit, strings.Join(model.SupportedActions, ", "))
+`, model.DisplayName, model.InputTokenLimit, model.OutputTokenLimit, strings.Join(model.SupportedActions, ", "))
 		}
 	}
 
