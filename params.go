@@ -41,7 +41,7 @@ type params struct {
 	DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 
 	// for listing models
-	ListModels bool `long:"list-models" description:"List available models"`
+	ListModels bool `short:"l" long:"list-models" description:"List available models"`
 
 	// other options
 	OutputAsJSON      bool    `short:"j" long:"json" description:"Output generated results as JSON"`

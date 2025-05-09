@@ -73,7 +73,7 @@ You can see help messages with `-h` or `--help` parameter:
 $ gmn -h
 ```
 
-and list models with their token limits and supported actions with `--list-models`:
+and list models with their token limits and supported actions with `-l` or `--list-models`:
 
 ```bash
 $ gmn --list-models

@@ -54,12 +54,7 @@ func logMessage(level verbosity, format string, v ...any) {
 		c = color.FgWhite
 	}
 
-	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(c)
-		_, _ = c.Printf(format, v...)
-	} else {
-		fmt.Printf(format, v...)
-	}
+	printColored(c, format, v...)
 }
 
 // print given error string to stdout
@@ -68,8 +63,13 @@ func logError(format string, v ...any) {
 		format += "\n"
 	}
 
+	printColored(color.FgRed, format, v...)
+}
+
+// print given string to stdout with color (if possible)
+func printColored(c color.Attribute, format string, v ...any) {
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(color.FgRed)
+		c := color.New(c)
 		_, _ = c.Printf(format, v...)
 	} else {
 		fmt.Printf(format, v...)
