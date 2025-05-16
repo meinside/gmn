@@ -32,12 +32,12 @@ func main() {
 	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
 	if remaining, err := parser.Parse(); err == nil {
 		if len(stdin) > 0 {
-			if p.Prompt == nil {
-				p.Prompt = ptr(string(stdin))
+			if p.Generation.Prompt == nil {
+				p.Generation.Prompt = ptr(string(stdin))
 			} else {
 				// merge prompts from stdin and parameter
-				merged := string(stdin) + "\n\n" + *p.Prompt
-				p.Prompt = ptr(merged)
+				merged := string(stdin) + "\n\n" + *p.Generation.Prompt
+				p.Generation.Prompt = ptr(merged)
 
 				logVerbose(verboseMedium, p.Verbose, "merged prompt: %s\n\n", merged)
 			}

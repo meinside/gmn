@@ -129,13 +129,17 @@ Run with `-x` or `--convert-urls` parameter, then it will try fetching contents 
 
 ```bash
 # generate with a text prompt which includes some urls in it 
-$ gmn -x -p "what's the current price of bitcoin in USD? check from here: https://api.coincap.io/v2/assets"
+$ gmn -x -p "what's the last book of douglas adams? check from here: https://openlibrary.org/search/authors.json?q=douglas%20adams"
+
+# query about youtube videos
+$ gmn -x -p "summarize this youtube video: https://www.youtube.com/watch?v=I_PntcnBWHw"
 ```
 
 Supported content types of URLs are:
 
 * `text/*` (eg. `text/html`, `text/csv`, …)
 * `application/json`
+* YouTube URLs (eg. `https://www.youtube.com/xxxx`, `https://youtu.be/xxxx`)
 
 ### Generate with Grounding (Google Search)
 

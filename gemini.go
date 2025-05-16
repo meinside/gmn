@@ -37,7 +37,7 @@ func doGeneration(
 	timeoutSeconds int,
 	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
-	prompt string, promptFiles map[string][]byte, filepaths []*string,
+	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
@@ -139,7 +139,6 @@ func doGeneration(
 	go func() {
 		endsWithNewLine := false
 
-		prompts := []gt.Prompt{gt.PromptFromText(prompt)}
 		for filename, file := range files {
 			prompts = append(prompts, gt.PromptFromFile(filename, file))
 		}
@@ -394,7 +393,7 @@ func cacheContext(
 	timeoutSeconds int,
 	apiKey, model string,
 	systemInstruction string,
-	prompt *string, promptFiles map[string][]byte, filepaths []*string,
+	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	cachedContextDisplayName *string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -434,10 +433,6 @@ func cacheContext(
 	}()
 
 	// cache context and print the cached context's name
-	prompts := []gt.Prompt{}
-	if prompt != nil {
-		prompts = append(prompts, gt.PromptFromText(*prompt))
-	}
 	for filename, file := range files {
 		prompts = append(prompts, gt.PromptFromFile(filename, file))
 	}

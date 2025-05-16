@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -139,7 +141,7 @@ func filesInDir(dir string, vbs []bool) ([]*string, error) {
 
 // expand given filepaths (expand directories with their sub files)
 func expandFilepaths(p params) (expanded []*string, err error) {
-	filepaths := p.Filepaths
+	filepaths := p.Generation.Filepaths
 	if filepaths == nil {
 		return nil, nil
 	}
@@ -195,41 +197,89 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 	return filtered, nil
 }
 
+// check if given `url` is from YouTube
+func isURLFromYoutube(url string) bool {
+	return slices.ContainsFunc([]string{
+		"www.youtube.com",
+		"youtu.be",
+	}, func(e string) bool {
+		return strings.Contains(url, e)
+	})
+}
+
+type customURLInPrompt string
+
+const (
+	customURLSeparator = ":///"
+
+	customURLLink    string = "link"
+	customURLYoutube string = "youtube"
+)
+
+func linkURLInPrompt(url string) customURLInPrompt {
+	return customURLInPrompt(customURLLink + customURLSeparator + url)
+}
+
+func youtubeURLInPrompt(url string) customURLInPrompt {
+	return customURLInPrompt(customURLYoutube + customURLSeparator + url)
+}
+
+func (u customURLInPrompt) isLink() bool {
+	return strings.HasPrefix(string(u), customURLLink)
+}
+
+func (u customURLInPrompt) isYoutube() bool {
+	return strings.HasPrefix(string(u), customURLYoutube)
+}
+
+func (u customURLInPrompt) url() string {
+	splitted := strings.Split(string(u), customURLSeparator)
+	if len(splitted) > 1 {
+		return splitted[1]
+	}
+	return ""
+}
+
 // replace all http urls in given text to body texts
-func replaceURLsInPrompt(conf config, p params) (replaced string, files map[string][]byte) {
-	userAgent := *p.UserAgent
-	prompt := *p.Prompt
+func replaceURLsInPrompt(conf config, p params) (replaced string, files map[customURLInPrompt][]byte) {
+	userAgent := *p.Generation.UserAgent
+	prompt := *p.Generation.Prompt
 	vbs := p.Verbose
 
-	files = map[string][]byte{}
+	files = map[customURLInPrompt][]byte{}
 
 	re := regexp.MustCompile(urlRegexp)
 	for _, url := range re.FindAllString(prompt, -1) {
-		if fetched, contentType, err := fetchContent(conf, userAgent, url, vbs); err == nil {
-			if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-				logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
+		// if `url` is from YouTube,
+		if isURLFromYoutube(url) {
+			files[youtubeURLInPrompt(url)] = []byte(url)
+		} else {
+			if fetched, contentType, err := fetchContent(conf, userAgent, url, vbs); err == nil {
+				if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
+					logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
-				// NOTE: embeedings is for text only for now
-				if p.GenerateEmbeddings {
+					// NOTE: embeedings is for text only for now
+					if p.Embeddings.GenerateEmbeddings {
+						// replace prompt text
+						prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
+					} else {
+						// replace prompt text,
+						prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
+
+						// and add bytes as a file
+						files[linkURLInPrompt(url)] = fetched
+					}
+				} else if supportedTextContentType(contentType) { // if it is a text of supported types,
+					logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
+
 					// replace prompt text
 					prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
-				} else {
-					// replace prompt text,
-					prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
-
-					// and add bytes as a file
-					files[url] = fetched
+				} else { // otherwise, (not supported in anyways)
+					logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s' is not supported", contentType, url)
 				}
-			} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-				logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
-
-				// replace prompt text
-				prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
-			} else { // otherwise, (not supported in anyways)
-				logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s' is not supported", contentType, url)
+			} else {
+				logVerbose(verboseMedium, vbs, "failed to fetch content from '%s': %s", url, err)
 			}
-		} else {
-			logVerbose(verboseMedium, vbs, "failed to fetch content from '%s': %s", url, err)
 		}
 	}
 
@@ -455,4 +505,12 @@ func expandDir(dir string) string {
 	dir = filepath.Clean(dir)
 
 	return dir
+}
+
+// prettify given thing in JSON format
+func prettify(v any) string {
+	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+		return string(bytes)
+	}
+	return fmt.Sprintf("%+v", v)
 }
