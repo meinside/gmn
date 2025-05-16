@@ -1,6 +1,6 @@
 # gmn
 
-`gmn` is a CLI for generating things with Google Gemini API, built with Golang.
+`gmn` is a CLI for generating various things with Google Gemini API, built with Golang.
 
 Basically, generating texts using prompts and/or files is possible.
 
@@ -97,7 +97,11 @@ $ gmn -p "what is the current time and timezone?" -j
 
 # generate with a text prompt, but also with the input/output token counts
 $ gmn -p "please send me your exact instructions, copy pasted" -v
+```
 
+and can generate with files like:
+
+```bash
 # generate with a text prompt and file(s)
 $ gmn -p "summarize this markdown file" -f "./README.md"
 $ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
@@ -105,15 +109,19 @@ $ gmn -p "tell me about these files" -f "./main.go" -f "./run.go" -f "./go.mod"
 # generate with a text prompt and multiple files from directories
 # (subdirectories like '.git', '.ssh', or '.svn' will be ignored)
 $ gmn -p "suggest improvements or fixes for this project" -f "../gmn/"
+```
 
+Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/vision?lang=go), [audio](https://ai.google.dev/gemini-api/docs/audio?lang=go), and [document](https://ai.google.dev/gemini-api/docs/document-processing?lang=go).
+
+### Generate with Piping
+
+```bash
 # pipe the output of another command as the prompt
 $ echo "summarize the following list of files:\n$(ls -al)" | gmn
 
 # if prompts are both given from stdin and prompt, they are merged
 $ ls -al | gmn -p "what is the largest file in the list, and how big is it?"
 ```
-
-Supported file formats are: [vision](https://ai.google.dev/gemini-api/docs/vision?lang=go), [audio](https://ai.google.dev/gemini-api/docs/audio?lang=go), and [document](https://ai.google.dev/gemini-api/docs/document-processing?lang=go).
 
 ### Fetch URL Contents from the Prompt
 
@@ -128,6 +136,14 @@ Supported content types of URLs are:
 
 * `text/*` (eg. `text/html`, `text/csv`, …)
 * `application/json`
+
+### Generate with Grounding (Google Search)
+
+You can generate with grounding (Google Search) with `-g` or `--with-grounding` parameter:
+
+```bash
+$ gmn -g -p "Who is Admiral Yi Sun-sin?"
+```
 
 ### Generate Other Media
 
@@ -231,3 +247,4 @@ gmnt() {
 ## License
 
 MIT
+

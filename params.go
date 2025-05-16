@@ -24,6 +24,7 @@ type params struct {
 	Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
 	ThinkingOn        bool      `long:"with-thinking" description:"Generate with thinking on"`
 	ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
+	GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding"`
 
 	// for embedding
 	GenerateEmbeddings            bool  `short:"e" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
