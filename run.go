@@ -24,43 +24,43 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 
 	// read and apply configs
 	var conf config
-	if conf, err = readConfig(resolveConfigFilepath(p.ConfigFilepath)); err == nil {
-		if p.SystemInstruction == nil && conf.SystemInstruction != nil {
-			p.SystemInstruction = conf.SystemInstruction
+	if conf, err = readConfig(resolveConfigFilepath(p.Configuration.ConfigFilepath)); err == nil {
+		if p.Generation.SystemInstruction == nil && conf.SystemInstruction != nil {
+			p.Generation.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
 		return 1, fmt.Errorf("failed to read configuration: %w", err)
 	}
 
 	// override parameters with command arguments
-	if conf.GoogleAIAPIKey != nil && p.GoogleAIAPIKey == nil {
-		p.GoogleAIAPIKey = conf.GoogleAIAPIKey
+	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
+		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
 	}
-	if conf.GoogleAIModel != nil && p.GoogleAIModel == nil {
-		p.GoogleAIModel = conf.GoogleAIModel
+	if conf.GoogleAIModel != nil && p.Configuration.GoogleAIModel == nil {
+		p.Configuration.GoogleAIModel = conf.GoogleAIModel
 	}
-	if conf.GoogleAIImageGenerationModel != nil && p.GoogleAIImageGenerationModel == nil {
-		p.GoogleAIImageGenerationModel = conf.GoogleAIImageGenerationModel
+	if conf.GoogleAIImageGenerationModel != nil && p.Configuration.GoogleAIImageGenerationModel == nil {
+		p.Configuration.GoogleAIImageGenerationModel = conf.GoogleAIImageGenerationModel
 	}
-	if conf.GoogleAIEmbeddingsModel != nil && p.GoogleAIEmbeddingsModel == nil {
-		p.GoogleAIEmbeddingsModel = conf.GoogleAIEmbeddingsModel
+	if conf.GoogleAIEmbeddingsModel != nil && p.Configuration.GoogleAIEmbeddingsModel == nil {
+		p.Configuration.GoogleAIEmbeddingsModel = conf.GoogleAIEmbeddingsModel
 	}
 
 	// set default values
-	if p.GoogleAIModel == nil {
-		p.GoogleAIModel = ptr(defaultGoogleAIModel)
+	if p.Configuration.GoogleAIModel == nil {
+		p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
 	}
-	if p.GoogleAIImageGenerationModel == nil {
-		p.GoogleAIImageGenerationModel = ptr(defaultGoogleAIImageGenerationModel)
+	if p.Configuration.GoogleAIImageGenerationModel == nil {
+		p.Configuration.GoogleAIImageGenerationModel = ptr(defaultGoogleAIImageGenerationModel)
 	}
-	if p.GoogleAIEmbeddingsModel == nil {
-		p.GoogleAIEmbeddingsModel = ptr(defaultGoogleAIEmbeddingsModel)
+	if p.Configuration.GoogleAIEmbeddingsModel == nil {
+		p.Configuration.GoogleAIEmbeddingsModel = ptr(defaultGoogleAIEmbeddingsModel)
 	}
-	if p.SystemInstruction == nil {
-		p.SystemInstruction = ptr(defaultSystemInstruction(p))
+	if p.Generation.SystemInstruction == nil {
+		p.Generation.SystemInstruction = ptr(defaultSystemInstruction(p))
 	}
-	if p.UserAgent == nil {
-		p.UserAgent = ptr(defaultUserAgent)
+	if p.Generation.UserAgent == nil {
+		p.Generation.UserAgent = ptr(defaultUserAgent)
 	}
 
 	// check existence of essential parameters here
@@ -69,7 +69,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	}
 
 	// expand filepaths (recurse directories)
-	p.Filepaths, err = expandFilepaths(p)
+	p.Generation.Filepaths, err = expandFilepaths(p)
 	if err != nil {
 		return 1, fmt.Errorf("failed to read given filepaths: %w", err)
 	}
@@ -77,21 +77,21 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	if p.hasPrompt() { // if prompt is given,
 		logVerbose(verboseMaximum, p.Verbose, "request params with prompt: %s\n\n", prettify(p.redact()))
 
-		if p.GenerateEmbeddings { // generate embeddings with given prompt,
+		if p.Embeddings.GenerateEmbeddings { // generate embeddings with given prompt,
 			return doEmbeddingsGeneration(context.TODO(),
 				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
-				*p.GoogleAIEmbeddingsModel,
-				*p.Prompt,
-				p.EmbeddingsChunkSize,
-				p.EmbeddingsOverlappedChunkSize,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.Configuration.GoogleAIEmbeddingsModel,
+				*p.Generation.Prompt,
+				p.Embeddings.EmbeddingsChunkSize,
+				p.Embeddings.EmbeddingsOverlappedChunkSize,
 				p.Verbose,
 			)
 		} else {
 			prompts := []gt.Prompt{}
 			promptFiles := map[string][]byte{}
 
-			if p.ReplaceHTTPURLsInPrompt {
+			if p.Generation.ReplaceHTTPURLsInPrompt {
 				// replace urls in the prompt,
 				replacedPrompt, extractedFiles := replaceURLsInPrompt(conf, p)
 
@@ -108,48 +108,48 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\nresulting prompts: %v\n\n", replacedPrompt, prompts)
 			} else {
 				// or, use the given prompt as it is,
-				prompts = append(prompts, gt.PromptFromText(*p.Prompt))
+				prompts = append(prompts, gt.PromptFromText(*p.Generation.Prompt))
 			}
 
-			if p.CacheContext { // cache context
+			if p.Caching.CacheContext { // cache context
 				return cacheContext(context.TODO(),
 					conf.TimeoutSeconds,
-					*p.GoogleAIAPIKey,
-					*p.GoogleAIModel,
-					*p.SystemInstruction,
+					*p.Configuration.GoogleAIAPIKey,
+					*p.Configuration.GoogleAIModel,
+					*p.Generation.SystemInstruction,
 					prompts,
 					promptFiles,
-					p.Filepaths,
-					p.CachedContextName,
+					p.Generation.Filepaths,
+					p.Caching.CachedContextName,
 					p.Verbose,
 				)
 			} else { // generate
 				var model string
-				if p.GenerateImages {
-					model = *p.GoogleAIImageGenerationModel
+				if p.Generation.GenerateImages {
+					model = *p.Configuration.GoogleAIImageGenerationModel
 				} else {
-					model = *p.GoogleAIModel
+					model = *p.Configuration.GoogleAIModel
 				}
 
 				return doGeneration(context.TODO(),
 					conf.TimeoutSeconds,
-					*p.GoogleAIAPIKey,
+					*p.Configuration.GoogleAIAPIKey,
 					model,
-					*p.SystemInstruction,
-					p.Temperature,
-					p.TopP,
-					p.TopK,
+					*p.Generation.SystemInstruction,
+					p.Generation.Temperature,
+					p.Generation.TopP,
+					p.Generation.TopK,
 					prompts,
 					promptFiles,
-					p.Filepaths,
-					p.ThinkingOn,
-					p.ThinkingBudget,
-					p.GroundingOn,
-					p.CachedContextName,
-					p.OutputAsJSON,
-					p.GenerateImages,
-					p.SaveImagesToFiles,
-					p.SaveImagesToDir,
+					p.Generation.Filepaths,
+					p.Generation.ThinkingOn,
+					p.Generation.ThinkingBudget,
+					p.Generation.GroundingOn,
+					p.Caching.CachedContextName,
+					p.Generation.OutputAsJSON,
+					p.Generation.GenerateImages,
+					p.Generation.SaveImagesToFiles,
+					p.Generation.SaveImagesToDir,
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)
@@ -158,35 +158,35 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	} else { // if prompt is not given,
 		logVerbose(verboseMaximum, p.Verbose, "request params without prompt: %s\n\n", prettify(p.redact()))
 
-		if p.CacheContext { // cache context
+		if p.Caching.CacheContext { // cache context
 			return cacheContext(context.TODO(),
 				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel,
-				*p.SystemInstruction,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.Configuration.GoogleAIModel,
+				*p.Generation.SystemInstruction,
 				nil, // prompt not given
 				nil, // prompt not given
-				p.Filepaths,
-				p.CachedContextName,
+				p.Generation.Filepaths,
+				p.Caching.CachedContextName,
 				p.Verbose,
 			)
-		} else if p.ListCachedContexts { // list cached contexts
+		} else if p.Caching.ListCachedContexts { // list cached contexts
 			return listCachedContexts(context.TODO(),
 				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
+				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
-		} else if p.DeleteCachedContext != nil { // delete cached context
+		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
 			return deleteCachedContext(context.TODO(),
 				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
-				*p.DeleteCachedContext,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.Caching.DeleteCachedContext,
 				p.Verbose,
 			)
 		} else if p.ListModels { // list models
 			return listModels(context.TODO(),
 				conf.TimeoutSeconds,
-				*p.GoogleAIAPIKey,
+				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
 		} else { // otherwise, (should not reach here)
@@ -204,7 +204,7 @@ func defaultSystemInstruction(p params) string {
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
 		appName,
-		*p.GoogleAIModel,
+		*p.Configuration.GoogleAIModel,
 		datetime,
 		hostname,
 	)

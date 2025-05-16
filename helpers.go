@@ -141,7 +141,7 @@ func filesInDir(dir string, vbs []bool) ([]*string, error) {
 
 // expand given filepaths (expand directories with their sub files)
 func expandFilepaths(p params) (expanded []*string, err error) {
-	filepaths := p.Filepaths
+	filepaths := p.Generation.Filepaths
 	if filepaths == nil {
 		return nil, nil
 	}
@@ -242,8 +242,8 @@ func (u customURLInPrompt) url() string {
 
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(conf config, p params) (replaced string, files map[customURLInPrompt][]byte) {
-	userAgent := *p.UserAgent
-	prompt := *p.Prompt
+	userAgent := *p.Generation.UserAgent
+	prompt := *p.Generation.Prompt
 	vbs := p.Verbose
 
 	files = map[customURLInPrompt][]byte{}
@@ -259,7 +259,7 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[cust
 					logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
 
 					// NOTE: embeedings is for text only for now
-					if p.GenerateEmbeddings {
+					if p.Embeddings.GenerateEmbeddings {
 						// replace prompt text
 						prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
 					} else {
