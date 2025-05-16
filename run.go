@@ -119,6 +119,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Filepaths,
 					p.ThinkingOn,
 					p.ThinkingBudget,
+					p.GroundingOn,
 					p.CachedContextName,
 					p.OutputAsJSON,
 					p.GenerateImages,

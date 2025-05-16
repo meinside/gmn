@@ -39,6 +39,7 @@ func doGeneration(
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompt string, promptFiles map[string][]byte, filepaths []*string,
 	withThinking bool, thinkingBudget *int32,
+	withGrounding bool,
 	cachedContextName *string,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
@@ -116,6 +117,13 @@ func doGeneration(
 	opts.ThinkingOn = withThinking
 	if thinkingBudget != nil {
 		opts.ThinkingBudget = *thinkingBudget
+	}
+	if withGrounding {
+		opts.Tools = []*genai.Tool{
+			{
+				GoogleSearch: &genai.GoogleSearch{},
+			},
+		}
 	}
 
 	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
