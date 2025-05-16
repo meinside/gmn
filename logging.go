@@ -5,7 +5,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -101,12 +100,4 @@ func printErrorBeforeExit(code int, format string, a ...any) (exit int) {
 	}
 
 	return code
-}
-
-// prettify given thing in JSON format
-func prettify(v any) string {
-	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
-		return string(bytes)
-	}
-	return fmt.Sprintf("%+v", v)
 }

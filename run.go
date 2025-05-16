@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
+
+	gt "github.com/meinside/gemini-things-go"
 )
 
 // run with params
@@ -73,33 +75,55 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	}
 
 	if p.hasPrompt() { // if prompt is given,
-		// replace urls in the prompt
-		replacedPrompt := *p.Prompt
-		promptFiles := map[string][]byte{}
-		if p.ReplaceHTTPURLsInPrompt {
-			replacedPrompt, promptFiles = replaceURLsInPrompt(conf, p)
-			p.Prompt = &replacedPrompt
-
-			logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\n", replacedPrompt)
-		}
-
 		logVerbose(verboseMaximum, p.Verbose, "request params with prompt: %s\n\n", prettify(p.redact()))
 
-		if p.CacheContext { // cache context
-			// cache context
-			return cacheContext(context.TODO(),
+		if p.GenerateEmbeddings { // generate embeddings with given prompt,
+			return doEmbeddingsGeneration(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel,
-				*p.SystemInstruction,
-				p.Prompt,
-				promptFiles,
-				p.Filepaths,
-				p.CachedContextName,
+				*p.GoogleAIEmbeddingsModel,
+				*p.Prompt,
+				p.EmbeddingsChunkSize,
+				p.EmbeddingsOverlappedChunkSize,
 				p.Verbose,
 			)
-		} else { // generate
-			if !p.GenerateEmbeddings {
+		} else {
+			prompts := []gt.Prompt{}
+			promptFiles := map[string][]byte{}
+
+			if p.ReplaceHTTPURLsInPrompt {
+				// replace urls in the prompt,
+				replacedPrompt, extractedFiles := replaceURLsInPrompt(conf, p)
+
+				prompts = append(prompts, gt.PromptFromText(replacedPrompt))
+
+				for customURL, data := range extractedFiles {
+					if customURL.isLink() {
+						promptFiles[customURL.url()] = data
+					} else if customURL.isYoutube() {
+						prompts = append(prompts, gt.PromptFromURI(customURL.url()))
+					}
+				}
+
+				logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\nresulting prompts: %v\n\n", replacedPrompt, prompts)
+			} else {
+				// or, use the given prompt as it is,
+				prompts = append(prompts, gt.PromptFromText(*p.Prompt))
+			}
+
+			if p.CacheContext { // cache context
+				return cacheContext(context.TODO(),
+					conf.TimeoutSeconds,
+					*p.GoogleAIAPIKey,
+					*p.GoogleAIModel,
+					*p.SystemInstruction,
+					prompts,
+					promptFiles,
+					p.Filepaths,
+					p.CachedContextName,
+					p.Verbose,
+				)
+			} else { // generate
 				var model string
 				if p.GenerateImages {
 					model = *p.GoogleAIImageGenerationModel
@@ -115,7 +139,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Temperature,
 					p.TopP,
 					p.TopK,
-					*p.Prompt,
+					prompts,
 					promptFiles,
 					p.Filepaths,
 					p.ThinkingOn,
@@ -129,19 +153,9 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)
-			} else {
-				return doEmbeddingsGeneration(context.TODO(),
-					conf.TimeoutSeconds,
-					*p.GoogleAIAPIKey,
-					*p.GoogleAIEmbeddingsModel,
-					*p.Prompt,
-					p.EmbeddingsChunkSize,
-					p.EmbeddingsOverlappedChunkSize,
-					p.Verbose,
-				)
 			}
 		}
-	} else { // if prompt is not given
+	} else { // if prompt is not given,
 		logVerbose(verboseMaximum, p.Verbose, "request params without prompt: %s\n\n", prettify(p.redact()))
 
 		if p.CacheContext { // cache context
