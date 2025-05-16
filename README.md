@@ -184,14 +184,14 @@ TODO
 
 ### Generate Embeddings
 
-You can generate embeddings with `-e` or `--generate-embeddings` parameter:
+You can generate embeddings with `-E` or `--generate-embeddings` parameter:
 
 ```bash
 # generate embeddings with a specific embeddings model,
-$ gmn -b "gemini-embedding-exp-03-07" -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+$ gmn -b "gemini-embedding-exp-03-07" -E -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
 
 # or with the default/configured one:
-$ gmn -e -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+$ gmn -E -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
 ```
 
 ### Cache Contexts

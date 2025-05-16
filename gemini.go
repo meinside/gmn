@@ -62,6 +62,8 @@ func doGeneration(
 		}
 	}()
 
+	logVerbose(verboseMaximum, vbs, "with model: %s", model)
+
 	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
@@ -460,7 +462,7 @@ func cacheContext(
 func listCachedContexts(
 	ctx context.Context,
 	timeoutSeconds int,
-	apiKey, model string,
+	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
 	logVerbose(verboseMedium, vbs, "listing cached contexts...")
@@ -469,7 +471,7 @@ func listCachedContexts(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, model)
+	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
 		return 1, err
 	}
@@ -514,7 +516,7 @@ func listCachedContexts(
 func deleteCachedContext(
 	ctx context.Context,
 	timeoutSeconds int,
-	apiKey, model string,
+	apiKey string,
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -524,7 +526,7 @@ func deleteCachedContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, model)
+	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
 		return 1, err
 	}
@@ -558,7 +560,7 @@ func listModels(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, "")
+	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
 		return 1, err
 	}

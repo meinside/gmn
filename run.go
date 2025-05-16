@@ -96,7 +96,8 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				promptFiles,
 				p.Filepaths,
 				p.CachedContextName,
-				p.Verbose)
+				p.Verbose,
+			)
 		} else { // generate
 			if !p.GenerateEmbeddings {
 				var model string
@@ -126,7 +127,8 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.SaveImagesToFiles,
 					p.SaveImagesToDir,
 					!p.ErrorOnUnsupportedType,
-					p.Verbose)
+					p.Verbose,
+				)
 			} else {
 				return doEmbeddingsGeneration(context.TODO(),
 					conf.TimeoutSeconds,
@@ -135,7 +137,8 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					*p.Prompt,
 					p.EmbeddingsChunkSize,
 					p.EmbeddingsOverlappedChunkSize,
-					p.Verbose)
+					p.Verbose,
+				)
 			}
 		}
 	} else { // if prompt is not given
@@ -151,25 +154,27 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				nil, // prompt not given
 				p.Filepaths,
 				p.CachedContextName,
-				p.Verbose)
+				p.Verbose,
+			)
 		} else if p.ListCachedContexts { // list cached contexts
 			return listCachedContexts(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel,
-				p.Verbose)
+				p.Verbose,
+			)
 		} else if p.DeleteCachedContext != nil { // delete cached context
 			return deleteCachedContext(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
-				*p.GoogleAIModel,
 				*p.DeleteCachedContext,
-				p.Verbose)
+				p.Verbose,
+			)
 		} else if p.ListModels { // list models
 			return listModels(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.GoogleAIAPIKey,
-				p.Verbose)
+				p.Verbose,
+			)
 		} else { // otherwise, (should not reach here)
 			logMessage(verboseMedium, "Parameter error: no task was requested or handled properly.")
 
