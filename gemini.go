@@ -312,6 +312,7 @@ func doEmbeddingsGeneration(
 	timeoutSeconds int,
 	apiKey, model string,
 	prompt string,
+	taskType *string,
 	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
 ) (exit int, e error) {
@@ -351,23 +352,36 @@ func doEmbeddingsGeneration(
 	// configure gemini things client
 	gtc.SetTimeout(timeoutSeconds)
 
+	// embeddings task type
+	selectedTaskType := gt.EmbeddingTaskUnspecified
+	if taskType != nil {
+		selectedTaskType = gt.EmbeddingTaskType(*taskType)
+	}
+
 	// iterate chunks and generate embeddings
 	type embedding struct {
 		Text    string    `json:"text"`
 		Vectors []float32 `json:"vectors"`
 	}
 	type embeddings struct {
-		Original string      `json:"original"`
-		Chunks   []embedding `json:"chunks"`
+		Original string               `json:"original"`
+		TaskType gt.EmbeddingTaskType `json:"taskType"`
+		Chunks   []embedding          `json:"chunks"`
 	}
 	embeds := embeddings{
 		Original: prompt,
+		TaskType: selectedTaskType,
 		Chunks:   []embedding{},
 	}
 	for i, text := range chunks.Chunks {
-		if vectors, err := gtc.GenerateEmbeddings(ctx, "", []*genai.Content{
-			genai.NewContentFromText(text, gt.RoleUser),
-		}); err != nil {
+		if vectors, err := gtc.GenerateEmbeddings(
+			ctx,
+			"",
+			[]*genai.Content{
+				genai.NewContentFromText(text, gt.RoleUser),
+			},
+			&selectedTaskType,
+		); err != nil {
 			return 1, fmt.Errorf("embeddings failed for chunk[%d]: %w", i, err)
 		} else {
 			embeds.Chunks = append(embeds.Chunks, embedding{

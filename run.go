@@ -83,6 +83,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				*p.Configuration.GoogleAIAPIKey,
 				*p.Configuration.GoogleAIEmbeddingsModel,
 				*p.Generation.Prompt,
+				p.Embeddings.EmbeddingsTaskType,
 				p.Embeddings.EmbeddingsChunkSize,
 				p.Embeddings.EmbeddingsOverlappedChunkSize,
 				p.Verbose,
