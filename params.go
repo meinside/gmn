@@ -45,9 +45,10 @@ type params struct {
 
 	// for embedding
 	Embeddings struct {
-		GenerateEmbeddings            bool  `short:"E" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
-		EmbeddingsChunkSize           *uint `long:"embeddings-chunk-size" description:"Chunk size for embeddings (default: 4096)"`
-		EmbeddingsOverlappedChunkSize *uint `long:"embeddings-overlapped-chunk-size" description:"Overlapped size of chunks for embeddings (default: 64)"`
+		GenerateEmbeddings            bool    `short:"E" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
+		EmbeddingsTaskType            *string `long:"embeddings-task-type" description:"Task type for embeddings"`
+		EmbeddingsChunkSize           *uint   `long:"embeddings-chunk-size" description:"Chunk size for embeddings (default: 4096)"`
+		EmbeddingsOverlappedChunkSize *uint   `long:"embeddings-overlapped-chunk-size" description:"Overlapped size of chunks for embeddings (default: 64)"`
 	} `group:"Embeddings"`
 
 	// for managing cached contexts
