@@ -52,7 +52,10 @@ func doGeneration(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, model)
+	gtc, err := gt.NewClient(
+		apiKey,
+		gt.WithModel(model),
+	)
 	if err != nil {
 		return 1, err
 	}
@@ -65,7 +68,7 @@ func doGeneration(
 	logVerbose(verboseMaximum, vbs, "with model: %s", model)
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
 	})
@@ -112,8 +115,8 @@ func doGeneration(
 		gtc.SetSystemInstructionFunc(nil)
 
 		opts.ResponseModalities = []string{
-			gt.ResponseModalityText,
-			gt.ResponseModalityImage,
+			string(gt.ResponseModalityText),
+			string(gt.ResponseModalityImage),
 		}
 	}
 	opts.ThinkingOn = withThinking
@@ -339,7 +342,10 @@ func doEmbeddingsGeneration(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, model)
+	gtc, err := gt.NewClient(
+		apiKey,
+		gt.WithModel(model),
+	)
 	if err != nil {
 		return 1, err
 	}
@@ -350,7 +356,7 @@ func doEmbeddingsGeneration(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	// embeddings task type
 	selectedTaskType := gt.EmbeddingTaskUnspecified
@@ -417,7 +423,10 @@ func cacheContext(
 	defer cancel()
 
 	// gemini things client
-	gtc, err := gt.NewClient(apiKey, model)
+	gtc, err := gt.NewClient(
+		apiKey,
+		gt.WithModel(model),
+	)
 	if err != nil {
 		return 1, err
 	}
@@ -428,7 +437,7 @@ func cacheContext(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
 	})
@@ -491,7 +500,7 @@ func listCachedContexts(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
@@ -546,7 +555,7 @@ func deleteCachedContext(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
 		return 1, err
@@ -580,7 +589,7 @@ func listModels(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeout(timeoutSeconds)
+	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	if models, err := gtc.ListModels(ctx); err != nil {
 		return 1, err
