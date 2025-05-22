@@ -146,6 +146,10 @@ func doGeneration(
 			prompts = append(prompts, gt.PromptFromFile(filename, file))
 		}
 
+		// for marking <thought></thought>
+		thoughtBegan, thoughtEnded := false, false
+		isThinking := false
+
 		// iterate generated stream
 		for it, err := range gtc.GenerateStreamIterated(
 			ctx,
@@ -180,13 +184,35 @@ func doGeneration(
 					// content
 					if cand.Content != nil {
 						for _, part := range cand.Content.Parts {
-							// FIXME: not tested
-							if part.Thought {
-								fmt.Print("<thought>")
+							// marking begin/end of thoughts
+							if withThinking {
+								if part.Thought {
+									if !thoughtBegan {
+										printColored(color.FgYellow, "<thought>\n")
+
+										thoughtBegan, thoughtEnded = true, false
+										isThinking = true
+									}
+								} else {
+									if thoughtBegan {
+										thoughtBegan = false
+
+										if !thoughtEnded {
+											printColored(color.FgYellow, "</thought>\n")
+
+											thoughtEnded = true
+											isThinking = false
+										}
+									}
+								}
 							}
 
 							if part.Text != "" {
-								fmt.Print(part.Text)
+								if isThinking {
+									printColored(color.FgYellow, part.Text)
+								} else {
+									printColored(color.FgWhite, part.Text)
+								}
 
 								endsWithNewLine = strings.HasSuffix(part.Text, "\n")
 							} else if part.InlineData != nil {
