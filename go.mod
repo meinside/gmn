@@ -6,8 +6,7 @@ require (
 	github.com/BourgeoisBear/rasterm v1.1.1
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/fatih/color v1.18.0
-	github.com/go-audio/audio v1.0.0
-	github.com/go-audio/wav v1.1.0
+	github.com/gabriel-vasile/mimetype v1.4.9
 	github.com/infisical/go-sdk v0.5.92
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
@@ -38,8 +37,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19 // indirect
 	github.com/aws/smithy-go v1.22.3 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
-	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-resty/resty/v2 v2.16.5 // indirect

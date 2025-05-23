@@ -48,7 +48,7 @@ type params struct {
 		// for speech generation
 		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
 		SpeechLanguage  *string           `long:"speech-language" description:"Language for speech generation in BCP-47 code (eg. 'en-US')"`
-		SpeechVoice     *string           `long:"speech-voice" descriptoin:"Voice name for the generated speech (eg. 'Kore')"`
+		SpeechVoice     *string           `long:"speech-voice" description:"Voice name for the generated speech (eg. 'Kore')"`
 		SpeechVoices    map[string]string `long:"speech-voices" description:"Voices for speech generation (can be used multiple times, eg. 'Speaker 1:Kore', 'Speaker 2:Puck')"`
 		SaveSpeechToDir *string           `long:"save-speech-to-dir" description:"Save generated speech to a directory ($TMPDIR when not given)"`
 	} `group:"Generation"`
