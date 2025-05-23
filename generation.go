@@ -1,4 +1,4 @@
-// gemini.go
+// generation.go
 //
 // things for using Gemini APIs
 
