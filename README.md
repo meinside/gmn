@@ -6,7 +6,7 @@ Basically, generating texts using prompts and/or files is possible.
 
 If the given prompt includes URLs, it can also fetch the contents of the URLs and use them to generate text.
 
-With a few more flags, it can also generate images along with the text.
+With a few more flags, it can also generate images or speeches.
 
 Additionally, it can cache, list, and delete contexts for later use.
 
@@ -262,6 +262,14 @@ gmni() { # for image generation
     else
         gmn --with-images --save-images-to-dir=~/Downloads -p "$*"
     fi
+}
+# for speech generation with a plain text
+gmns() {
+    gmn --with-speech --speech-voice="Kore" --save-speech-to-dir=~/Downloads -p "$*"
+}
+# for generation with grounding (google search)
+gmng() {
+    gmn --with-grounding -p "$*"
 }
 # for URL summarization
 gmnu() {
