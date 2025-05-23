@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/gabriel-vasile/mimetype"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -31,6 +33,12 @@ const (
 	defaultEmbeddingsChunkOverlappedSize uint = 64
 )
 
+// wav parameter constants
+const (
+	wavBitDepth    = 16
+	wavNumChannels = 1
+)
+
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
@@ -43,9 +51,15 @@ func doGeneration(
 	cachedContextName *string,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
+	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
 	ignoreUnsupportedType bool,
 	vbs []bool,
 ) (exit int, e error) {
+	// check params here
+	if generateImages && generateSpeech {
+		return 1, fmt.Errorf("cannot generate images and speech at the same time")
+	}
+
 	logVerbose(verboseMedium, vbs, "generating...")
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -88,17 +102,21 @@ func doGeneration(
 
 	// generation options
 	opts := gt.NewGenerationOptions()
+	// (cached context)
 	if cachedContextName != nil {
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)
 	}
+	// (temperature)
 	generationTemperature := defaultGenerationTemperature
 	if temperature != nil {
 		generationTemperature = *temperature
 	}
+	// (topP)
 	generationTopP := defaultGenerationTopP
 	if topP != nil {
 		generationTopP = *topP
 	}
+	// (topK)
 	generationTopK := defaultGenerationTopK
 	if topK != nil {
 		generationTopK = *topK
@@ -108,9 +126,11 @@ func doGeneration(
 		TopP:        ptr(generationTopP),
 		TopK:        ptr(float32(generationTopK)),
 	}
+	// (JSON output)
 	if outputAsJSON {
 		opts.Config.ResponseMIMEType = "application/json"
 	}
+	// (images generation)
 	if generateImages {
 		gtc.SetSystemInstructionFunc(nil)
 
@@ -118,11 +138,49 @@ func doGeneration(
 			string(gt.ResponseModalityText),
 			string(gt.ResponseModalityImage),
 		}
+	} else if generateSpeech { // (speech generation)
+		gtc.SetSystemInstructionFunc(nil)
+
+		opts.ResponseModalities = []string{
+			string(gt.ResponseModalityAudio),
+		}
+
+		opts.SpeechConfig = &genai.SpeechConfig{}
+
+		// speech language
+		if speechLanguage != nil {
+			opts.SpeechConfig.LanguageCode = *speechLanguage
+		}
+
+		// speech voice(s)
+		if speechVoice != nil {
+			opts.SpeechConfig.VoiceConfig = &genai.VoiceConfig{
+				PrebuiltVoiceConfig: &genai.PrebuiltVoiceConfig{
+					VoiceName: *speechVoice,
+				},
+			}
+		} else if len(speechVoices) > 0 {
+			opts.SpeechConfig.MultiSpeakerVoiceConfig = &genai.MultiSpeakerVoiceConfig{
+				SpeakerVoiceConfigs: []*genai.SpeakerVoiceConfig{},
+			}
+			for speaker, voice := range speechVoices {
+				opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs = append(opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs, &genai.SpeakerVoiceConfig{
+					Speaker: speaker,
+					VoiceConfig: &genai.VoiceConfig{
+						PrebuiltVoiceConfig: &genai.PrebuiltVoiceConfig{
+							VoiceName: voice,
+						},
+					},
+				})
+			}
+		}
 	}
+	// (thinking)
 	opts.ThinkingOn = withThinking
 	if thinkingBudget != nil {
 		opts.ThinkingBudget = *thinkingBudget
 	}
+	// (grounding)
 	if withGrounding {
 		opts.Tools = []*genai.Tool{
 			{
@@ -220,8 +278,7 @@ func doGeneration(
 									fmt.Println()
 								}
 
-								// (images)
-								if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
+								if strings.HasPrefix(part.InlineData.MIMEType, "image/") { // (images)
 									if saveImagesToFiles || saveImagesToDir != nil {
 										fpath := genFilepath(
 											part.InlineData.MIMEType,
@@ -243,7 +300,7 @@ func doGeneration(
 											}
 											return
 										} else {
-											logMessage(verboseMinimum, "Saved to file: %s", fpath)
+											logMessage(verboseMinimum, "Saved image to file: %s", fpath)
 
 											endsWithNewLine = true
 										}
@@ -267,6 +324,68 @@ func doGeneration(
 
 											endsWithNewLine = true
 										}
+									}
+								} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
+									// check codec and birtate
+									var speechCodec string
+									var bitRate int
+									for _, split := range strings.Split(part.InlineData.MIMEType, ";") {
+										if strings.HasPrefix(split, "codec=") {
+											speechCodec = split[6:]
+										} else if strings.HasPrefix(split, "rate=") {
+											bitRate, _ = strconv.Atoi(split[5:])
+										}
+									}
+
+									// convert,
+									if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+										if converted, err := pcmToWav(
+											part.InlineData.Data,
+											bitRate,
+											wavBitDepth,
+											wavNumChannels,
+										); err == nil {
+											// and save file
+											mimeType := mimetype.Detect(converted).String()
+											fpath := genFilepath(
+												mimeType,
+												"audio",
+												saveSpeechToDir,
+											)
+
+											logVerbose(
+												verboseMedium,
+												vbs,
+												"saving file (%s;%d bytes) to: %s...", mimeType, len(converted), fpath,
+											)
+
+											if err := os.WriteFile(fpath, converted, 0640); err != nil {
+												// error
+												ch <- result{
+													exit: 1,
+													err:  fmt.Errorf("saving file failed: %s", err),
+												}
+												return
+											} else {
+												logMessage(verboseMinimum, "Saved speech to file: %s", fpath)
+
+												endsWithNewLine = true
+											}
+										} else {
+											// error
+											ch <- result{
+												exit: 1,
+												err:  fmt.Errorf("failed to convert speech from %s to wav: %w", speechCodec, err),
+											}
+											return
+										}
+									} else {
+										// error
+										ch <- result{
+											exit: 1,
+											err:  fmt.Errorf("unsupported speech with codec: %s and bitrate: %d", speechCodec, bitRate),
+										}
+										return
 									}
 								} else { // TODO: NOTE: add more types here
 									logError("Unsupported mime type of inline data: %s", part.InlineData.MIMEType)

@@ -18,17 +18,18 @@ import (
 
 const (
 	// default config file's name
-	defaultConfigFilename = "config.json"
+	defaultConfigFilename = `config.json`
 
 	// default model names
-	defaultGoogleAIModel                = "gemini-2.0-flash"
-	defaultGoogleAIImageGenerationModel = "gemini-2.0-flash-preview-image-generation"
-	defaultGoogleAIEmbeddingsModel      = "gemini-embedding-exp-03-07"
+	defaultGoogleAIModel                 = `gemini-2.0-flash`
+	defaultGoogleAIImageGenerationModel  = `gemini-2.0-flash-preview-image-generation`
+	defaultGoogleAISpeechGenerationModel = `gemini-2.5-flash-preview-tts`
+	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-exp-03-07`
 
 	// default system instruction
-	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API(model: %[2]s).
+	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API.
 
-Current datetime is %[3]s, and hostname is '%[4]s'.
+Current datetime is %[2]s, and hostname is '%[3]s'.
 
 Respond to user messages according to the following principles:
 - Do not repeat the user's request and return only the response to the user's request.
@@ -49,10 +50,11 @@ type config struct {
 	GoogleAIAPIKey *string           `json:"google_ai_api_key,omitempty"`
 	Infisical      *infisicalSetting `json:"infisical,omitempty"`
 
-	GoogleAIModel                *string `json:"google_ai_model,omitempty"`
-	GoogleAIImageGenerationModel *string `json:"google_ai_image_generation_model,omitempty"`
-	GoogleAIEmbeddingsModel      *string `json:"google_ai_embeddings_model,omitempty"`
-	SystemInstruction            *string `json:"system_instruction,omitempty"`
+	GoogleAIModel                 *string `json:"google_ai_model,omitempty"`
+	GoogleAIImageGenerationModel  *string `json:"google_ai_image_generation_model,omitempty"`
+	GoogleAISpeechGenerationModel *string `json:"google_ai_speech_generation_model,omitempty"`
+	GoogleAIEmbeddingsModel       *string `json:"google_ai_embeddings_model,omitempty"`
+	SystemInstruction             *string `json:"system_instruction,omitempty"`
 
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 

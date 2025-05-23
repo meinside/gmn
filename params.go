@@ -6,6 +6,9 @@ package main
 
 // parameter definitions
 type params struct {
+	// for showing the version
+	ShowVersion bool `long:"version" description:"Show the version of this application"`
+
 	// for listing models
 	ListModels bool `short:"l" long:"list-models" description:"List available models"`
 
@@ -14,10 +17,8 @@ type params struct {
 		ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
 		// for model configuration
-		GoogleAIAPIKey               *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
-		GoogleAIModel                *string `short:"m" long:"model" description:"Model for text generation (can be omitted)"`
-		GoogleAIImageGenerationModel *string `short:"i" long:"image-generation-model" description:"Model for image generation (can be omitted)"`
-		GoogleAIEmbeddingsModel      *string `short:"b" long:"embeddings-model" description:"Model for embeddings (can be omitted)"`
+		GoogleAIAPIKey *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
+		GoogleAIModel  *string `short:"m" long:"model" description:"Model for generation (can be omitted)"`
 	} `group:"Configuration"`
 
 	Generation struct {
@@ -37,10 +38,19 @@ type params struct {
 		UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 		// other generation options
-		OutputAsJSON      bool    `short:"j" long:"json" description:"Output generated results as JSON"`
+		OutputAsJSON bool `short:"j" long:"json" description:"Output generated results as JSON"`
+
+		// for image generation
 		GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
 		SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
 		SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+
+		// for speech generation
+		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
+		SpeechLanguage  *string           `long:"speech-language" description:"Language for speech generation in BCP-47 code (eg. 'en-US')"`
+		SpeechVoice     *string           `long:"speech-voice" descriptoin:"Voice name for the generated speech (eg. 'Kore')"`
+		SpeechVoices    map[string]string `long:"speech-voices" description:"Voices for speech generation (can be used multiple times, eg. 'Speaker 1:Kore', 'Speaker 2:Puck')"`
+		SaveSpeechToDir *string           `long:"save-speech-to-dir" description:"Save generated speech to a directory ($TMPDIR when not given)"`
 	} `group:"Generation"`
 
 	// for embedding
@@ -71,7 +81,12 @@ func (p *params) hasPrompt() bool {
 
 // check if any task is requested
 func (p *params) taskRequested() bool {
-	return p.hasPrompt() || p.Caching.CacheContext || p.Caching.ListCachedContexts || p.Caching.DeleteCachedContext != nil || p.ListModels
+	return p.hasPrompt() ||
+		p.Caching.CacheContext ||
+		p.Caching.ListCachedContexts ||
+		p.Caching.DeleteCachedContext != nil ||
+		p.ListModels ||
+		p.ShowVersion
 }
 
 // check if multiple tasks are requested
@@ -103,6 +118,13 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if p.ListModels { // list models
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.ShowVersion { // show version
 		num++
 		if hasPrompt && !promptCounted {
 			num++
