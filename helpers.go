@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -478,6 +479,7 @@ func genFilepath(mimeType, category string, destDir *string) string {
 	if ext, exists = strings.CutPrefix(mimeType, category+"/"); !exists {
 		ext = "bin"
 	}
+	ext = strings.Split(ext, ";")[0]
 
 	var dir string
 	if destDir == nil {
@@ -505,6 +507,55 @@ func expandDir(dir string) string {
 	dir = filepath.Clean(dir)
 
 	return dir
+}
+
+// convert pcm data to wav
+func pcmToWav(data []byte, sampleRate, bitDepth, numChannels int) (converted []byte, err error) {
+	var buf bytes.Buffer
+
+	// wav header
+	dataLen := uint32(len(data))
+	header := struct {
+		ChunkID       [4]byte // "RIFF"
+		ChunkSize     uint32
+		Format        [4]byte // "WAVE"
+		Subchunk1ID   [4]byte // "fmt "
+		Subchunk1Size uint32
+		AudioFormat   uint16
+		NumChannels   uint16
+		SampleRate    uint32
+		ByteRate      uint32
+		BlockAlign    uint16
+		BitsPerSample uint16
+		Subchunk2ID   [4]byte // "data"
+		Subchunk2Size uint32
+	}{
+		ChunkID:       [4]byte{'R', 'I', 'F', 'F'},
+		ChunkSize:     36 + dataLen,
+		Format:        [4]byte{'W', 'A', 'V', 'E'},
+		Subchunk1ID:   [4]byte{'f', 'm', 't', ' '},
+		Subchunk1Size: 16,
+		AudioFormat:   1, // PCM
+		NumChannels:   uint16(numChannels),
+		SampleRate:    uint32(sampleRate),
+		ByteRate:      uint32(sampleRate * numChannels * bitDepth / 8),
+		BlockAlign:    uint16(numChannels * bitDepth / 8),
+		BitsPerSample: uint16(bitDepth),
+		Subchunk2ID:   [4]byte{'d', 'a', 't', 'a'},
+		Subchunk2Size: dataLen,
+	}
+
+	// write wav header
+	if err := binary.Write(&buf, binary.LittleEndian, header); err != nil {
+		return nil, fmt.Errorf("failed to write wav header: %w", err)
+	}
+
+	// write pcm data
+	if _, err := buf.Write(data); err != nil {
+		return nil, fmt.Errorf("failed to write pcm data: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 // prettify given thing in JSON format

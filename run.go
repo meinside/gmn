@@ -11,15 +11,23 @@ import (
 	"github.com/jessevdk/go-flags"
 
 	gt "github.com/meinside/gemini-things-go"
+	"github.com/meinside/version-go"
 )
 
 // run with params
 func run(parser *flags.Parser, p params) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
-		logMessage(verboseMedium, "No task was requested.")
+		logMessage(verboseMedium, "No task was requested.\n\n")
 
 		return printHelpBeforeExit(1, parser), nil
+	}
+
+	// early return after printing the version
+	if p.ShowVersion {
+		logMessage(verboseMinimum, "%s %s\n\n", appName, version.Build(version.OS|version.Architecture))
+
+		return printHelpBeforeExit(0, parser), nil
 	}
 
 	// read and apply configs
@@ -32,32 +40,14 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 		return 1, fmt.Errorf("failed to read configuration: %w", err)
 	}
 
-	// override parameters with command arguments
+	// override command arguments with values from configs
 	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
 		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
 	}
-	if conf.GoogleAIModel != nil && p.Configuration.GoogleAIModel == nil {
-		p.Configuration.GoogleAIModel = conf.GoogleAIModel
-	}
-	if conf.GoogleAIImageGenerationModel != nil && p.Configuration.GoogleAIImageGenerationModel == nil {
-		p.Configuration.GoogleAIImageGenerationModel = conf.GoogleAIImageGenerationModel
-	}
-	if conf.GoogleAIEmbeddingsModel != nil && p.Configuration.GoogleAIEmbeddingsModel == nil {
-		p.Configuration.GoogleAIEmbeddingsModel = conf.GoogleAIEmbeddingsModel
-	}
 
 	// set default values
-	if p.Configuration.GoogleAIModel == nil {
-		p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
-	}
-	if p.Configuration.GoogleAIImageGenerationModel == nil {
-		p.Configuration.GoogleAIImageGenerationModel = ptr(defaultGoogleAIImageGenerationModel)
-	}
-	if p.Configuration.GoogleAIEmbeddingsModel == nil {
-		p.Configuration.GoogleAIEmbeddingsModel = ptr(defaultGoogleAIEmbeddingsModel)
-	}
 	if p.Generation.SystemInstruction == nil {
-		p.Generation.SystemInstruction = ptr(defaultSystemInstruction(p))
+		p.Generation.SystemInstruction = ptr(defaultSystemInstruction())
 	}
 	if p.Generation.UserAgent == nil {
 		p.Generation.UserAgent = ptr(defaultUserAgent)
@@ -78,10 +68,19 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 		logVerbose(verboseMaximum, p.Verbose, "request params with prompt: %s\n\n", prettify(p.redact()))
 
 		if p.Embeddings.GenerateEmbeddings { // generate embeddings with given prompt,
+			// model
+			if p.Configuration.GoogleAIModel == nil {
+				if conf.GoogleAIEmbeddingsModel != nil {
+					p.Configuration.GoogleAIModel = conf.GoogleAIEmbeddingsModel
+				} else {
+					p.Configuration.GoogleAIModel = ptr(defaultGoogleAIEmbeddingsModel)
+				}
+			}
+
 			return doEmbeddingsGeneration(context.TODO(),
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
-				*p.Configuration.GoogleAIEmbeddingsModel,
+				*p.Configuration.GoogleAIModel,
 				*p.Generation.Prompt,
 				p.Embeddings.EmbeddingsTaskType,
 				p.Embeddings.EmbeddingsChunkSize,
@@ -113,6 +112,15 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 			}
 
 			if p.Caching.CacheContext { // cache context
+				// model
+				if p.Configuration.GoogleAIModel == nil {
+					if conf.GoogleAIModel != nil {
+						p.Configuration.GoogleAIModel = conf.GoogleAIModel
+					} else {
+						p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
+					}
+				}
+
 				return cacheContext(context.TODO(),
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
@@ -125,17 +133,37 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Verbose,
 				)
 			} else { // generate
-				var model string
+				// model
 				if p.Generation.GenerateImages {
-					model = *p.Configuration.GoogleAIImageGenerationModel
+					if p.Configuration.GoogleAIModel == nil {
+						if conf.GoogleAIImageGenerationModel != nil {
+							p.Configuration.GoogleAIModel = conf.GoogleAIImageGenerationModel
+						} else {
+							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIImageGenerationModel)
+						}
+					}
+				} else if p.Generation.GenerateSpeech {
+					if p.Configuration.GoogleAIModel == nil {
+						if conf.GoogleAISpeechGenerationModel != nil {
+							p.Configuration.GoogleAIModel = conf.GoogleAISpeechGenerationModel
+						} else {
+							p.Configuration.GoogleAIModel = ptr(defaultGoogleAISpeechGenerationModel)
+						}
+					}
 				} else {
-					model = *p.Configuration.GoogleAIModel
+					if p.Configuration.GoogleAIModel == nil {
+						if conf.GoogleAIModel != nil {
+							p.Configuration.GoogleAIModel = conf.GoogleAIModel
+						} else {
+							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
+						}
+					}
 				}
 
 				return doGeneration(context.TODO(),
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
-					model,
+					*p.Configuration.GoogleAIModel,
 					*p.Generation.SystemInstruction,
 					p.Generation.Temperature,
 					p.Generation.TopP,
@@ -151,6 +179,11 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,
 					p.Generation.SaveImagesToDir,
+					p.Generation.GenerateSpeech,
+					p.Generation.SpeechLanguage,
+					p.Generation.SpeechVoice,
+					p.Generation.SpeechVoices,
+					p.Generation.SaveSpeechToDir,
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)
@@ -199,13 +232,12 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 }
 
 // generate a default system instruction with given params
-func defaultSystemInstruction(p params) string {
+func defaultSystemInstruction() string {
 	datetime := time.Now().Format("2006-01-02 15:04:05 MST (Mon)")
 	hostname, _ := os.Hostname()
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
 		appName,
-		*p.Configuration.GoogleAIModel,
 		datetime,
 		hostname,
 	)
