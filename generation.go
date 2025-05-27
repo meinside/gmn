@@ -134,15 +134,15 @@ func doGeneration(
 	if generateImages {
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []string{
-			string(gt.ResponseModalityText),
-			string(gt.ResponseModalityImage),
+		opts.ResponseModalities = []gt.ResponseModality{
+			gt.ResponseModalityText,
+			gt.ResponseModalityImage,
 		}
 	} else if generateSpeech { // (speech generation)
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []string{
-			string(gt.ResponseModalityAudio),
+		opts.ResponseModalities = []gt.ResponseModality{
+			gt.ResponseModalityAudio,
 		}
 
 		opts.SpeechConfig = &genai.SpeechConfig{}
