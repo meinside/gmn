@@ -164,15 +164,23 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 
 				// function call
 				var tools []genai.Tool
-				var toolConfig *genai.ToolConfig
 				if p.Generation.Tools != nil {
-					if err := json.Unmarshal([]byte(*p.Generation.Tools), &tools); err != nil {
-						return 1, fmt.Errorf("failed to read tools: %w", err)
+					if bytes, err := standardizeJSON([]byte(*p.Generation.Tools)); err == nil {
+						if err := json.Unmarshal(bytes, &tools); err != nil {
+							return 1, fmt.Errorf("failed to read tools: %w", err)
+						}
+					} else {
+						return 1, fmt.Errorf("failed to standardize tools' JSON: %w", err)
 					}
 				}
+				var toolConfig *genai.ToolConfig
 				if p.Generation.ToolConfig != nil {
-					if err := json.Unmarshal([]byte(*p.Generation.ToolConfig), &toolConfig); err != nil {
-						return 1, fmt.Errorf("failed to read tool config: %w", err)
+					if bytes, err := standardizeJSON([]byte(*p.Generation.ToolConfig)); err == nil {
+						if err := json.Unmarshal(bytes, &toolConfig); err != nil {
+							return 1, fmt.Errorf("failed to read tool config: %w", err)
+						}
+					} else {
+						return 1, fmt.Errorf("failed to standardize tool config's JSON: %w", err)
 					}
 				}
 				// NOTE: both `tools` and `toolConfig` should be given at the same time
