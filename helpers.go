@@ -28,6 +28,7 @@ import (
 	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/tailscale/hujson"
+	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 )
@@ -603,6 +604,27 @@ func confirm(prompt string) bool {
 			return false
 		}
 	}
+}
+
+// check if the past generations end with users's message,
+func historyEndsWithUsers(history []genai.Content) bool {
+	if len(history) > 0 {
+		last := history[len(history)-1]
+
+		return last.Role == "user"
+	}
+	return false
+}
+
+// get the latest text prompt from the given prompts
+func latestTextPrompt(prompts []gt.Prompt) string {
+	for _, prompt := range slices.Backward(prompts) {
+		if textPrompt, ok := prompt.(gt.TextPrompt); ok {
+			return textPrompt.ToPart().Text
+		}
+	}
+
+	return ""
 }
 
 // prettify given thing in JSON format

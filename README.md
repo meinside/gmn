@@ -137,6 +137,8 @@ $ gmn -x -p "what's the latest book of douglas adams? check from here: https://o
 $ gmn -x -p "summarize this youtube video: https://www.youtube.com/watch?v=I_PntcnBWHw"
 ```
 
+---
+
 Supported content types of URLs are:
 
 * `text/*` (eg. `text/html`, `text/csv`, …)
@@ -305,6 +307,47 @@ $ gmn -p "nuke the root directory" \
     --tool-callbacks="create_dir:/path/to/mkdir.sh" \
     --tool-callbacks-confirm="remove_dir_recursively:true"
 ```
+
+#### Generate Recursively with Callback Results
+
+With `--recurse-on-callback-results`, it will generate recursively with the results of the scripts/binaries:
+
+```bash
+$ gmn -p "count the smallest .sh file's number of lines in /home/ubuntu/tmp/" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "list_files_in_dir",
+            "description": "this function lists the names of files in a directory",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"directory": {"type": "STRING", "description": "an absolute path of a directory"}},
+                "required": ["directory"]
+            }
+        },
+        {
+            "name": "count_lines_of_file",
+            "description": "this function counts the number of lines in a file", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "directory": {"type": "STRING", "description": "an absolute path of a directory"},
+                    "filename": {"type": "STRING"}
+                },
+                "required": ["directory", "filename"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "AUTO"
+    }}' \
+    --tool-callbacks="list_files_in_dir:/path/to/list_files_in_dir.sh" \
+    --tool-callbacks="count_lines_of_file:/path/to/count_lines_of_file.sh" \
+    --recurse-on-callback-results
+```
+
+Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it will loop infinitely on the same function call.
+
+---
 
 There is a [document](https://ai.google.dev/api/caching#FunctionDeclaration) about function declarations.
 

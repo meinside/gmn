@@ -208,6 +208,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					toolConfig,
 					p.Generation.ToolCallbacks,
 					p.Generation.ToolCallbacksConfirm,
+					p.Generation.RecurseOnCallbackResults,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,
@@ -217,6 +218,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.SpeechVoice,
 					p.Generation.SpeechVoices,
 					p.Generation.SaveSpeechToDir,
+					nil,
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)

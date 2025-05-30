@@ -49,10 +49,11 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool, recurseOnCallbackResults bool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
+	pastGenerations []genai.Content,
 	ignoreUnsupportedType bool,
 	vbs []bool,
 ) (exit int, e error) {
@@ -199,8 +200,18 @@ func doGeneration(
 			},
 		}
 	}
+	// (history)
+	if pastGenerations == nil {
+		pastGenerations = []genai.Content{}
+	}
+	opts.History = pastGenerations
 
-	logVerbose(verboseMaximum, vbs, "with generation options: %v", prettify(opts))
+	logVerbose(
+		verboseMaximum,
+		vbs,
+		"with generation options: %v",
+		prettify(opts),
+	)
 
 	// generate
 	type result struct {
@@ -249,6 +260,9 @@ func doGeneration(
 					}
 				}
 
+				// string buffer for model responses
+				bufModelResponse := new(strings.Builder)
+
 				for _, cand := range it.Candidates {
 					// content
 					if cand.Content != nil {
@@ -281,10 +295,16 @@ func doGeneration(
 									printColored(color.FgYellow, part.Text)
 								} else {
 									printColored(color.FgWhite, part.Text)
+
+									// NOTE: ignore thoughts from model
+									bufModelResponse.WriteString(part.Text)
 								}
 
 								endsWithNewLine = strings.HasSuffix(part.Text, "\n")
 							} else if part.InlineData != nil {
+								// flush model response
+								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
 								if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
 									fmt.Println()
 								}
@@ -402,6 +422,29 @@ func doGeneration(
 									logError("Unsupported mime type of inline data: %s", part.InlineData.MIMEType)
 								}
 							} else if part.FunctionCall != nil {
+								// flush model response
+								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+								// append user's prompt + function call to the past generations
+								pastGenerations = append(pastGenerations,
+									genai.Content{
+										Role: "user",
+										Parts: []*genai.Part{
+											{
+												Text: latestTextPrompt(prompts),
+											},
+										},
+									},
+									genai.Content{
+										Role: "model",
+										Parts: []*genai.Part{
+											{
+												Text: fmt.Sprintf("Please provide the result of function: '%s'", part.FunctionCall.Name),
+											},
+										},
+									},
+								)
+
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
 								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
 									okToRun := false
@@ -422,9 +465,10 @@ func doGeneration(
 										logVerbose(
 											verboseMinimum,
 											vbs,
-											"executing callback '%s' for function '%s'...",
+											"executing callback '%s' for function '%s' with data %s...",
 											callbackPath,
 											part.FunctionCall.Name,
+											prettify(part.FunctionCall.Args, true),
 										)
 
 										if res, err := runExecutable(callbackPath, part.FunctionCall.Args); err != nil {
@@ -435,16 +479,41 @@ func doGeneration(
 											}
 											return
 										} else {
-											logVerbose(
-												verboseMinimum,
-												vbs,
-												"result of callback '%s' for function '%s':",
-												callbackPath,
-												part.FunctionCall.Name,
-											)
-
 											// print the result of execution
-											printColored(color.FgCyan, "%s", res)
+											if vb := verboseLevel(vbs); vb >= verboseMinimum {
+												printColored(
+													color.FgGreen,
+													"Result of callback '%s' for function '%s':\n",
+													callbackPath,
+													part.FunctionCall.Name,
+												)
+												printColored(
+													color.FgCyan,
+													"%s\n",
+													res,
+												)
+											} else {
+												printColored(
+													color.FgGreen,
+													"Executed callback '%s' for function '%s'. (run with -v for more info)\n",
+													callbackPath,
+													part.FunctionCall.Name,
+												)
+											}
+											endsWithNewLine = true
+
+											// flush model response
+											pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+											// append function call result
+											pastGenerations = append(pastGenerations, genai.Content{
+												Role: "user",
+												Parts: []*genai.Part{
+													{
+														Text: fmt.Sprintf("Result of function '%s':\n\n%s", part.FunctionCall.Name, res),
+													},
+												},
+											})
 										}
 									} else {
 										printColored(
@@ -452,6 +521,19 @@ func doGeneration(
 											"Skipped execution of callback '%s' for function '%s'",
 											callbackPath, part.FunctionCall.Name,
 										)
+
+										// flush model response
+										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+										// append function call result (not called)
+										pastGenerations = append(pastGenerations, genai.Content{
+											Role: "user",
+											Parts: []*genai.Part{
+												{
+													Text: fmt.Sprintf("User chose not to call function '%s'.", part.FunctionCall.Name),
+												},
+											},
+										})
 									}
 								} else {
 									// just print the function call data
@@ -462,6 +544,9 @@ func doGeneration(
 									)
 								}
 							} else {
+								// flush model response
+								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
 								if !ignoreUnsupportedType {
 									logError("Unsupported type of content part: %s", prettify(part))
 								}
@@ -475,7 +560,7 @@ func doGeneration(
 							fmt.Println()
 						}
 
-						// print the number of tokens before priting the finish reason
+						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
 							logVerbose(
 								verboseMinimum,
@@ -499,6 +584,9 @@ func doGeneration(
 						return
 					}
 				}
+
+				// flush model response
+				pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 			} else {
 				// error
 				ch <- result{
@@ -521,6 +609,38 @@ func doGeneration(
 	case <-ctx.Done(): // timeout
 		return 1, fmt.Errorf("generation timed out: %w", ctx.Err())
 	case res := <-ch:
+		// check if recursion is needed
+		if res.exit == 0 &&
+			res.err == nil &&
+			recurseOnCallbackResults &&
+			historyEndsWithUsers(pastGenerations) {
+			logVerbose(
+				verboseMedium,
+				vbs,
+				"Generating recursively with history: %s",
+				prettify(pastGenerations),
+			)
+
+			return doGeneration(
+				ctx,
+				timeoutSeconds,
+				apiKey, model,
+				systemInstruction, temperature, topP, topK,
+				[]gt.Prompt{
+					gt.PromptFromText(latestTextPrompt(prompts)),
+				}, nil, nil,
+				withThinking, thinkingBudget,
+				withGrounding,
+				cachedContextName,
+				tools, toolConfig, toolCallbacks, toolCallbacksConfirm, recurseOnCallbackResults,
+				outputAsJSON,
+				generateImages, saveImagesToFiles, saveImagesToDir,
+				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
+				pastGenerations,
+				ignoreUnsupportedType,
+				vbs,
+			)
+		}
 		return res.exit, res.err
 	}
 }
@@ -823,4 +943,20 @@ func listModels(
 
 	// success
 	return 0, nil
+}
+
+func appendAndFlushModelResponse(generatedConversations []genai.Content, buffer *strings.Builder) []genai.Content {
+	if buffer.Len() > 0 {
+		generatedConversations = append(generatedConversations, genai.Content{
+			Role: "model",
+			Parts: []*genai.Part{
+				{
+					Text: buffer.String(),
+				},
+			},
+		})
+		buffer.Reset()
+	}
+
+	return generatedConversations
 }
