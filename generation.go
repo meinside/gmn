@@ -479,28 +479,30 @@ func doGeneration(
 											}
 											return
 										} else {
+											// when not in mode == "AUTO", show the execution of callback
+											if toolConfig.FunctionCallingConfig != nil {
+												if toolConfig.FunctionCallingConfig.Mode != "AUTO" {
+													printColored(
+														color.FgGreen,
+														"Executed callback '%s' for function '%s'.\n",
+														callbackPath,
+														part.FunctionCall.Name,
+													)
+
+													endsWithNewLine = true
+												}
+											}
+
 											// print the result of execution
 											if vb := verboseLevel(vbs); vb >= verboseMinimum {
 												printColored(
-													color.FgGreen,
-													"Result of callback '%s' for function '%s':\n",
-													callbackPath,
-													part.FunctionCall.Name,
-												)
-												printColored(
 													color.FgCyan,
-													"%s\n",
+													"%s",
 													res,
 												)
-											} else {
-												printColored(
-													color.FgGreen,
-													"Executed callback '%s' for function '%s'. (run with -v for more info)\n",
-													callbackPath,
-													part.FunctionCall.Name,
-												)
+
+												endsWithNewLine = strings.HasSuffix(res, "\n")
 											}
-											endsWithNewLine = true
 
 											// flush model response
 											pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
@@ -518,9 +520,11 @@ func doGeneration(
 									} else {
 										printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function '%s'",
+											"Skipped execution of callback '%s' for function '%s'\n",
 											callbackPath, part.FunctionCall.Name,
 										)
+
+										endsWithNewLine = true
 
 										// flush model response
 										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
@@ -542,6 +546,8 @@ func doGeneration(
 										"Function call: %s",
 										prettify(part.FunctionCall),
 									)
+
+									endsWithNewLine = true
 								}
 							} else {
 								// flush model response
@@ -549,6 +555,8 @@ func doGeneration(
 
 								if !ignoreUnsupportedType {
 									logError("Unsupported type of content part: %s", prettify(part))
+
+									endsWithNewLine = true
 								}
 							}
 						}
@@ -556,10 +564,6 @@ func doGeneration(
 
 					// finish reason
 					if cand.FinishReason != "" {
-						if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
-							fmt.Println()
-						}
-
 						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
 							logVerbose(

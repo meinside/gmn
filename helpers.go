@@ -506,7 +506,8 @@ func expandPath(path string) string {
 		}
 	}
 
-	// TODO: expand environment variables, eg. $HOME
+	// expand environment variables, eg. $HOME
+	path = os.ExpandEnv(path)
 
 	// clean,
 	path = filepath.Clean(path)
