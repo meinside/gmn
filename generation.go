@@ -39,6 +39,8 @@ const (
 	wavNumChannels = 1
 )
 
+var _generationEndsWithNewLine = false
+
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
@@ -201,8 +203,10 @@ func doGeneration(
 		}
 	}
 	// (history)
-	if pastGenerations == nil {
+	if pastGenerations == nil { // first call
 		pastGenerations = []genai.Content{}
+
+		_generationEndsWithNewLine = true
 	}
 	opts.History = pastGenerations
 
@@ -220,8 +224,6 @@ func doGeneration(
 	}
 	ch := make(chan result, 1)
 	go func() {
-		endsWithNewLine := false
-
 		for filename, file := range files {
 			prompts = append(prompts, gt.PromptFromFile(filename, file))
 		}
@@ -300,12 +302,12 @@ func doGeneration(
 									bufModelResponse.WriteString(part.Text)
 								}
 
-								endsWithNewLine = strings.HasSuffix(part.Text, "\n")
+								_generationEndsWithNewLine = strings.HasSuffix(part.Text, "\n")
 							} else if part.InlineData != nil {
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-								if !endsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
+								if !_generationEndsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
 									fmt.Println()
 								}
 
@@ -333,7 +335,7 @@ func doGeneration(
 										} else {
 											logMessage(verboseMinimum, "Saved image to file: %s", fpath)
 
-											endsWithNewLine = true
+											_generationEndsWithNewLine = true
 										}
 									} else {
 										logVerbose(
@@ -353,7 +355,7 @@ func doGeneration(
 										} else { // NOTE: make sure to insert a new line after an image
 											fmt.Println()
 
-											endsWithNewLine = true
+											_generationEndsWithNewLine = true
 										}
 									}
 								} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
@@ -400,7 +402,7 @@ func doGeneration(
 											} else {
 												logMessage(verboseMinimum, "Saved speech to file: %s", fpath)
 
-												endsWithNewLine = true
+												_generationEndsWithNewLine = true
 											}
 										} else {
 											// error
@@ -489,7 +491,7 @@ func doGeneration(
 														part.FunctionCall.Name,
 													)
 
-													endsWithNewLine = true
+													_generationEndsWithNewLine = true
 												}
 											}
 
@@ -501,7 +503,7 @@ func doGeneration(
 													res,
 												)
 
-												endsWithNewLine = strings.HasSuffix(res, "\n")
+												_generationEndsWithNewLine = strings.HasSuffix(res, "\n")
 											}
 
 											// flush model response
@@ -524,7 +526,7 @@ func doGeneration(
 											callbackPath, part.FunctionCall.Name,
 										)
 
-										endsWithNewLine = true
+										_generationEndsWithNewLine = true
 
 										// flush model response
 										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
@@ -547,7 +549,7 @@ func doGeneration(
 										prettify(part.FunctionCall),
 									)
 
-									endsWithNewLine = true
+									_generationEndsWithNewLine = true
 								}
 							} else {
 								// flush model response
@@ -556,7 +558,7 @@ func doGeneration(
 								if !ignoreUnsupportedType {
 									logError("Unsupported type of content part: %s", prettify(part))
 
-									endsWithNewLine = true
+									_generationEndsWithNewLine = true
 								}
 							}
 						}
@@ -564,6 +566,10 @@ func doGeneration(
 
 					// finish reason
 					if cand.FinishReason != "" {
+						if !_generationEndsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
+							fmt.Println()
+						}
+
 						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
 							logVerbose(

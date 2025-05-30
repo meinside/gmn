@@ -218,7 +218,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.SpeechVoice,
 					p.Generation.SpeechVoices,
 					p.Generation.SaveSpeechToDir,
-					nil,
+					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)
