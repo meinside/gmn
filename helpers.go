@@ -89,7 +89,11 @@ func standardizeJSON(b []byte) ([]byte, error) {
 // check if given directory should be ignored
 func ignoredDirectory(path string) bool {
 	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
-		logMessage(verboseMedium, "Ignoring directory '%s'", path)
+		logMessage(
+			verboseMedium,
+			"Ignoring directory '%s'",
+			path,
+		)
 		return true
 	}
 	return false
@@ -99,13 +103,21 @@ func ignoredDirectory(path string) bool {
 func ignoredFile(path string, stat os.FileInfo) bool {
 	// ignore empty files,
 	if stat.Size() <= 0 {
-		logMessage(verboseMedium, "Ignoring empty file '%s'", path)
+		logMessage(
+			verboseMedium,
+			"Ignoring empty file '%s'",
+			path,
+		)
 		return true
 	}
 
 	// ignore files with ignored names,
 	if _, exists := _fileNamesToIgnore[filepath.Base(path)]; exists {
-		logMessage(verboseMedium, "Ignoring file '%s'", path)
+		logMessage(
+			verboseMedium,
+			"Ignoring file '%s'",
+			path,
+		)
 		return true
 	}
 
@@ -113,32 +125,42 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 }
 
 // return all files' paths in the given directory
-func filesInDir(dir string, vbs []bool) ([]*string, error) {
+func filesInDir(
+	dir string,
+	vbs []bool,
+) ([]*string, error) {
 	var files []*string
 
 	// traverse directory
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if d.IsDir() {
-			if ignoredDirectory(path) {
-				return filepath.SkipDir
+	err := filepath.WalkDir(
+		dir,
+		func(path string, d os.DirEntry, err error) error {
+			if d.IsDir() {
+				if ignoredDirectory(path) {
+					return filepath.SkipDir
+				}
+			} else {
+				stat, err := os.Stat(path)
+				if err != nil {
+					return err
+				}
+
+				if ignoredFile(path, stat) {
+					return nil
+				}
+
+				logVerbose(
+					verboseMedium,
+					vbs,
+					"attaching file '%s'",
+					path,
+				)
+
+				files = append(files, &path)
 			}
-		} else {
-			stat, err := os.Stat(path)
-			if err != nil {
-				return err
-			}
 
-			if ignoredFile(path, stat) {
-				return nil
-			}
-
-			logVerbose(verboseMedium, vbs, "attaching file '%s'", path)
-
-			files = append(files, &path)
-		}
-
-		return nil
-	})
+			return nil
+		})
 
 	return files, err
 }
@@ -162,7 +184,11 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 				if files, err := filesInDir(*fp, p.Verbose); err == nil {
 					expanded = append(expanded, files...)
 				} else {
-					return nil, fmt.Errorf("failed to list files in '%s': %w", *fp, err)
+					return nil, fmt.Errorf(
+						"failed to list files in '%s': %w",
+						*fp,
+						err,
+					)
 				}
 			} else {
 				if ignoredFile(*fp, stat) {
@@ -186,17 +212,31 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 			if supported {
 				filtered = append(filtered, fp)
 			} else {
-				logMessage(verboseMedium, "Ignoring file '%s', unsupported mime type: %s", *fp, matched)
+				logMessage(
+					verboseMedium,
+					"Ignoring file '%s', unsupported mime type: %s",
+					*fp,
+					matched,
+				)
 			}
 		} else {
-			return nil, fmt.Errorf("failed to check mime type of '%s': %w", *fp, err)
+			return nil, fmt.Errorf(
+				"failed to check mime type of '%s': %w",
+				*fp,
+				err,
+			)
 		}
 	}
 
 	// remove redundant paths
 	filtered = uniqPtrs(filtered)
 
-	logVerbose(verboseMedium, p.Verbose, "attaching %d unique file(s)", len(filtered))
+	logVerbose(
+		verboseMedium,
+		p.Verbose,
+		"attaching %d unique file(s)",
+		len(filtered),
+	)
 
 	return filtered, nil
 }
@@ -245,7 +285,10 @@ func (u customURLInPrompt) url() string {
 }
 
 // replace all http urls in given text to body texts
-func replaceURLsInPrompt(conf config, p params) (replaced string, files map[customURLInPrompt][]byte) {
+func replaceURLsInPrompt(
+	conf config,
+	p params,
+) (replaced string, files map[customURLInPrompt][]byte) {
 	userAgent := *p.Generation.UserAgent
 	prompt := *p.Generation.Prompt
 	vbs := p.Verbose
@@ -258,31 +301,75 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[cust
 		if isURLFromYoutube(url) {
 			files[youtubeURLInPrompt(url)] = []byte(url)
 		} else {
-			if fetched, contentType, err := fetchContent(conf, userAgent, url, vbs); err == nil {
+			if fetched, contentType, err := fetchContent(
+				conf,
+				userAgent,
+				url,
+				vbs,
+			); err == nil {
 				if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-					logVerbose(verboseMaximum, vbs, "file content (%s) fetched from '%s' is supported", mimeType, url)
+					logVerbose(
+						verboseMaximum,
+						vbs,
+						"file content (%s) fetched from '%s' is supported",
+						mimeType,
+						url,
+					)
 
 					// NOTE: embeedings is for text only for now
 					if p.Embeddings.GenerateEmbeddings {
 						// replace prompt text
-						prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
+						prompt = strings.Replace(
+							prompt,
+							url,
+							fmt.Sprintf("%s\n", string(fetched)),
+							1,
+						)
 					} else {
 						// replace prompt text,
-						prompt = strings.Replace(prompt, url, fmt.Sprintf(urlToTextFormat, url, mimeType, ""), 1)
+						prompt = strings.Replace(
+							prompt,
+							url,
+							fmt.Sprintf(urlToTextFormat, url, mimeType, ""),
+							1,
+						)
 
 						// and add bytes as a file
 						files[linkURLInPrompt(url)] = fetched
 					}
 				} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-					logVerbose(verboseMaximum, vbs, "text content (%s) fetched from '%s' is supported", contentType, url)
+					logVerbose(
+						verboseMaximum,
+						vbs,
+						"text content (%s) fetched from '%s' is supported",
+						contentType,
+						url,
+					)
 
 					// replace prompt text
-					prompt = strings.Replace(prompt, url, fmt.Sprintf("%s\n", string(fetched)), 1)
+					prompt = strings.Replace(
+						prompt,
+						url,
+						fmt.Sprintf("%s\n", string(fetched)),
+						1,
+					)
 				} else { // otherwise, (not supported in anyways)
-					logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s' is not supported", contentType, url)
+					logVerbose(
+						verboseMaximum,
+						vbs,
+						"fetched content (%s) from '%s' is not supported",
+						contentType,
+						url,
+					)
 				}
 			} else {
-				logVerbose(verboseMedium, vbs, "failed to fetch content from '%s': %s", url, err)
+				logVerbose(
+					verboseMedium,
+					vbs,
+					"failed to fetch content from '%s': %s",
+					url,
+					err,
+				)
 			}
 		}
 	}
@@ -291,33 +378,59 @@ func replaceURLsInPrompt(conf config, p params) (replaced string, files map[cust
 }
 
 // fetch the content from given url and convert it to text for prompting.
-func fetchContent(conf config, userAgent, url string, vbs []bool) (converted []byte, contentType string, err error) {
+func fetchContent(
+	conf config,
+	userAgent,
+	url string,
+	vbs []bool,
+) (converted []byte, contentType string, err error) {
 	client := &http.Client{
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	logVerbose(verboseMaximum, vbs, "fetching content from '%s'", url)
+	logVerbose(
+		verboseMaximum,
+		vbs,
+		"fetching content from '%s'",
+		url,
+	)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, contentType, fmt.Errorf("failed to create http request: %w", err)
+		return nil, contentType, fmt.Errorf(
+			"failed to create http request: %w",
+			err,
+		)
 	}
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, contentType, fmt.Errorf("failed to fetch contents from '%s': %w", url, err)
+		return nil, contentType, fmt.Errorf(
+			"failed to fetch contents from '%s': %w",
+			url,
+			err,
+		)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logError("Failed to close response body: %s", err)
+			logError(
+				"Failed to close response body: %s",
+				err,
+			)
 		}
 	}()
 
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
-	logVerbose(verboseMaximum, vbs, "fetched content (%s) from '%s'", contentType, url)
+	logVerbose(
+		verboseMaximum,
+		vbs,
+		"fetched content (%s) from '%s'",
+		contentType,
+		url,
+	)
 
 	if resp.StatusCode == 200 {
 		if supportedTextContentType(contentType) {
@@ -329,48 +442,144 @@ func fetchContent(conf config, userAgent, url string, vbs []bool) (converted []b
 					_ = doc.Find("link[rel=\"stylesheet\"]").Remove() // css links
 					_ = doc.Find("style").Remove()                    // embeded css tyles
 
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(doc.Text()))
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						removeConsecutiveEmptyLines(doc.Text()),
+					)
 				} else {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, "Failed to read this HTML document.")
-					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						"Failed to read this HTML document.",
+					)
+					err = fmt.Errorf(
+						"failed to read document (%s) from '%s': %w",
+						contentType,
+						url,
+						err,
+					)
 				}
 			} else if strings.HasPrefix(contentType, "text/") {
 				var bytes []byte
 				if bytes, err = io.ReadAll(resp.Body); err == nil {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, removeConsecutiveEmptyLines(string(bytes))) // NOTE: removing redundant empty lines
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						removeConsecutiveEmptyLines(string(bytes)),
+					) // NOTE: removing redundant empty lines
 				} else {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, "Failed to read this document.")
-					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						"Failed to read this document.",
+					)
+					err = fmt.Errorf(
+						"failed to read document (%s) from '%s': %w",
+						contentType,
+						url,
+						err,
+					)
 				}
 			} else if strings.HasPrefix(contentType, "application/json") {
 				var bytes []byte
 				if bytes, err = io.ReadAll(resp.Body); err == nil {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, string(bytes))
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						string(bytes),
+					)
 				} else {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, "Failed to read this document.")
-					err = fmt.Errorf("failed to read document (%s) from '%s': %w", contentType, url, err)
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						contentType,
+						"Failed to read this document.",
+					)
+					err = fmt.Errorf(
+						"failed to read document (%s) from '%s': %w",
+						contentType,
+						url,
+						err,
+					)
 				}
 			} else {
-				converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, fmt.Sprintf("Content type '%s' not supported.", contentType))
-				err = fmt.Errorf("content (%s) from '%s' not supported", contentType, url)
+				converted = fmt.Appendf(
+					nil,
+					urlToTextFormat,
+					url,
+					contentType,
+					fmt.Sprintf("Content type '%s' not supported.", contentType),
+				)
+				err = fmt.Errorf(
+					"content (%s) from '%s' not supported",
+					contentType,
+					url,
+				)
 			}
 		} else {
 			if converted, err = io.ReadAll(resp.Body); err == nil {
 				if matched, supported, _ := gt.SupportedMimeType(converted); !supported {
-					converted = fmt.Appendf(nil, urlToTextFormat, url, matched, fmt.Sprintf("Content type '%s' not supported.", matched))
-					err = fmt.Errorf("content (%s) from '%s' not supported", matched, url)
+					converted = fmt.Appendf(
+						nil,
+						urlToTextFormat,
+						url,
+						matched,
+						fmt.Sprintf("Content type '%s' not supported.", matched),
+					)
+					err = fmt.Errorf(
+						"content (%s) from '%s' not supported",
+						matched,
+						url,
+					)
 				}
 			} else {
-				converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, "Failed to read this file.")
-				err = fmt.Errorf("failed to read file (%s) from '%s': %w", contentType, url, err)
+				converted = fmt.Appendf(
+					nil,
+					urlToTextFormat,
+					url,
+					contentType,
+					"Failed to read this file.",
+				)
+				err = fmt.Errorf(
+					"failed to read file (%s) from '%s': %w",
+					contentType,
+					url,
+					err,
+				)
 			}
 		}
 	} else {
-		converted = fmt.Appendf(nil, urlToTextFormat, url, contentType, fmt.Sprintf("HTTP Error %d", resp.StatusCode))
-		err = fmt.Errorf("http error %d from '%s'", resp.StatusCode, url)
+		converted = fmt.Appendf(
+			nil,
+			urlToTextFormat,
+			url, contentType,
+			fmt.Sprintf("HTTP Error %d", resp.StatusCode),
+		)
+		err = fmt.Errorf(
+			"http error %d from '%s'",
+			resp.StatusCode,
+			url,
+		)
 	}
 
-	logVerbose(verboseMaximum, vbs, "fetched body =\n%s", string(converted))
+	logVerbose(
+		verboseMaximum,
+		vbs,
+		"fetched body =\n%s",
+		string(converted),
+	)
 
 	return converted, contentType, err
 }
@@ -423,7 +632,10 @@ func uniqPtrs[T comparable](slice []*T) []*T {
 }
 
 // open and return files for prompt (`filesToClose` should be closed manually)
-func openFilesForPrompt(promptFiles map[string][]byte, filepaths []*string) (files map[string]io.Reader, filesToClose []*os.File, err error) {
+func openFilesForPrompt(
+	promptFiles map[string][]byte,
+	filepaths []*string,
+) (files map[string]io.Reader, filesToClose []*os.File, err error) {
 	files = map[string]io.Reader{}
 	filesToClose = []*os.File{}
 
@@ -450,16 +662,32 @@ func openFilesForPrompt(promptFiles map[string][]byte, filepaths []*string) (fil
 func displayImageOnTerminal(imgBytes []byte, mimeType string) error {
 	if rasterm.IsKittyCapable() { // kitty
 		if strings.HasSuffix(mimeType, "png") {
-			return rasterm.KittyCopyPNGInline(os.Stdout, bytes.NewBuffer(imgBytes), rasterm.KittyImgOpts{})
+			return rasterm.KittyCopyPNGInline(
+				os.Stdout,
+				bytes.NewBuffer(imgBytes),
+				rasterm.KittyImgOpts{},
+			)
 		} else {
 			if img, _, err := image.Decode(bytes.NewBuffer(imgBytes)); err == nil {
-				return rasterm.KittyWriteImage(os.Stdout, img, rasterm.KittyImgOpts{})
+				return rasterm.KittyWriteImage(
+					os.Stdout,
+					img,
+					rasterm.KittyImgOpts{},
+				)
 			} else {
-				return fmt.Errorf("failed to decode %s: %w", mimeType, err)
+				return fmt.Errorf(
+					"failed to decode %s: %w",
+					mimeType,
+					err,
+				)
 			}
 		}
 	} else if rasterm.IsItermCapable() { // iTerm
-		return rasterm.ItermCopyFileInline(os.Stdout, bytes.NewBuffer(imgBytes), int64(len(imgBytes)))
+		return rasterm.ItermCopyFileInline(
+			os.Stdout,
+			bytes.NewBuffer(imgBytes),
+			int64(len(imgBytes)),
+		)
 	} else { // sixel
 		if img, _, err := image.Decode(bytes.NewBuffer(imgBytes)); err == nil {
 			if paletted, ok := img.(*image.Paletted); ok {
@@ -468,7 +696,11 @@ func displayImageOnTerminal(imgBytes []byte, mimeType string) error {
 				return fmt.Errorf("not a paletted image")
 			}
 		} else {
-			return fmt.Errorf("failed to decode %s: %w", mimeType, err)
+			return fmt.Errorf(
+				"failed to decode %s: %w",
+				mimeType,
+				err,
+			)
 		}
 	}
 }
@@ -476,10 +708,17 @@ func displayImageOnTerminal(imgBytes []byte, mimeType string) error {
 // generate a filepath for given mime type
 //
 // ($TMPDIR will be used if `destDir` is nil)
-func genFilepath(mimeType, category string, destDir *string) string {
+func genFilepath(
+	mimeType,
+	category string,
+	destDir *string,
+) string {
 	var ext string
 	var exists bool
-	if ext, exists = strings.CutPrefix(mimeType, category+"/"); !exists {
+	if ext, exists = strings.CutPrefix(
+		mimeType,
+		category+"/",
+	); !exists {
 		ext = "bin"
 	}
 	ext = strings.Split(ext, ";")[0]
@@ -493,7 +732,12 @@ func genFilepath(mimeType, category string, destDir *string) string {
 
 	return filepath.Join(
 		dir,
-		fmt.Sprintf("%s_%s.%s", appName, strconv.FormatInt(time.Now().UTC().UnixNano(), 10), ext),
+		fmt.Sprintf(
+			"%s_%s.%s",
+			appName,
+			strconv.FormatInt(time.Now().UTC().UnixNano(), 10),
+			ext,
+		),
 	)
 }
 
@@ -502,7 +746,12 @@ func expandPath(path string) string {
 	// handle `~/*`,
 	if strings.HasPrefix(path, "~/") {
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			path = strings.Replace(path, "~", homeDir, 1)
+			path = strings.Replace(
+				path,
+				"~",
+				homeDir,
+				1,
+			)
 		}
 	}
 
@@ -516,7 +765,10 @@ func expandPath(path string) string {
 }
 
 // convert pcm data to wav
-func pcmToWav(data []byte, sampleRate, bitDepth, numChannels int) (converted []byte, err error) {
+func pcmToWav(
+	data []byte,
+	sampleRate, bitDepth, numChannels int,
+) (converted []byte, err error) {
 	var buf bytes.Buffer
 
 	// wav header
@@ -552,27 +804,43 @@ func pcmToWav(data []byte, sampleRate, bitDepth, numChannels int) (converted []b
 	}
 
 	// write wav header
-	if err := binary.Write(&buf, binary.LittleEndian, header); err != nil {
-		return nil, fmt.Errorf("failed to write wav header: %w", err)
+	if err := binary.Write(
+		&buf,
+		binary.LittleEndian,
+		header,
+	); err != nil {
+		return nil, fmt.Errorf(
+			"failed to write wav header: %w",
+			err,
+		)
 	}
 
 	// write pcm data
 	if _, err := buf.Write(data); err != nil {
-		return nil, fmt.Errorf("failed to write pcm data: %w", err)
+		return nil, fmt.Errorf(
+			"failed to write pcm data: %w",
+			err,
+		)
 	}
 
 	return buf.Bytes(), nil
 }
 
 // run executable with given args and return its result
-func runExecutable(execPath string, args map[string]any) (result string, err error) {
+func runExecutable(
+	execPath string,
+	args map[string]any,
+) (result string, err error) {
 	execPath = expandPath(execPath)
 
 	// marshal args
 	var paramArgs []byte
 	paramArgs, err = json.Marshal(args)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal args: %w", err)
+		return "", fmt.Errorf(
+			"failed to marshal args: %w",
+			err,
+		)
 	}
 
 	// and run
@@ -581,7 +849,12 @@ func runExecutable(execPath string, args map[string]any) (result string, err err
 	var output []byte
 	output, err = cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to run '%s' with args %s: %w", execPath, arg, err)
+		return "", fmt.Errorf(
+			"failed to run '%s' with args %s: %w",
+			execPath,
+			arg,
+			err,
+		)
 	}
 
 	return string(output), nil
@@ -595,7 +868,11 @@ func confirm(prompt string) bool {
 
 		response, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading input:", err)
+			fmt.Fprintln(
+				os.Stderr,
+				"Error reading input:",
+				err,
+			)
 			continue
 		}
 		response = strings.ToLower(strings.TrimSpace(response))

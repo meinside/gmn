@@ -66,7 +66,10 @@ func doGeneration(
 
 	logVerbose(verboseMedium, vbs, "generating...")
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -83,7 +86,12 @@ func doGeneration(
 		}
 	}()
 
-	logVerbose(verboseMaximum, vbs, "with model: %s", model)
+	logVerbose(
+		verboseMaximum,
+		vbs,
+		"with model: %s",
+		model,
+	)
 
 	// configure gemini things client
 	gtc.SetTimeoutSeconds(timeoutSeconds)
@@ -178,14 +186,17 @@ func doGeneration(
 				SpeakerVoiceConfigs: []*genai.SpeakerVoiceConfig{},
 			}
 			for speaker, voice := range speechVoices {
-				opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs = append(opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs, &genai.SpeakerVoiceConfig{
-					Speaker: speaker,
-					VoiceConfig: &genai.VoiceConfig{
-						PrebuiltVoiceConfig: &genai.PrebuiltVoiceConfig{
-							VoiceName: voice,
+				opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs = append(
+					opts.SpeechConfig.MultiSpeakerVoiceConfig.SpeakerVoiceConfigs,
+					&genai.SpeakerVoiceConfig{
+						Speaker: speaker,
+						VoiceConfig: &genai.VoiceConfig{
+							PrebuiltVoiceConfig: &genai.PrebuiltVoiceConfig{
+								VoiceName: voice,
+							},
 						},
 					},
-				})
+				)
 			}
 		}
 	}
@@ -243,22 +254,40 @@ func doGeneration(
 				tokenUsages := []string{}
 				if it.UsageMetadata != nil {
 					if it.UsageMetadata.PromptTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("prompt: %d", it.UsageMetadata.PromptTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"prompt: %d",
+							it.UsageMetadata.PromptTokenCount,
+						))
 					}
 					if it.UsageMetadata.CandidatesTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("candidates: %d", it.UsageMetadata.CandidatesTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"candidates: %d",
+							it.UsageMetadata.CandidatesTokenCount,
+						))
 					}
 					if it.UsageMetadata.CachedContentTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("cached: %d", it.UsageMetadata.CachedContentTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"cached: %d",
+							it.UsageMetadata.CachedContentTokenCount,
+						))
 					}
 					if it.UsageMetadata.ToolUsePromptTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("tool use: %d", it.UsageMetadata.ToolUsePromptTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"tool use: %d",
+							it.UsageMetadata.ToolUsePromptTokenCount,
+						))
 					}
 					if it.UsageMetadata.ThoughtsTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("thoughts: %d", it.UsageMetadata.ThoughtsTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"thoughts: %d",
+							it.UsageMetadata.ThoughtsTokenCount,
+						))
 					}
 					if it.UsageMetadata.TotalTokenCount != 0 {
-						tokenUsages = append(tokenUsages, fmt.Sprintf("total: %d", it.UsageMetadata.TotalTokenCount))
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"total: %d",
+							it.UsageMetadata.TotalTokenCount,
+						))
 					}
 				}
 
@@ -333,7 +362,11 @@ func doGeneration(
 											}
 											return
 										} else {
-											logMessage(verboseMinimum, "Saved image to file: %s", fpath)
+											logMessage(
+												verboseMinimum,
+												"Saved image to file: %s",
+												fpath,
+											)
 
 											_generationEndsWithNewLine = true
 										}
@@ -341,11 +374,16 @@ func doGeneration(
 										logVerbose(
 											verboseMedium,
 											vbs,
-											"displaying image (%s;%d bytes) on terminal...", part.InlineData.MIMEType, len(part.InlineData.Data),
+											"displaying image (%s;%d bytes) on terminal...",
+											part.InlineData.MIMEType,
+											len(part.InlineData.Data),
 										)
 
 										// display on terminal
-										if err := displayImageOnTerminal(part.InlineData.Data, part.InlineData.MIMEType); err != nil {
+										if err := displayImageOnTerminal(
+											part.InlineData.Data,
+											part.InlineData.MIMEType,
+										); err != nil {
 											// error
 											ch <- result{
 												exit: 1,
@@ -389,10 +427,17 @@ func doGeneration(
 											logVerbose(
 												verboseMedium,
 												vbs,
-												"saving file (%s;%d bytes) to: %s...", mimeType, len(converted), fpath,
+												"saving file (%s;%d bytes) to: %s...",
+												mimeType,
+												len(converted),
+												fpath,
 											)
 
-											if err := os.WriteFile(fpath, converted, 0640); err != nil {
+											if err := os.WriteFile(
+												fpath,
+												converted,
+												0640,
+											); err != nil {
 												// error
 												ch <- result{
 													exit: 1,
@@ -400,7 +445,11 @@ func doGeneration(
 												}
 												return
 											} else {
-												logMessage(verboseMinimum, "Saved speech to file: %s", fpath)
+												logMessage(
+													verboseMinimum,
+													"Saved speech to file: %s",
+													fpath,
+												)
 
 												_generationEndsWithNewLine = true
 											}
@@ -408,7 +457,11 @@ func doGeneration(
 											// error
 											ch <- result{
 												exit: 1,
-												err:  fmt.Errorf("failed to convert speech from %s to wav: %w", speechCodec, err),
+												err: fmt.Errorf(
+													"failed to convert speech from %s to wav: %w",
+													speechCodec,
+													err,
+												),
 											}
 											return
 										}
@@ -416,12 +469,19 @@ func doGeneration(
 										// error
 										ch <- result{
 											exit: 1,
-											err:  fmt.Errorf("unsupported speech with codec: %s and bitrate: %d", speechCodec, bitRate),
+											err: fmt.Errorf(
+												"unsupported speech with codec: %s and bitrate: %d",
+												speechCodec,
+												bitRate,
+											),
 										}
 										return
 									}
 								} else { // TODO: NOTE: add more types here
-									logError("Unsupported mime type of inline data: %s", part.InlineData.MIMEType)
+									logError(
+										"Unsupported mime type of inline data: %s",
+										part.InlineData.MIMEType,
+									)
 								}
 							} else if part.FunctionCall != nil {
 								// flush model response
@@ -441,7 +501,10 @@ func doGeneration(
 										Role: "model",
 										Parts: []*genai.Part{
 											{
-												Text: fmt.Sprintf("Please provide the result of function: '%s'", part.FunctionCall.Name),
+												Text: fmt.Sprintf(
+													"Please provide the result of function: '%s'",
+													part.FunctionCall.Name,
+												),
 											},
 										},
 									},
@@ -473,11 +536,17 @@ func doGeneration(
 											prettify(part.FunctionCall.Args, true),
 										)
 
-										if res, err := runExecutable(callbackPath, part.FunctionCall.Args); err != nil {
+										if res, err := runExecutable(
+											callbackPath,
+											part.FunctionCall.Args,
+										); err != nil {
 											// error
 											ch <- result{
 												exit: 1,
-												err:  fmt.Errorf("tool callback failed: %s", err),
+												err: fmt.Errorf(
+													"tool callback failed: %s",
+													err,
+												),
 											}
 											return
 										} else {
@@ -514,7 +583,11 @@ func doGeneration(
 												Role: "user",
 												Parts: []*genai.Part{
 													{
-														Text: fmt.Sprintf("Result of function '%s':\n\n%s", part.FunctionCall.Name, res),
+														Text: fmt.Sprintf(
+															"Result of function '%s':\n\n%s",
+															part.FunctionCall.Name,
+															res,
+														),
 													},
 												},
 											})
@@ -523,7 +596,8 @@ func doGeneration(
 										printColored(
 											color.FgYellow,
 											"Skipped execution of callback '%s' for function '%s'\n",
-											callbackPath, part.FunctionCall.Name,
+											callbackPath,
+											part.FunctionCall.Name,
 										)
 
 										_generationEndsWithNewLine = true
@@ -536,7 +610,10 @@ func doGeneration(
 											Role: "user",
 											Parts: []*genai.Part{
 												{
-													Text: fmt.Sprintf("User chose not to call function '%s'.", part.FunctionCall.Name),
+													Text: fmt.Sprintf(
+														"User chose not to call function '%s'.",
+														part.FunctionCall.Name,
+													),
 												},
 											},
 										})
@@ -556,7 +633,10 @@ func doGeneration(
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
 								if !ignoreUnsupportedType {
-									logError("Unsupported type of content part: %s", prettify(part))
+									logError(
+										"Unsupported type of content part: %s",
+										prettify(part),
+									)
 
 									_generationEndsWithNewLine = true
 								}
@@ -575,7 +655,8 @@ func doGeneration(
 							logVerbose(
 								verboseMinimum,
 								vbs,
-								"tokens %s", strings.Join(tokenUsages, ", "),
+								"tokens %s",
+								strings.Join(tokenUsages, ", "),
 							)
 						}
 
@@ -583,7 +664,8 @@ func doGeneration(
 						logVerbose(
 							verboseMinimum,
 							vbs,
-							"finishing with reason: %s", cand.FinishReason,
+							"finishing with reason: %s",
+							cand.FinishReason,
 						)
 
 						// success
@@ -601,7 +683,10 @@ func doGeneration(
 				// error
 				ch <- result{
 					exit: 1,
-					err:  fmt.Errorf("stream iteration failed: %s", gt.ErrToStr(err)),
+					err: fmt.Errorf(
+						"stream iteration failed: %s",
+						gt.ErrToStr(err),
+					),
 				}
 				return
 			}
@@ -617,7 +702,10 @@ func doGeneration(
 	// wait for the generation to finish
 	select {
 	case <-ctx.Done(): // timeout
-		return 1, fmt.Errorf("generation timed out: %w", ctx.Err())
+		return 1, fmt.Errorf(
+			"generation timed out: %w",
+			ctx.Err(),
+		)
 	case res := <-ch:
 		// check if recursion is needed
 		if res.exit == 0 &&
@@ -665,7 +753,11 @@ func doEmbeddingsGeneration(
 	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vbs, "generating embeddings...")
+	logVerbose(
+		verboseMedium,
+		vbs,
+		"generating embeddings...",
+	)
 
 	if chunkSize == nil {
 		chunkSize = ptr(defaultEmbeddingsChunkSize)
@@ -681,10 +773,16 @@ func doEmbeddingsGeneration(
 		EllipsesText:   "...",
 	})
 	if err != nil {
-		return 1, fmt.Errorf("failed to chunk text: %w", err)
+		return 1, fmt.Errorf(
+			"failed to chunk text: %w",
+			err,
+		)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -734,7 +832,11 @@ func doEmbeddingsGeneration(
 			},
 			&selectedTaskType,
 		); err != nil {
-			return 1, fmt.Errorf("embeddings failed for chunk[%d]: %w", i, err)
+			return 1, fmt.Errorf(
+				"embeddings failed for chunk[%d]: %w",
+				i,
+				err,
+			)
 		} else {
 			embeds.Chunks = append(embeds.Chunks, embedding{
 				Text:    text,
@@ -745,9 +847,15 @@ func doEmbeddingsGeneration(
 
 	// print result in JSON format
 	if encoded, err := json.Marshal(embeds); err != nil {
-		return 1, fmt.Errorf("embeddings encoding failed: %w", err)
+		return 1, fmt.Errorf(
+			"embeddings encoding failed: %w",
+			err,
+		)
 	} else {
-		fmt.Printf("%s\n", string(encoded))
+		fmt.Printf(
+			"%s\n",
+			string(encoded),
+		)
 
 		return 0, nil
 	}
@@ -763,9 +871,16 @@ func cacheContext(
 	cachedContextDisplayName *string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vbs, "caching context...")
+	logVerbose(
+		verboseMedium,
+		vbs,
+		"caching context...",
+	)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -778,7 +893,10 @@ func cacheContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			logError(
+				"Failed to close client: %s",
+				err,
+			)
 		}
 	}()
 
@@ -796,7 +914,10 @@ func cacheContext(
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				logError("Failed to close file: %s", err)
+				logError(
+					"Failed to close file: %s",
+					err,
+				)
 			}
 		}
 	}()
@@ -829,9 +950,16 @@ func listCachedContexts(
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vbs, "listing cached contexts...")
+	logVerbose(
+		verboseMedium,
+		vbs,
+		"listing cached contexts...",
+	)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -841,7 +969,10 @@ func listCachedContexts(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			logError(
+				"Failed to close client: %s",
+				err,
+			)
 		}
 	}()
 
@@ -851,9 +982,17 @@ func listCachedContexts(
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
 			for _, content := range listed {
-				printColored(color.FgGreen, "%s", content.Name)
+				printColored(
+					color.FgGreen,
+					"%s",
+					content.Name,
+				)
 				if len(content.DisplayName) > 0 {
-					printColored(color.FgWhite, " (%s)", content.DisplayName)
+					printColored(
+						color.FgWhite,
+						" (%s)",
+						content.DisplayName,
+					)
 				}
 				printColored(color.FgWhite, `
   > model: %s
@@ -884,9 +1023,16 @@ func deleteCachedContext(
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vbs, "deleting cached context...")
+	logVerbose(
+		verboseMedium,
+		vbs,
+		"deleting cached context...",
+	)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -896,7 +1042,10 @@ func deleteCachedContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			logError(
+				"Failed to close client: %s",
+				err,
+			)
 		}
 	}()
 
@@ -918,9 +1067,16 @@ func listModels(
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(verboseMedium, vbs, "listing models...")
+	logVerbose(
+		verboseMedium,
+		vbs,
+		"listing models...",
+	)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
 	defer cancel()
 
 	// gemini things client
@@ -930,7 +1086,10 @@ func listModels(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			logError(
+				"Failed to close client: %s",
+				err,
+			)
 		}
 	}()
 
@@ -941,13 +1100,21 @@ func listModels(
 		return 1, err
 	} else {
 		for _, model := range models {
-			printColored(color.FgGreen, "%s", model.Name)
+			printColored(
+				color.FgGreen,
+				"%s",
+				model.Name,
+			)
 
 			printColored(color.FgWhite, ` (%s)
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s
-`, model.DisplayName, model.InputTokenLimit, model.OutputTokenLimit, strings.Join(model.SupportedActions, ", "))
+`, model.DisplayName,
+				model.InputTokenLimit,
+				model.OutputTokenLimit,
+				strings.Join(model.SupportedActions, ", "),
+			)
 		}
 	}
 
@@ -955,7 +1122,11 @@ func listModels(
 	return 0, nil
 }
 
-func appendAndFlushModelResponse(generatedConversations []genai.Content, buffer *strings.Builder) []genai.Content {
+// append and flush model response
+func appendAndFlushModelResponse(
+	generatedConversations []genai.Content,
+	buffer *strings.Builder,
+) []genai.Content {
 	if buffer.Len() > 0 {
 		generatedConversations = append(generatedConversations, genai.Content{
 			Role: "model",

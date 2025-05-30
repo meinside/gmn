@@ -38,7 +38,11 @@ func verboseLevel(verbosityFromParams []bool) verbosity {
 }
 
 // print given string to stdout
-func logMessage(level verbosity, format string, v ...any) {
+func logMessage(
+	level verbosity,
+	format string,
+	v ...any,
+) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
@@ -57,16 +61,27 @@ func logMessage(level verbosity, format string, v ...any) {
 }
 
 // print given error string to stdout
-func logError(format string, v ...any) {
+func logError(
+	format string,
+	v ...any,
+) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
 
-	printColored(color.FgRed, format, v...)
+	printColored(
+		color.FgRed,
+		format,
+		v...,
+	)
 }
 
 // print given string to stdout with color (if possible)
-func printColored(c color.Attribute, format string, v ...any) {
+func printColored(
+	c color.Attribute,
+	format string,
+	v ...any,
+) {
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
 		c := color.New(c)
 		_, _ = c.Printf(format, v...)
@@ -78,7 +93,12 @@ func printColored(c color.Attribute, format string, v ...any) {
 // print logVerbose message
 //
 // (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
-func logVerbose(targetLevel verbosity, verbosityFromParams []bool, format string, v ...any) {
+func logVerbose(
+	targetLevel verbosity,
+	verbosityFromParams []bool,
+	format string,
+	v ...any,
+) {
 	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
 		format = fmt.Sprintf(">>> %s", format)
 
@@ -87,14 +107,21 @@ func logVerbose(targetLevel verbosity, verbosityFromParams []bool, format string
 }
 
 // print help message before os.Exit()
-func printHelpBeforeExit(code int, parser *flags.Parser) (exit int) {
+func printHelpBeforeExit(
+	code int,
+	parser *flags.Parser,
+) (exit int) {
 	parser.WriteHelp(os.Stdout)
 
 	return code
 }
 
 // print error before os.Exit()
-func printErrorBeforeExit(code int, format string, a ...any) (exit int) {
+func printErrorBeforeExit(
+	code int,
+	format string,
+	a ...any,
+) (exit int) {
 	if code > 0 {
 		logError(format, a...)
 	}
