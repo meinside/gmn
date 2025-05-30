@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -485,7 +486,7 @@ func genFilepath(mimeType, category string, destDir *string) string {
 	if destDir == nil {
 		dir = os.TempDir()
 	} else {
-		dir = expandDir(*destDir)
+		dir = expandPath(*destDir)
 	}
 
 	return filepath.Join(
@@ -494,19 +495,21 @@ func genFilepath(mimeType, category string, destDir *string) string {
 	)
 }
 
-// expand given directory
-func expandDir(dir string) string {
+// expand given path
+func expandPath(path string) string {
 	// handle `~/*`,
-	if strings.HasPrefix(dir, "~/") {
+	if strings.HasPrefix(path, "~/") {
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			dir = strings.Replace(dir, "~", homeDir, 1)
+			path = strings.Replace(path, "~", homeDir, 1)
 		}
 	}
 
-	// clean,
-	dir = filepath.Clean(dir)
+	// TODO: expand environment variables, eg. $HOME
 
-	return dir
+	// clean,
+	path = filepath.Clean(path)
+
+	return path
 }
 
 // convert pcm data to wav
@@ -556,6 +559,29 @@ func pcmToWav(data []byte, sampleRate, bitDepth, numChannels int) (converted []b
 	}
 
 	return buf.Bytes(), nil
+}
+
+// run executable with given args and return its result
+func runExecutable(execPath string, args map[string]any) (result string, err error) {
+	execPath = expandPath(execPath)
+
+	// marshal args
+	var paramArgs []byte
+	paramArgs, err = json.Marshal(args)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal args: %w", err)
+	}
+
+	// and run
+	arg := string(paramArgs)
+	cmd := exec.Command(execPath, arg)
+	var output []byte
+	output, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run '%s' with args %s: %w", execPath, arg, err)
+	}
+
+	return string(output), nil
 }
 
 // prettify given thing in JSON format

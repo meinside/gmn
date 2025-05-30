@@ -49,6 +49,7 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -125,6 +126,16 @@ func doGeneration(
 		Temperature: ptr(generationTemperature),
 		TopP:        ptr(generationTopP),
 		TopK:        ptr(float32(generationTopK)),
+	}
+	// (tools and tool config)
+	if tools != nil {
+		opts.Tools = []*genai.Tool{}
+		for _, tool := range tools {
+			opts.Tools = append(opts.Tools, &tool)
+		}
+	}
+	if toolConfig != nil {
+		opts.ToolConfig = toolConfig
 	}
 	// (JSON output)
 	if outputAsJSON {
@@ -389,6 +400,44 @@ func doGeneration(
 									}
 								} else { // TODO: NOTE: add more types here
 									logError("Unsupported mime type of inline data: %s", part.InlineData.MIMEType)
+								}
+							} else if part.FunctionCall != nil {
+								// NOTE: if tool callbackPath exists for this function call, execute it with the args
+								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
+									logVerbose(
+										verboseMinimum,
+										vbs,
+										"executing callback at '%s' for function call '%s'...",
+										callbackPath,
+										part.FunctionCall.Name,
+									)
+
+									if res, err := runExecutable(callbackPath, part.FunctionCall.Args); err != nil {
+										// error
+										ch <- result{
+											exit: 1,
+											err:  fmt.Errorf("tool callback failed: %s", err),
+										}
+										return
+									} else {
+										logVerbose(
+											verboseMinimum,
+											vbs,
+											"result of callback at '%s' for function call '%s':",
+											callbackPath,
+											part.FunctionCall.Name,
+										)
+
+										// print the result of execution
+										printColored(color.FgCyan, "%s", res)
+									}
+								} else {
+									// just print the function call data
+									logMessage(
+										verboseMinimum,
+										"Function call: %s",
+										prettify(part.FunctionCall),
+									)
 								}
 							} else {
 								if !ignoreUnsupportedType {

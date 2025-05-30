@@ -4,11 +4,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 	"github.com/meinside/version-go"
@@ -160,6 +162,25 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					}
 				}
 
+				// function call
+				var tools []genai.Tool
+				var toolConfig *genai.ToolConfig
+				if p.Generation.Tools != nil {
+					if err := json.Unmarshal([]byte(*p.Generation.Tools), &tools); err != nil {
+						return 1, fmt.Errorf("failed to read tools: %w", err)
+					}
+				}
+				if p.Generation.ToolConfig != nil {
+					if err := json.Unmarshal([]byte(*p.Generation.ToolConfig), &toolConfig); err != nil {
+						return 1, fmt.Errorf("failed to read tool config: %w", err)
+					}
+				}
+				// NOTE: both `tools` and `toolConfig` should be given at the same time
+				if tools != nil && toolConfig == nil ||
+					tools == nil && toolConfig != nil {
+					return 1, fmt.Errorf("both tools and tool config should be given at the same time")
+				}
+
 				return doGeneration(context.TODO(),
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
@@ -175,6 +196,9 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.ThinkingBudget,
 					p.Generation.GroundingOn,
 					p.Caching.CachedContextName,
+					tools,
+					toolConfig,
+					p.Generation.ToolCallbacks,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,
