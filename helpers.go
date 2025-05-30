@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -26,6 +28,7 @@ import (
 	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/tailscale/hujson"
+	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 )
@@ -485,7 +488,7 @@ func genFilepath(mimeType, category string, destDir *string) string {
 	if destDir == nil {
 		dir = os.TempDir()
 	} else {
-		dir = expandDir(*destDir)
+		dir = expandPath(*destDir)
 	}
 
 	return filepath.Join(
@@ -494,19 +497,21 @@ func genFilepath(mimeType, category string, destDir *string) string {
 	)
 }
 
-// expand given directory
-func expandDir(dir string) string {
+// expand given path
+func expandPath(path string) string {
 	// handle `~/*`,
-	if strings.HasPrefix(dir, "~/") {
+	if strings.HasPrefix(path, "~/") {
 		if homeDir, err := os.UserHomeDir(); err == nil {
-			dir = strings.Replace(dir, "~", homeDir, 1)
+			path = strings.Replace(path, "~", homeDir, 1)
 		}
 	}
 
-	// clean,
-	dir = filepath.Clean(dir)
+	// TODO: expand environment variables, eg. $HOME
 
-	return dir
+	// clean,
+	path = filepath.Clean(path)
+
+	return path
 }
 
 // convert pcm data to wav
@@ -558,10 +563,80 @@ func pcmToWav(data []byte, sampleRate, bitDepth, numChannels int) (converted []b
 	return buf.Bytes(), nil
 }
 
+// run executable with given args and return its result
+func runExecutable(execPath string, args map[string]any) (result string, err error) {
+	execPath = expandPath(execPath)
+
+	// marshal args
+	var paramArgs []byte
+	paramArgs, err = json.Marshal(args)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal args: %w", err)
+	}
+
+	// and run
+	arg := string(paramArgs)
+	cmd := exec.Command(execPath, arg)
+	var output []byte
+	output, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run '%s' with args %s: %w", execPath, arg, err)
+	}
+
+	return string(output), nil
+}
+
+// confirm with the given prompt (y/n)
+func confirm(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("%s (y/N): ", prompt)
+
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error reading input:", err)
+			continue
+		}
+		response = strings.ToLower(strings.TrimSpace(response))
+		if strings.HasPrefix(response, "y") {
+			return true
+		} else {
+			return false
+		}
+	}
+}
+
+// check if the past generations end with users's message,
+func historyEndsWithUsers(history []genai.Content) bool {
+	if len(history) > 0 {
+		last := history[len(history)-1]
+
+		return last.Role == "user"
+	}
+	return false
+}
+
+// get the latest text prompt from the given prompts
+func latestTextPrompt(prompts []gt.Prompt) string {
+	for _, prompt := range slices.Backward(prompts) {
+		if textPrompt, ok := prompt.(gt.TextPrompt); ok {
+			return textPrompt.ToPart().Text
+		}
+	}
+
+	return ""
+}
+
 // prettify given thing in JSON format
-func prettify(v any) string {
-	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
-		return string(bytes)
+func prettify(v any, flatten ...bool) string {
+	if len(flatten) > 0 && flatten[0] {
+		if bytes, err := json.Marshal(v); err == nil {
+			return string(bytes)
+		}
+	} else {
+		if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+			return string(bytes)
+		}
 	}
 	return fmt.Sprintf("%+v", v)
 }

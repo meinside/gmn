@@ -4,11 +4,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 	"github.com/meinside/version-go"
@@ -160,6 +162,33 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					}
 				}
 
+				// function call
+				var tools []genai.Tool
+				if p.Generation.Tools != nil {
+					if bytes, err := standardizeJSON([]byte(*p.Generation.Tools)); err == nil {
+						if err := json.Unmarshal(bytes, &tools); err != nil {
+							return 1, fmt.Errorf("failed to read tools: %w", err)
+						}
+					} else {
+						return 1, fmt.Errorf("failed to standardize tools' JSON: %w", err)
+					}
+				}
+				var toolConfig *genai.ToolConfig
+				if p.Generation.ToolConfig != nil {
+					if bytes, err := standardizeJSON([]byte(*p.Generation.ToolConfig)); err == nil {
+						if err := json.Unmarshal(bytes, &toolConfig); err != nil {
+							return 1, fmt.Errorf("failed to read tool config: %w", err)
+						}
+					} else {
+						return 1, fmt.Errorf("failed to standardize tool config's JSON: %w", err)
+					}
+				}
+				// NOTE: both `tools` and `toolConfig` should be given at the same time
+				if tools != nil && toolConfig == nil ||
+					tools == nil && toolConfig != nil {
+					return 1, fmt.Errorf("both tools and tool config should be given at the same time")
+				}
+
 				return doGeneration(context.TODO(),
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
@@ -175,6 +204,11 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.ThinkingBudget,
 					p.Generation.GroundingOn,
 					p.Caching.CachedContextName,
+					tools,
+					toolConfig,
+					p.Generation.ToolCallbacks,
+					p.Generation.ToolCallbacksConfirm,
+					p.Generation.RecurseOnCallbackResults,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,
@@ -184,6 +218,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.SpeechVoice,
 					p.Generation.SpeechVoices,
 					p.Generation.SaveSpeechToDir,
+					nil,
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)

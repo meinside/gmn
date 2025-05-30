@@ -137,6 +137,8 @@ $ gmn -x -p "what's the latest book of douglas adams? check from here: https://o
 $ gmn -x -p "summarize this youtube video: https://www.youtube.com/watch?v=I_PntcnBWHw"
 ```
 
+---
+
 Supported content types of URLs are:
 
 * `text/*` (eg. `text/html`, `text/csv`, …)
@@ -210,6 +212,144 @@ TODO
 #### Video
 
 TODO
+
+### Generate with Tool Config (Function Call)
+
+With `--tools` and `--tool-config`, it will print the data of returned function call:
+
+```bash
+$ gmn -p "how is the weather today?" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "fetch_weather", 
+            "description": "this function fetches the current weather"
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["fetch_weather"]
+    }}'
+```
+
+#### Callback on Function Calls
+
+With `--tool-callbacks`, it will execute matched scripts/binaries with the function call data:
+
+```bash
+$ gmn -p "what is the disk usage of directory /usr/local/?" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "check_disk_usage",
+            "description": "this function checks the disk usage of given directory", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "directory": {"type": "STRING"}
+                },
+                "required": ["directory"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["check_disk_usage"]
+    }}' \
+    --tool-callbacks="check_disk_usage:/path/to/check_disk_usage_script.sh"
+```
+
+and print the result of the scripts/binaries.
+
+Here is an example of `check_disk_usage_script.sh` above:
+
+```bash
+#!/usr/bin/env bash
+
+# read values from passed arguments (which is in JSON format),
+dir=$(echo "$*" | jq .directory -r)
+
+# do something and print the result to stdout/stderr,
+du -h -d 1 "$dir"
+
+# then it will be handled by the caller (gmn)
+```
+
+#### Confirm before Executing Callbacks
+
+With `--tool-callbacks-confirm`, it will ask for confirmation before executing the scripts/binaries:
+
+```bash
+$ gmn -p "nuke the root directory" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "remove_dir_recursively",
+            "description": "this function deletes given directory recursively", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"directory": {"type": "STRING"}},
+                "required": ["directory"]
+            }
+        },
+        {
+            "name": "remove_file",
+            "description": "this function deletes a file", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"filepath": {"type": "STRING"}},
+                "required": ["filepath"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["remove_dir_recursively", "remove_file"]
+    }}' \
+    --tool-callbacks="remove_dir_recursively:/path/to/rm_rf_dir.sh" \
+    --tool-callbacks="create_dir:/path/to/mkdir.sh" \
+    --tool-callbacks-confirm="remove_dir_recursively:true"
+```
+
+#### Generate Recursively with Callback Results
+
+With `--recurse-on-callback-results`, it will generate recursively with the results of the scripts/binaries:
+
+```bash
+$ gmn -p "count the smallest .sh file's number of lines in /home/ubuntu/tmp/" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "list_files_in_dir",
+            "description": "this function lists the names of files in a directory",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"directory": {"type": "STRING", "description": "an absolute path of a directory"}},
+                "required": ["directory"]
+            }
+        },
+        {
+            "name": "count_lines_of_file",
+            "description": "this function counts the number of lines in a file", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "directory": {"type": "STRING", "description": "an absolute path of a directory"},
+                    "filename": {"type": "STRING"}
+                },
+                "required": ["directory", "filename"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "AUTO"
+    }}' \
+    --tool-callbacks="list_files_in_dir:/path/to/list_files_in_dir.sh" \
+    --tool-callbacks="count_lines_of_file:/path/to/count_lines_of_file.sh" \
+    --recurse-on-callback-results
+```
+
+Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it will loop infinitely on the same function call.
+
+---
+
+There is a [document](https://ai.google.dev/api/caching#FunctionDeclaration) about function declarations.
 
 ### Generate Embeddings
 

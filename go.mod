@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/fatih/color v1.18.0
 	github.com/gabriel-vasile/mimetype v1.4.9
-	github.com/infisical/go-sdk v0.5.92
+	github.com/infisical/go-sdk v0.5.93
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
 	github.com/meinside/gemini-things-go v0.3.6
