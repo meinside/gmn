@@ -49,7 +49,7 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -404,32 +404,54 @@ func doGeneration(
 							} else if part.FunctionCall != nil {
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
 								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
-									logVerbose(
-										verboseMinimum,
-										vbs,
-										"executing callback at '%s' for function call '%s'...",
-										callbackPath,
-										part.FunctionCall.Name,
-									)
+									okToRun := false
 
-									if res, err := runExecutable(callbackPath, part.FunctionCall.Args); err != nil {
-										// error
-										ch <- result{
-											exit: 1,
-											err:  fmt.Errorf("tool callback failed: %s", err),
-										}
-										return
+									// ask for confirmation
+									if confirmNeeded, exists := toolCallbacksConfirm[part.FunctionCall.Name]; exists && confirmNeeded {
+										okToRun = confirm(fmt.Sprintf(
+											"Run callback '%s' for function '%s' with data: %s?",
+											callbackPath,
+											part.FunctionCall.Name,
+											prettify(part.FunctionCall.Args, true),
+										))
 									} else {
+										okToRun = true
+									}
+
+									if okToRun {
 										logVerbose(
 											verboseMinimum,
 											vbs,
-											"result of callback at '%s' for function call '%s':",
+											"executing callback '%s' for function '%s'...",
 											callbackPath,
 											part.FunctionCall.Name,
 										)
 
-										// print the result of execution
-										printColored(color.FgCyan, "%s", res)
+										if res, err := runExecutable(callbackPath, part.FunctionCall.Args); err != nil {
+											// error
+											ch <- result{
+												exit: 1,
+												err:  fmt.Errorf("tool callback failed: %s", err),
+											}
+											return
+										} else {
+											logVerbose(
+												verboseMinimum,
+												vbs,
+												"result of callback '%s' for function '%s':",
+												callbackPath,
+												part.FunctionCall.Name,
+											)
+
+											// print the result of execution
+											printColored(color.FgCyan, "%s", res)
+										}
+									} else {
+										printColored(
+											color.FgYellow,
+											"Skipped execution of callback '%s' for function '%s'",
+											callbackPath, part.FunctionCall.Name,
+										)
 									}
 								} else {
 									// just print the function call data

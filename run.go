@@ -199,6 +199,7 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					tools,
 					toolConfig,
 					p.Generation.ToolCallbacks,
+					p.Generation.ToolCallbacksConfirm,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,

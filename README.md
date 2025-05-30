@@ -213,15 +213,25 @@ TODO
 
 ### Generate with Tool Config (Function Call)
 
-It will print function call data with:
+With `--tools` and `--tool-config`, it will print the data of returned function call:
 
 ```bash
 $ gmn -p "how is the weather today?" \
-    --tools='[{"functionDeclarations": [{"name": "fetch_weather", "description": "this function fetches the current weather"}]}]' \
-    --tool-config='{"functionCallingConfig": {"mode": "ANY", "allowedFunctionNames": ["fetch_weather"]}}'
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "fetch_weather", 
+            "description": "this function fetches the current weather"
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["fetch_weather"]
+    }}'
 ```
 
-and with tool callbacks, it will execute scripts/binaries with matched function call data and print the result:
+#### Callback on Function Calls
+
+With `--tool-callbacks`, it will execute matched scripts/binaries with the function call data:
 
 ```bash
 $ gmn -p "what is the disk usage of directory /usr/local/?" \
@@ -229,26 +239,74 @@ $ gmn -p "what is the disk usage of directory /usr/local/?" \
         {
             "name": "check_disk_usage",
             "description": "this function checks the disk usage of given directory", 
-            "parameters": {"type": "OBJECT", "properties": {"directory": {"type": "STRING"}}, "required": ["directory"]}
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "directory": {"type": "STRING"}
+                },
+                "required": ["directory"]
+            }
         }
     ]}]' \
-    --tool-config='{"functionCallingConfig": {"mode": "ANY", "allowedFunctionNames": ["check_disk_usage"]}}' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["check_disk_usage"]
+    }}' \
     --tool-callbacks="check_disk_usage:/path/to/check_disk_usage_script.sh"
 ```
 
-Example of `check_disk_usage_script.sh` above:
+and print the result of the scripts/binaries.
+
+Here is an example of `check_disk_usage_script.sh` above:
 
 ```bash
 #!/usr/bin/env bash
 
-# read values from passed arguments (which is in JSON format)
+# read values from passed arguments (which is in JSON format),
 dir=$(echo "$*" | jq .directory -r)
 
-# and do something with the values and print to stdout/stderr
+# do something and print the result to stdout/stderr,
 du -h -d 1 "$dir"
 
-# then it will be handled as the result by `gmn`.
+# then it will be handled by the caller (gmn)
 ```
+
+#### Confirm before Executing Callbacks
+
+With `--tool-callbacks-confirm`, it will ask for confirmation before executing the scripts/binaries:
+
+```bash
+$ gmn -p "nuke the root directory" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "remove_dir_recursively",
+            "description": "this function deletes given directory recursively", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"directory": {"type": "STRING"}},
+                "required": ["directory"]
+            }
+        },
+        {
+            "name": "remove_file",
+            "description": "this function deletes a file", 
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {"filepath": {"type": "STRING"}},
+                "required": ["filepath"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY",
+        "allowedFunctionNames": ["remove_dir_recursively", "remove_file"]
+    }}' \
+    --tool-callbacks="remove_dir_recursively:/path/to/rm_rf_dir.sh" \
+    --tool-callbacks="create_dir:/path/to/mkdir.sh" \
+    --tool-callbacks-confirm="remove_dir_recursively:true"
+```
+
+There is a [document](https://ai.google.dev/api/caching#FunctionDeclaration) about function declarations.
 
 ### Generate Embeddings
 

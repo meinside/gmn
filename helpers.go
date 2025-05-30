@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -584,10 +585,36 @@ func runExecutable(execPath string, args map[string]any) (result string, err err
 	return string(output), nil
 }
 
+// confirm with the given prompt (y/n)
+func confirm(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("%s (y/N): ", prompt)
+
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error reading input:", err)
+			continue
+		}
+		response = strings.ToLower(strings.TrimSpace(response))
+		if strings.HasPrefix(response, "y") {
+			return true
+		} else {
+			return false
+		}
+	}
+}
+
 // prettify given thing in JSON format
-func prettify(v any) string {
-	if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
-		return string(bytes)
+func prettify(v any, flatten ...bool) string {
+	if len(flatten) > 0 && flatten[0] {
+		if bytes, err := json.Marshal(v); err == nil {
+			return string(bytes)
+		}
+	} else {
+		if bytes, err := json.MarshalIndent(v, "", "  "); err == nil {
+			return string(bytes)
+		}
 	}
 	return fmt.Sprintf("%+v", v)
 }
