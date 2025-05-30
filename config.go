@@ -122,11 +122,17 @@ func resolveConfigFilepath(configFilepath *string) string {
 // fetch config values from infisical
 func fetchConfFromInfisical(conf config) (config, error) {
 	// read token and api key from infisical
-	client := infisical.NewInfisicalClient(context.TODO(), infisical.Config{
-		SiteUrl: "https://app.infisical.com",
-	})
+	client := infisical.NewInfisicalClient(
+		context.TODO(),
+		infisical.Config{
+			SiteUrl: "https://app.infisical.com",
+		},
+	)
 
-	_, err := client.Auth().UniversalAuthLogin(conf.Infisical.ClientID, conf.Infisical.ClientSecret)
+	_, err := client.Auth().UniversalAuthLogin(
+		conf.Infisical.ClientID,
+		conf.Infisical.ClientSecret,
+	)
 	if err != nil {
 		return config{}, err
 	}

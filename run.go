@@ -17,17 +17,28 @@ import (
 )
 
 // run with params
-func run(parser *flags.Parser, p params) (exit int, err error) {
+func run(
+	parser *flags.Parser,
+	p params,
+) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
-		logMessage(verboseMedium, "No task was requested.\n\n")
+		logMessage(
+			verboseMedium,
+			"No task was requested.\n\n",
+		)
 
 		return printHelpBeforeExit(1, parser), nil
 	}
 
 	// early return after printing the version
 	if p.ShowVersion {
-		logMessage(verboseMinimum, "%s %s\n\n", appName, version.Build(version.OS|version.Architecture))
+		logMessage(
+			verboseMinimum,
+			"%s %s\n\n",
+			appName,
+			version.Build(version.OS|version.Architecture),
+		)
 
 		return printHelpBeforeExit(0, parser), nil
 	}
@@ -39,7 +50,10 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 			p.Generation.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		return 1, fmt.Errorf("failed to read configuration: %w", err)
+		return 1, fmt.Errorf(
+			"failed to read configuration: %w",
+			err,
+		)
 	}
 
 	// override command arguments with values from configs
@@ -63,11 +77,19 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 	// expand filepaths (recurse directories)
 	p.Generation.Filepaths, err = expandFilepaths(p)
 	if err != nil {
-		return 1, fmt.Errorf("failed to read given filepaths: %w", err)
+		return 1, fmt.Errorf(
+			"failed to read given filepaths: %w",
+			err,
+		)
 	}
 
 	if p.hasPrompt() { // if prompt is given,
-		logVerbose(verboseMaximum, p.Verbose, "request params with prompt: %s\n\n", prettify(p.redact()))
+		logVerbose(
+			verboseMaximum,
+			p.Verbose,
+			"request params with prompt: %s\n\n",
+			prettify(p.redact()),
+		)
 
 		if p.Embeddings.GenerateEmbeddings { // generate embeddings with given prompt,
 			// model
@@ -107,7 +129,13 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					}
 				}
 
-				logVerbose(verboseMedium, p.Verbose, "replaced prompt: %s\n\nresulting prompts: %v\n\n", replacedPrompt, prompts)
+				logVerbose(
+					verboseMedium,
+					p.Verbose,
+					"replaced prompt: %s\n\nresulting prompts: %v\n\n",
+					replacedPrompt,
+					prompts,
+				)
 			} else {
 				// or, use the given prompt as it is,
 				prompts = append(prompts, gt.PromptFromText(*p.Generation.Prompt))
@@ -167,20 +195,32 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				if p.Generation.Tools != nil {
 					if bytes, err := standardizeJSON([]byte(*p.Generation.Tools)); err == nil {
 						if err := json.Unmarshal(bytes, &tools); err != nil {
-							return 1, fmt.Errorf("failed to read tools: %w", err)
+							return 1, fmt.Errorf(
+								"failed to read tools: %w",
+								err,
+							)
 						}
 					} else {
-						return 1, fmt.Errorf("failed to standardize tools' JSON: %w", err)
+						return 1, fmt.Errorf(
+							"failed to standardize tools' JSON: %w",
+							err,
+						)
 					}
 				}
 				var toolConfig *genai.ToolConfig
 				if p.Generation.ToolConfig != nil {
 					if bytes, err := standardizeJSON([]byte(*p.Generation.ToolConfig)); err == nil {
 						if err := json.Unmarshal(bytes, &toolConfig); err != nil {
-							return 1, fmt.Errorf("failed to read tool config: %w", err)
+							return 1, fmt.Errorf(
+								"failed to read tool config: %w",
+								err,
+							)
 						}
 					} else {
-						return 1, fmt.Errorf("failed to standardize tool config's JSON: %w", err)
+						return 1, fmt.Errorf(
+							"failed to standardize tool config's JSON: %w",
+							err,
+						)
 					}
 				}
 				// NOTE: both `tools` and `toolConfig` should be given at the same time
@@ -218,14 +258,19 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 					p.Generation.SpeechVoice,
 					p.Generation.SpeechVoices,
 					p.Generation.SaveSpeechToDir,
-					nil,
+					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
 				)
 			}
 		}
 	} else { // if prompt is not given,
-		logVerbose(verboseMaximum, p.Verbose, "request params without prompt: %s\n\n", prettify(p.redact()))
+		logVerbose(
+			verboseMaximum,
+			p.Verbose,
+			"request params without prompt: %s\n\n",
+			prettify(p.redact()),
+		)
 
 		if p.Caching.CacheContext { // cache context
 			return cacheContext(context.TODO(),
@@ -259,7 +304,10 @@ func run(parser *flags.Parser, p params) (exit int, err error) {
 				p.Verbose,
 			)
 		} else { // otherwise, (should not reach here)
-			logMessage(verboseMedium, "Parameter error: no task was requested or handled properly.")
+			logMessage(
+				verboseMedium,
+				"Parameter error: no task was requested or handled properly.",
+			)
 
 			return printHelpBeforeExit(1, parser), nil
 		}

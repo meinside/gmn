@@ -29,7 +29,10 @@ func main() {
 
 	// parse params,
 	var p params
-	parser := flags.NewParser(&p, flags.HelpFlag|flags.PassDoubleDash)
+	parser := flags.NewParser(
+		&p,
+		flags.HelpFlag|flags.PassDoubleDash,
+	)
 	if remaining, err := parser.Parse(); err == nil {
 		if len(stdin) > 0 {
 			if p.Generation.Prompt == nil {
@@ -39,20 +42,32 @@ func main() {
 				merged := string(stdin) + "\n\n" + *p.Generation.Prompt
 				p.Generation.Prompt = ptr(merged)
 
-				logVerbose(verboseMedium, p.Verbose, "merged prompt: %s\n\n", merged)
+				logVerbose(
+					verboseMedium,
+					p.Verbose,
+					"merged prompt: %s\n\n",
+					merged,
+				)
 			}
 		}
 
 		// check if multiple tasks were requested at a time
 		if p.multipleTaskRequested() {
-			logMessage(verboseMaximum, "Input error: multiple tasks were requested at a time.")
+			logMessage(
+				verboseMaximum,
+				"Input error: multiple tasks were requested at a time.",
+			)
 
 			os.Exit(printHelpBeforeExit(1, parser))
 		}
 
 		// check if there was any parameter without flag
 		if len(remaining) > 0 {
-			logMessage(verboseMaximum, "Input error: parameters without flags: %s", strings.Join(remaining, " "))
+			logMessage(
+				verboseMaximum,
+				"Input error: parameters without flags: %s",
+				strings.Join(remaining, " "),
+			)
 
 			os.Exit(printHelpBeforeExit(1, parser))
 		}
@@ -62,11 +77,23 @@ func main() {
 
 		if err != nil {
 			if gt.IsQuotaExceeded(err) {
-				os.Exit(printErrorBeforeExit(exit, "API quota exceeded, try again later: %s", err))
+				os.Exit(printErrorBeforeExit(
+					exit,
+					"API quota exceeded, try again later: %s",
+					err,
+				))
 			} else if gt.IsModelOverloaded(err) {
-				os.Exit(printErrorBeforeExit(exit, "Model overloaded, try again later: %s", err))
+				os.Exit(printErrorBeforeExit(
+					exit,
+					"Model overloaded, try again later: %s",
+					err,
+				))
 			} else {
-				os.Exit(printErrorBeforeExit(exit, "Error: %s", err))
+				os.Exit(printErrorBeforeExit(
+					exit,
+					"Error: %s",
+					err,
+				))
 			}
 		} else {
 			os.Exit(exit)
@@ -77,15 +104,29 @@ func main() {
 			if e.Type != flags.ErrHelp {
 				helpExitCode = 1
 
-				logMessage(verboseMedium, "Input error: %s", e.Error())
+				logMessage(
+					verboseMedium,
+					"Input error: %s",
+					e.Error(),
+				)
 			}
 
-			os.Exit(printHelpBeforeExit(helpExitCode, parser))
+			os.Exit(printHelpBeforeExit(
+				helpExitCode,
+				parser,
+			))
 		}
 
-		os.Exit(printErrorBeforeExit(1, "Failed to parse flags: %s", err))
+		os.Exit(printErrorBeforeExit(
+			1,
+			"Failed to parse flags: %s",
+			err,
+		))
 	}
 
 	// should not reach here
-	os.Exit(printErrorBeforeExit(1, "Unhandled error."))
+	os.Exit(printErrorBeforeExit(
+		1,
+		"Unhandled error.",
+	))
 }
