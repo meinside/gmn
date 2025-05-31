@@ -87,9 +87,9 @@ func standardizeJSON(b []byte) ([]byte, error) {
 }
 
 // check if given directory should be ignored
-func ignoredDirectory(path string) bool {
+func ignoredDirectory(writer *outputWriter, path string) bool {
 	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
-		logMessage(
+		writer.logMessage(
 			verboseMedium,
 			"Ignoring directory '%s'",
 			path,
@@ -100,10 +100,14 @@ func ignoredDirectory(path string) bool {
 }
 
 // check if given file should be ignored
-func ignoredFile(path string, stat os.FileInfo) bool {
+func ignoredFile(
+	writer *outputWriter,
+	path string,
+	stat os.FileInfo,
+) bool {
 	// ignore empty files,
 	if stat.Size() <= 0 {
-		logMessage(
+		writer.logMessage(
 			verboseMedium,
 			"Ignoring empty file '%s'",
 			path,
@@ -113,7 +117,7 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 
 	// ignore files with ignored names,
 	if _, exists := _fileNamesToIgnore[filepath.Base(path)]; exists {
-		logMessage(
+		writer.logMessage(
 			verboseMedium,
 			"Ignoring file '%s'",
 			path,
@@ -126,6 +130,7 @@ func ignoredFile(path string, stat os.FileInfo) bool {
 
 // return all files' paths in the given directory
 func filesInDir(
+	writer *outputWriter,
 	dir string,
 	vbs []bool,
 ) ([]*string, error) {
@@ -136,7 +141,7 @@ func filesInDir(
 		dir,
 		func(path string, d os.DirEntry, err error) error {
 			if d.IsDir() {
-				if ignoredDirectory(path) {
+				if ignoredDirectory(writer, path) {
 					return filepath.SkipDir
 				}
 			} else {
@@ -145,11 +150,11 @@ func filesInDir(
 					return err
 				}
 
-				if ignoredFile(path, stat) {
+				if ignoredFile(writer, path, stat) {
 					return nil
 				}
 
-				logVerbose(
+				writer.logVerbose(
 					verboseMedium,
 					vbs,
 					"attaching file '%s'",
@@ -166,7 +171,7 @@ func filesInDir(
 }
 
 // expand given filepaths (expand directories with their sub files)
-func expandFilepaths(p params) (expanded []*string, err error) {
+func expandFilepaths(writer *outputWriter, p params) (expanded []*string, err error) {
 	filepaths := p.Generation.Filepaths
 	if filepaths == nil {
 		return nil, nil
@@ -181,7 +186,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 
 		if stat, err := os.Stat(*fp); err == nil {
 			if stat.IsDir() {
-				if files, err := filesInDir(*fp, p.Verbose); err == nil {
+				if files, err := filesInDir(writer, *fp, p.Verbose); err == nil {
 					expanded = append(expanded, files...)
 				} else {
 					return nil, fmt.Errorf(
@@ -191,7 +196,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 					)
 				}
 			} else {
-				if ignoredFile(*fp, stat) {
+				if ignoredFile(writer, *fp, stat) {
 					continue
 				}
 				expanded = append(expanded, fp)
@@ -212,7 +217,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 			if supported {
 				filtered = append(filtered, fp)
 			} else {
-				logMessage(
+				writer.logMessage(
 					verboseMedium,
 					"Ignoring file '%s', unsupported mime type: %s",
 					*fp,
@@ -231,7 +236,7 @@ func expandFilepaths(p params) (expanded []*string, err error) {
 	// remove redundant paths
 	filtered = uniqPtrs(filtered)
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		p.Verbose,
 		"attaching %d unique file(s)",
@@ -286,6 +291,7 @@ func (u customURLInPrompt) url() string {
 
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(
+	writer *outputWriter,
 	conf config,
 	p params,
 ) (replaced string, files map[customURLInPrompt][]byte) {
@@ -302,13 +308,14 @@ func replaceURLsInPrompt(
 			files[youtubeURLInPrompt(url)] = []byte(url)
 		} else {
 			if fetched, contentType, err := fetchContent(
+				writer,
 				conf,
 				userAgent,
 				url,
 				vbs,
 			); err == nil {
 				if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-					logVerbose(
+					writer.logVerbose(
 						verboseMaximum,
 						vbs,
 						"file content (%s) fetched from '%s' is supported",
@@ -338,7 +345,7 @@ func replaceURLsInPrompt(
 						files[linkURLInPrompt(url)] = fetched
 					}
 				} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-					logVerbose(
+					writer.logVerbose(
 						verboseMaximum,
 						vbs,
 						"text content (%s) fetched from '%s' is supported",
@@ -354,7 +361,7 @@ func replaceURLsInPrompt(
 						1,
 					)
 				} else { // otherwise, (not supported in anyways)
-					logVerbose(
+					writer.logVerbose(
 						verboseMaximum,
 						vbs,
 						"fetched content (%s) from '%s' is not supported",
@@ -363,7 +370,7 @@ func replaceURLsInPrompt(
 					)
 				}
 			} else {
-				logVerbose(
+				writer.logVerbose(
 					verboseMedium,
 					vbs,
 					"failed to fetch content from '%s': %s",
@@ -379,6 +386,7 @@ func replaceURLsInPrompt(
 
 // fetch the content from given url and convert it to text for prompting.
 func fetchContent(
+	writer *outputWriter,
 	conf config,
 	userAgent,
 	url string,
@@ -388,7 +396,7 @@ func fetchContent(
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMaximum,
 		vbs,
 		"fetching content from '%s'",
@@ -414,7 +422,7 @@ func fetchContent(
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			logError(
+			writer.logError(
 				"Failed to close response body: %s",
 				err,
 			)
@@ -424,7 +432,7 @@ func fetchContent(
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMaximum,
 		vbs,
 		"fetched content (%s) from '%s'",
@@ -574,7 +582,7 @@ func fetchContent(
 		)
 	}
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMaximum,
 		vbs,
 		"fetched body =\n%s",

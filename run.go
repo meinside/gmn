@@ -20,27 +20,28 @@ import (
 func run(
 	parser *flags.Parser,
 	p params,
+	writer *outputWriter,
 ) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
-		logMessage(
+		writer.logMessage(
 			verboseMedium,
 			"No task was requested.\n\n",
 		)
 
-		return printHelpBeforeExit(1, parser), nil
+		return writer.printHelpBeforeExit(1, parser), nil
 	}
 
 	// early return after printing the version
 	if p.ShowVersion {
-		logMessage(
+		writer.logMessage(
 			verboseMinimum,
 			"%s %s\n\n",
 			appName,
 			version.Build(version.OS|version.Architecture),
 		)
 
-		return printHelpBeforeExit(0, parser), nil
+		return writer.printHelpBeforeExit(0, parser), nil
 	}
 
 	// read and apply configs
@@ -75,7 +76,7 @@ func run(
 	}
 
 	// expand filepaths (recurse directories)
-	p.Generation.Filepaths, err = expandFilepaths(p)
+	p.Generation.Filepaths, err = expandFilepaths(writer, p)
 	if err != nil {
 		return 1, fmt.Errorf(
 			"failed to read given filepaths: %w",
@@ -84,7 +85,7 @@ func run(
 	}
 
 	if p.hasPrompt() { // if prompt is given,
-		logVerbose(
+		writer.logVerbose(
 			verboseMaximum,
 			p.Verbose,
 			"request params with prompt: %s\n\n",
@@ -102,6 +103,7 @@ func run(
 			}
 
 			return doEmbeddingsGeneration(context.TODO(),
+				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				*p.Configuration.GoogleAIModel,
@@ -117,7 +119,7 @@ func run(
 
 			if p.Generation.ReplaceHTTPURLsInPrompt {
 				// replace urls in the prompt,
-				replacedPrompt, extractedFiles := replaceURLsInPrompt(conf, p)
+				replacedPrompt, extractedFiles := replaceURLsInPrompt(writer, conf, p)
 
 				prompts = append(prompts, gt.PromptFromText(replacedPrompt))
 
@@ -129,7 +131,7 @@ func run(
 					}
 				}
 
-				logVerbose(
+				writer.logVerbose(
 					verboseMedium,
 					p.Verbose,
 					"replaced prompt: %s\n\nresulting prompts: %v\n\n",
@@ -152,6 +154,7 @@ func run(
 				}
 
 				return cacheContext(context.TODO(),
+					writer,
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
 					*p.Configuration.GoogleAIModel,
@@ -230,6 +233,7 @@ func run(
 				}
 
 				return doGeneration(context.TODO(),
+					writer,
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
 					*p.Configuration.GoogleAIModel,
@@ -265,7 +269,7 @@ func run(
 			}
 		}
 	} else { // if prompt is not given,
-		logVerbose(
+		writer.logVerbose(
 			verboseMaximum,
 			p.Verbose,
 			"request params without prompt: %s\n\n",
@@ -274,6 +278,7 @@ func run(
 
 		if p.Caching.CacheContext { // cache context
 			return cacheContext(context.TODO(),
+				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				*p.Configuration.GoogleAIModel,
@@ -286,12 +291,14 @@ func run(
 			)
 		} else if p.Caching.ListCachedContexts { // list cached contexts
 			return listCachedContexts(context.TODO(),
+				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
 		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
 			return deleteCachedContext(context.TODO(),
+				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				*p.Caching.DeleteCachedContext,
@@ -299,17 +306,18 @@ func run(
 			)
 		} else if p.ListModels { // list models
 			return listModels(context.TODO(),
+				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
 		} else { // otherwise, (should not reach here)
-			logMessage(
+			writer.logMessage(
 				verboseMedium,
 				"Parameter error: no task was requested or handled properly.",
 			)
 
-			return printHelpBeforeExit(1, parser), nil
+			return writer.printHelpBeforeExit(1, parser), nil
 		}
 	}
 }
