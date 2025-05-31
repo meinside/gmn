@@ -39,11 +39,10 @@ const (
 	wavNumChannels = 1
 )
 
-var _generationEndsWithNewLine = false
-
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
@@ -64,7 +63,11 @@ func doGeneration(
 		return 1, fmt.Errorf("cannot generate images and speech at the same time")
 	}
 
-	logVerbose(verboseMedium, vbs, "generating...")
+	writer.logVerbose(
+		verboseMedium,
+		vbs,
+		"generating...",
+	)
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -82,11 +85,14 @@ func doGeneration(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			writer.logError(
+				"Failed to close client: %s",
+				err,
+			)
 		}
 	}()
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMaximum,
 		vbs,
 		"with model: %s",
@@ -107,7 +113,10 @@ func doGeneration(
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				logError("Failed to close file: %s", err)
+				writer.logError(
+					"Failed to close file: %s",
+					err,
+				)
 			}
 		}
 	}()
@@ -216,12 +225,10 @@ func doGeneration(
 	// (history)
 	if pastGenerations == nil { // first call
 		pastGenerations = []genai.Content{}
-
-		_generationEndsWithNewLine = true
 	}
 	opts.History = pastGenerations
 
-	logVerbose(
+	writer.logVerbose(
 		verboseMaximum,
 		vbs,
 		"with generation options: %v",
@@ -302,7 +309,10 @@ func doGeneration(
 							if withThinking {
 								if part.Thought {
 									if !thoughtBegan {
-										printColored(color.FgYellow, "<thought>\n")
+										writer.printColored(
+											color.FgYellow,
+											"<thought>\n",
+										)
 
 										thoughtBegan, thoughtEnded = true, false
 										isThinking = true
@@ -312,7 +322,10 @@ func doGeneration(
 										thoughtBegan = false
 
 										if !thoughtEnded {
-											printColored(color.FgYellow, "</thought>\n")
+											writer.printColored(
+												color.FgYellow,
+												"</thought>\n",
+											)
 
 											thoughtEnded = true
 											isThinking = false
@@ -323,22 +336,24 @@ func doGeneration(
 
 							if part.Text != "" {
 								if isThinking {
-									printColored(color.FgYellow, part.Text)
+									writer.printColored(
+										color.FgYellow,
+										part.Text,
+									)
 								} else {
-									printColored(color.FgWhite, part.Text)
+									writer.printColored(
+										color.FgWhite,
+										part.Text,
+									)
 
 									// NOTE: ignore thoughts from model
 									bufModelResponse.WriteString(part.Text)
 								}
-
-								_generationEndsWithNewLine = strings.HasSuffix(part.Text, "\n")
 							} else if part.InlineData != nil {
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-								if !_generationEndsWithNewLine { // NOTE: make sure to insert a new line before displaying an image or etc.
-									fmt.Println()
-								}
+								writer.makeSureToEndWithNewLine()
 
 								if strings.HasPrefix(part.InlineData.MIMEType, "image/") { // (images)
 									if saveImagesToFiles || saveImagesToDir != nil {
@@ -348,7 +363,7 @@ func doGeneration(
 											saveImagesToDir,
 										)
 
-										logVerbose(
+										writer.logVerbose(
 											verboseMedium,
 											vbs,
 											"saving file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
@@ -362,16 +377,14 @@ func doGeneration(
 											}
 											return
 										} else {
-											logMessage(
+											writer.logMessage(
 												verboseMinimum,
 												"Saved image to file: %s",
 												fpath,
 											)
-
-											_generationEndsWithNewLine = true
 										}
 									} else {
-										logVerbose(
+										writer.logVerbose(
 											verboseMedium,
 											vbs,
 											"displaying image (%s;%d bytes) on terminal...",
@@ -391,9 +404,7 @@ func doGeneration(
 											}
 											return
 										} else { // NOTE: make sure to insert a new line after an image
-											fmt.Println()
-
-											_generationEndsWithNewLine = true
+											writer.println()
 										}
 									}
 								} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
@@ -424,7 +435,7 @@ func doGeneration(
 												saveSpeechToDir,
 											)
 
-											logVerbose(
+											writer.logVerbose(
 												verboseMedium,
 												vbs,
 												"saving file (%s;%d bytes) to: %s...",
@@ -445,13 +456,11 @@ func doGeneration(
 												}
 												return
 											} else {
-												logMessage(
+												writer.logMessage(
 													verboseMinimum,
 													"Saved speech to file: %s",
 													fpath,
 												)
-
-												_generationEndsWithNewLine = true
 											}
 										} else {
 											// error
@@ -478,7 +487,7 @@ func doGeneration(
 										return
 									}
 								} else { // TODO: NOTE: add more types here
-									logError(
+									writer.logError(
 										"Unsupported mime type of inline data: %s",
 										part.InlineData.MIMEType,
 									)
@@ -527,7 +536,7 @@ func doGeneration(
 									}
 
 									if okToRun {
-										logVerbose(
+										writer.logVerbose(
 											verboseMinimum,
 											vbs,
 											"executing callback '%s' for function '%s' with data %s...",
@@ -553,26 +562,22 @@ func doGeneration(
 											// when not in mode == "AUTO", show the execution of callback
 											if toolConfig.FunctionCallingConfig != nil {
 												if toolConfig.FunctionCallingConfig.Mode != "AUTO" {
-													printColored(
+													writer.printColored(
 														color.FgGreen,
 														"Executed callback '%s' for function '%s'.\n",
 														callbackPath,
 														part.FunctionCall.Name,
 													)
-
-													_generationEndsWithNewLine = true
 												}
 											}
 
 											// print the result of execution
 											if vb := verboseLevel(vbs); vb >= verboseMinimum {
-												printColored(
+												writer.printColored(
 													color.FgCyan,
 													"%s",
 													res,
 												)
-
-												_generationEndsWithNewLine = strings.HasSuffix(res, "\n")
 											}
 
 											// flush model response
@@ -593,14 +598,12 @@ func doGeneration(
 											})
 										}
 									} else {
-										printColored(
+										writer.printColored(
 											color.FgYellow,
 											"Skipped execution of callback '%s' for function '%s'\n",
 											callbackPath,
 											part.FunctionCall.Name,
 										)
-
-										_generationEndsWithNewLine = true
 
 										// flush model response
 										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
@@ -620,25 +623,21 @@ func doGeneration(
 									}
 								} else {
 									// just print the function call data
-									logMessage(
+									writer.logMessage(
 										verboseMinimum,
 										"Function call: %s",
 										prettify(part.FunctionCall),
 									)
-
-									_generationEndsWithNewLine = true
 								}
 							} else {
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
 								if !ignoreUnsupportedType {
-									logError(
+									writer.logError(
 										"Unsupported type of content part: %s",
 										prettify(part),
 									)
-
-									_generationEndsWithNewLine = true
 								}
 							}
 						}
@@ -646,13 +645,11 @@ func doGeneration(
 
 					// finish reason
 					if cand.FinishReason != "" {
-						if !_generationEndsWithNewLine { // NOTE: make sure to insert a new line before displaying finish reason
-							fmt.Println()
-						}
+						writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
 
 						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
-							logVerbose(
+							writer.logVerbose(
 								verboseMinimum,
 								vbs,
 								"tokens %s",
@@ -661,7 +658,7 @@ func doGeneration(
 						}
 
 						// print the finish reason
-						logVerbose(
+						writer.logVerbose(
 							verboseMinimum,
 							vbs,
 							"finishing with reason: %s",
@@ -712,7 +709,7 @@ func doGeneration(
 			res.err == nil &&
 			recurseOnCallbackResults &&
 			historyEndsWithUsers(pastGenerations) {
-			logVerbose(
+			writer.logVerbose(
 				verboseMedium,
 				vbs,
 				"Generating recursively with history: %s",
@@ -721,6 +718,7 @@ func doGeneration(
 
 			return doGeneration(
 				ctx,
+				writer,
 				timeoutSeconds,
 				apiKey, model,
 				systemInstruction, temperature, topP, topK,
@@ -746,6 +744,7 @@ func doGeneration(
 // generate embeddings with given things
 func doEmbeddingsGeneration(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey, model string,
 	prompt string,
@@ -753,7 +752,7 @@ func doEmbeddingsGeneration(
 	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		vbs,
 		"generating embeddings...",
@@ -795,7 +794,7 @@ func doEmbeddingsGeneration(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError("Failed to close client: %s", err)
+			writer.logError("Failed to close client: %s", err)
 		}
 	}()
 
@@ -852,7 +851,8 @@ func doEmbeddingsGeneration(
 			err,
 		)
 	} else {
-		fmt.Printf(
+		writer.printColored(
+			color.FgWhite,
 			"%s\n",
 			string(encoded),
 		)
@@ -864,6 +864,7 @@ func doEmbeddingsGeneration(
 // cache context
 func cacheContext(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey, model string,
 	systemInstruction string,
@@ -871,7 +872,7 @@ func cacheContext(
 	cachedContextDisplayName *string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		vbs,
 		"caching context...",
@@ -893,7 +894,7 @@ func cacheContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError(
+			writer.logError(
 				"Failed to close client: %s",
 				err,
 			)
@@ -914,7 +915,7 @@ func cacheContext(
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				logError(
+				writer.logError(
 					"Failed to close file: %s",
 					err,
 				)
@@ -934,7 +935,10 @@ func cacheContext(
 		nil,
 		cachedContextDisplayName,
 	); err == nil {
-		fmt.Print(name)
+		writer.printColored(
+			color.FgWhite,
+			name,
+		)
 	} else {
 		return 1, err
 	}
@@ -946,11 +950,12 @@ func cacheContext(
 // list cached contexts
 func listCachedContexts(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		vbs,
 		"listing cached contexts...",
@@ -969,7 +974,7 @@ func listCachedContexts(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError(
+			writer.logError(
 				"Failed to close client: %s",
 				err,
 			)
@@ -982,19 +987,19 @@ func listCachedContexts(
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
 			for _, content := range listed {
-				printColored(
+				writer.printColored(
 					color.FgGreen,
 					"%s",
 					content.Name,
 				)
 				if len(content.DisplayName) > 0 {
-					printColored(
+					writer.printColored(
 						color.FgWhite,
 						" (%s)",
 						content.DisplayName,
 					)
 				}
-				printColored(color.FgWhite, `
+				writer.printColored(color.FgWhite, `
   > model: %s
   > created: %s
   > expires: %s
@@ -1018,12 +1023,13 @@ func listCachedContexts(
 // delete cached context
 func deleteCachedContext(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey string,
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		vbs,
 		"deleting cached context...",
@@ -1042,7 +1048,7 @@ func deleteCachedContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError(
+			writer.logError(
 				"Failed to close client: %s",
 				err,
 			)
@@ -1063,11 +1069,12 @@ func deleteCachedContext(
 // list models
 func listModels(
 	ctx context.Context,
+	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	logVerbose(
+	writer.logVerbose(
 		verboseMedium,
 		vbs,
 		"listing models...",
@@ -1086,7 +1093,7 @@ func listModels(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			logError(
+			writer.logError(
 				"Failed to close client: %s",
 				err,
 			)
@@ -1100,13 +1107,13 @@ func listModels(
 		return 1, err
 	} else {
 		for _, model := range models {
-			printColored(
+			writer.printColored(
 				color.FgGreen,
 				"%s",
 				model.Name,
 			)
 
-			printColored(color.FgWhite, ` (%s)
+			writer.printColored(color.FgWhite, ` (%s)
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s

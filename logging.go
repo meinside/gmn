@@ -37,11 +37,54 @@ func verboseLevel(verbosityFromParams []bool) verbosity {
 	return verboseNone
 }
 
-// print given string to stdout
-func logMessage(
+// output writer for managing stdout
+type outputWriter struct {
+	endsWithNewLine bool
+}
+
+// generate a new output writer
+func newOutputWriter() *outputWriter {
+	return &outputWriter{
+		endsWithNewLine: true,
+	}
+}
+
+// force add a new line
+func (w *outputWriter) println() {
+	fmt.Println()
+	w.endsWithNewLine = true
+}
+
+// make sure stdout ends with new line
+func (w *outputWriter) makeSureToEndWithNewLine() {
+	if !w.endsWithNewLine {
+		w.println()
+	}
+}
+
+// print given string to stdout with color (if possible)
+func (w *outputWriter) printColored(
+	c color.Attribute,
+	format string,
+	a ...any,
+) {
+	formatted := fmt.Sprintf(format, a...)
+
+	if supportscolor.Stdout().SupportsColor { // if color is supported,
+		c := color.New(c)
+		_, _ = c.Printf(formatted)
+	} else {
+		fmt.Print(formatted)
+	}
+
+	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
+}
+
+// print given string to stdout (will add a new line if there isn't)
+func (w *outputWriter) logMessage(
 	level verbosity,
 	format string,
-	v ...any,
+	a ...any,
 ) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
@@ -57,57 +100,51 @@ func logMessage(
 		c = color.FgWhite
 	}
 
-	printColored(c, format, v...)
+	w.printColored(
+		c,
+		format,
+		a...,
+	)
 }
 
-// print given error string to stdout
-func logError(
+// print verbose message (will add new line if there isn't)
+//
+// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
+func (w *outputWriter) logVerbose(
+	targetLevel verbosity,
+	verbosityFromParams []bool,
 	format string,
-	v ...any,
+	a ...any,
+) {
+	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
+		format = fmt.Sprintf(">>> %s", format)
+
+		w.logMessage(
+			targetLevel,
+			format,
+			a...,
+		)
+	}
+}
+
+// print given error string to stdout (will add a new line if there isn't)
+func (w *outputWriter) logError(
+	format string,
+	a ...any,
 ) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
 
-	printColored(
+	w.printColored(
 		color.FgRed,
 		format,
-		v...,
+		a...,
 	)
 }
 
-// print given string to stdout with color (if possible)
-func printColored(
-	c color.Attribute,
-	format string,
-	v ...any,
-) {
-	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(c)
-		_, _ = c.Printf(format, v...)
-	} else {
-		fmt.Printf(format, v...)
-	}
-}
-
-// print logVerbose message
-//
-// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
-func logVerbose(
-	targetLevel verbosity,
-	verbosityFromParams []bool,
-	format string,
-	v ...any,
-) {
-	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
-		format = fmt.Sprintf(">>> %s", format)
-
-		logMessage(targetLevel, format, v...)
-	}
-}
-
 // print help message before os.Exit()
-func printHelpBeforeExit(
+func (w *outputWriter) printHelpBeforeExit(
 	code int,
 	parser *flags.Parser,
 ) (exit int) {
@@ -117,13 +154,13 @@ func printHelpBeforeExit(
 }
 
 // print error before os.Exit()
-func printErrorBeforeExit(
+func (w *outputWriter) printErrorBeforeExit(
 	code int,
 	format string,
 	a ...any,
 ) (exit int) {
 	if code > 0 {
-		logError(format, a...)
+		w.logError(format, a...)
 	}
 
 	return code
