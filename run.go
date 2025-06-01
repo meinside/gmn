@@ -252,6 +252,7 @@ func run(
 					toolConfig,
 					p.Generation.ToolCallbacks,
 					p.Generation.ToolCallbacksConfirm,
+					p.Generation.ShowCallbackResults,
 					p.Generation.RecurseOnCallbackResults,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,

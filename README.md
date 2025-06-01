@@ -233,44 +233,97 @@ $ gmn -p "how is the weather today?" \
 
 #### Callback on Function Calls
 
-With `--tool-callbacks`, it will execute matched scripts/binaries with the function call data:
+With `--tool-callbacks`, it will execute matched scripts/binaries with the function call data.
 
-```bash
-$ gmn -p "what is the disk usage of directory /usr/local/?" \
-    --tools='[{"functionDeclarations": [
-        {
-            "name": "check_disk_usage",
-            "description": "this function checks the disk usage of given directory", 
-            "parameters": {
-                "type": "OBJECT",
-                "properties": {
-                    "directory": {"type": "STRING"}
-                },
-                "required": ["directory"]
-            }
-        }
-    ]}]' \
-    --tool-config='{"functionCallingConfig": {
-        "mode": "ANY",
-        "allowedFunctionNames": ["check_disk_usage"]
-    }}' \
-    --tool-callbacks="check_disk_usage:/path/to/check_disk_usage_script.sh"
-```
-
-and print the result of the scripts/binaries.
-
-Here is an example of `check_disk_usage_script.sh` above:
+Here is a sample bash script `categorize_image.sh` which categorizes given image with function call:
 
 ```bash
 #!/usr/bin/env bash
+#
+# categorize_image.sh
 
-# read values from passed arguments (which is in JSON format),
-dir=$(echo "$*" | jq .directory -r)
+CALLBACK_SCRIPT="/path/to/callback_categorize_image.sh"
 
-# do something and print the result to stdout/stderr,
-du -h -d 1 "$dir"
+# read filename from args
+filename="$*"
 
-# then it will be handled by the caller (gmn)
+# tools
+read -r -d '' TOOLS <<-'EOF'
+[
+  {
+    "functionDeclarations": [
+      {
+        "name": "categorize_image",
+        "description": "this function categorizes the provided image",
+        "parameters": {
+          "type": "OBJECT",
+          "properties": {
+            "category": {
+              "type": "STRING",
+              "description": "the category of the provided image",
+              "enum": ["animal", "person", "scenary", "object", "other"],
+              "nullable": false
+            },
+            "description": {
+              "type": "STRING",
+              "description": "the detailed description of the provided image",
+              "nullable": false
+            }
+          },
+          "required": ["category", "description"]
+        }
+      }
+    ]
+  }
+]
+EOF
+
+# tool config
+read -r -d '' TOOL_CONFIG <<-'EOF'
+{
+  "functionCallingConfig": {
+    "mode": "ANY"
+  }
+}
+EOF
+
+# run gmn with params
+gmn -f "$filename" -p "categorize this image" \
+  --tools="$TOOLS" \
+  --tool-config="$TOOL_CONFIG" \
+  --tool-callbacks="categorize_image:$CALLBACK_SCRIPT" \
+  --show-callback-results
+```
+
+And this is a callback script `callback_categorize_image.sh`:
+
+```bash
+#!/usr/bin/env bash
+#
+# callback_categorize_image.sh
+
+# args (in JSON)
+data="$*"
+
+# read args with jq
+result=$(echo "$data" |
+  jq -r '. | "Category: \(.category)\nDescription: \(.description)"')
+
+# print to stdout
+echo "$result"
+```
+
+Run `categorize_image.sh` with an image file:
+
+```bash
+$ ./categorize_image.sh /path/to/some_image.jpg
+```
+
+then it will print the desired result:
+
+```bash
+Category: scenary
+Description: a group of people walking on the street in a city
 ```
 
 #### Confirm before Executing Callbacks
