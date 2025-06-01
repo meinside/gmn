@@ -50,7 +50,7 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool, recurseOnCallbackResults bool,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool, forcePrintCallbackResults bool, recurseOnCallbackResults bool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -559,20 +559,9 @@ func doGeneration(
 											}
 											return
 										} else {
-											// when not in mode == "AUTO", show the execution of callback
-											if toolConfig.FunctionCallingConfig != nil {
-												if toolConfig.FunctionCallingConfig.Mode != "AUTO" {
-													writer.printColored(
-														color.FgGreen,
-														"Executed callback '%s' for function '%s'.\n",
-														callbackPath,
-														part.FunctionCall.Name,
-													)
-												}
-											}
-
 											// print the result of execution
-											if vb := verboseLevel(vbs); vb >= verboseMinimum {
+											if forcePrintCallbackResults ||
+												verboseLevel(vbs) >= verboseMinimum {
 												writer.printColored(
 													color.FgCyan,
 													"%s",
@@ -728,7 +717,7 @@ func doGeneration(
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
-				tools, toolConfig, toolCallbacks, toolCallbacksConfirm, recurseOnCallbackResults,
+				tools, toolConfig, toolCallbacks, toolCallbacksConfirm, forcePrintCallbackResults, recurseOnCallbackResults,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,

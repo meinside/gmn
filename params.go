@@ -42,6 +42,7 @@ type params struct {
 		ToolConfig               *string           `long:"tool-config" description:"Tool configuration for function call (in JSON)"`
 		ToolCallbacks            map[string]string `long:"tool-callbacks" description:"Tool callbacks (can be used multiple times, eg. 'fn_name1:/path/to/script1.sh', 'fn_name2:/path/to/script2.sh')"`
 		ToolCallbacksConfirm     map[string]bool   `long:"tool-callbacks-confirm" description:"Confirm before executing tool callbacks (can be used multiple times, eg. 'fn_name1:true', 'fn_name2:false')"`
+		ShowCallbackResults      bool              `long:"show-callback-results" description:"Whether to force print the results of tool callbacks (default: only in verbose mode)"`
 		RecurseOnCallbackResults bool              `long:"recurse-on-callback-results" description:"Whether to do recursive generations on callback results (default: false)"`
 		OutputAsJSON             bool              `short:"j" long:"json" description:"Output generated results as JSON"`
 
