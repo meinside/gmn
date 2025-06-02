@@ -89,7 +89,7 @@ func standardizeJSON(b []byte) ([]byte, error) {
 // check if given directory should be ignored
 func ignoredDirectory(writer *outputWriter, path string) bool {
 	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
-		writer.logMessage(
+		writer.print(
 			verboseMedium,
 			"Ignoring directory '%s'",
 			path,
@@ -107,7 +107,7 @@ func ignoredFile(
 ) bool {
 	// ignore empty files,
 	if stat.Size() <= 0 {
-		writer.logMessage(
+		writer.print(
 			verboseMedium,
 			"Ignoring empty file '%s'",
 			path,
@@ -117,7 +117,7 @@ func ignoredFile(
 
 	// ignore files with ignored names,
 	if _, exists := _fileNamesToIgnore[filepath.Base(path)]; exists {
-		writer.logMessage(
+		writer.print(
 			verboseMedium,
 			"Ignoring file '%s'",
 			path,
@@ -154,7 +154,7 @@ func filesInDir(
 					return nil
 				}
 
-				writer.logVerbose(
+				writer.verbose(
 					verboseMedium,
 					vbs,
 					"attaching file '%s'",
@@ -217,7 +217,7 @@ func expandFilepaths(writer *outputWriter, p params) (expanded []*string, err er
 			if supported {
 				filtered = append(filtered, fp)
 			} else {
-				writer.logMessage(
+				writer.print(
 					verboseMedium,
 					"Ignoring file '%s', unsupported mime type: %s",
 					*fp,
@@ -236,7 +236,7 @@ func expandFilepaths(writer *outputWriter, p params) (expanded []*string, err er
 	// remove redundant paths
 	filtered = uniqPtrs(filtered)
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		p.Verbose,
 		"attaching %d unique file(s)",
@@ -315,7 +315,7 @@ func replaceURLsInPrompt(
 				vbs,
 			); err == nil {
 				if mimeType, supported, _ := gt.SupportedMimeType(fetched); supported { // if it is a file of supported types,
-					writer.logVerbose(
+					writer.verbose(
 						verboseMaximum,
 						vbs,
 						"file content (%s) fetched from '%s' is supported",
@@ -345,7 +345,7 @@ func replaceURLsInPrompt(
 						files[linkURLInPrompt(url)] = fetched
 					}
 				} else if supportedTextContentType(contentType) { // if it is a text of supported types,
-					writer.logVerbose(
+					writer.verbose(
 						verboseMaximum,
 						vbs,
 						"text content (%s) fetched from '%s' is supported",
@@ -361,7 +361,7 @@ func replaceURLsInPrompt(
 						1,
 					)
 				} else { // otherwise, (not supported in anyways)
-					writer.logVerbose(
+					writer.verbose(
 						verboseMaximum,
 						vbs,
 						"fetched content (%s) from '%s' is not supported",
@@ -370,7 +370,7 @@ func replaceURLsInPrompt(
 					)
 				}
 			} else {
-				writer.logVerbose(
+				writer.verbose(
 					verboseMedium,
 					vbs,
 					"failed to fetch content from '%s': %s",
@@ -396,7 +396,7 @@ func fetchContent(
 		Timeout: time.Duration(conf.ReplaceHTTPURLTimeoutSeconds) * time.Second,
 	}
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMaximum,
 		vbs,
 		"fetching content from '%s'",
@@ -422,7 +422,7 @@ func fetchContent(
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close response body: %s",
 				err,
 			)
@@ -432,7 +432,7 @@ func fetchContent(
 	// NOTE: get the content type from the header, not inferencing from the body bytes
 	contentType = resp.Header.Get("Content-Type")
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMaximum,
 		vbs,
 		"fetched content (%s) from '%s'",
@@ -582,7 +582,7 @@ func fetchContent(
 		)
 	}
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMaximum,
 		vbs,
 		"fetched body =\n%s",

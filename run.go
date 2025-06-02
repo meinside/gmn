@@ -24,7 +24,7 @@ func run(
 ) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
-		writer.logMessage(
+		writer.print(
 			verboseMedium,
 			"No task was requested.\n\n",
 		)
@@ -34,7 +34,7 @@ func run(
 
 	// early return after printing the version
 	if p.ShowVersion {
-		writer.logMessage(
+		writer.print(
 			verboseMinimum,
 			"%s %s\n\n",
 			appName,
@@ -85,7 +85,7 @@ func run(
 	}
 
 	if p.hasPrompt() { // if prompt is given,
-		writer.logVerbose(
+		writer.verbose(
 			verboseMaximum,
 			p.Verbose,
 			"request params with prompt: %s\n\n",
@@ -131,7 +131,7 @@ func run(
 					}
 				}
 
-				writer.logVerbose(
+				writer.verbose(
 					verboseMedium,
 					p.Verbose,
 					"replaced prompt: %s\n\nresulting prompts: %v\n\n",
@@ -270,7 +270,7 @@ func run(
 			}
 		}
 	} else { // if prompt is not given,
-		writer.logVerbose(
+		writer.verbose(
 			verboseMaximum,
 			p.Verbose,
 			"request params without prompt: %s\n\n",
@@ -313,7 +313,7 @@ func run(
 				p.Verbose,
 			)
 		} else { // otherwise, (should not reach here)
-			writer.logMessage(
+			writer.print(
 				verboseMedium,
 				"Parameter error: no task was requested or handled properly.",
 			)
