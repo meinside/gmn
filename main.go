@@ -45,7 +45,7 @@ func main() {
 				merged := string(stdin) + "\n\n" + *p.Generation.Prompt
 				p.Generation.Prompt = ptr(merged)
 
-				writer.logVerbose(
+				writer.verbose(
 					verboseMedium,
 					p.Verbose,
 					"merged prompt: %s\n\n",
@@ -56,7 +56,7 @@ func main() {
 
 		// check if multiple tasks were requested at a time
 		if p.multipleTaskRequested() {
-			writer.logMessage(
+			writer.print(
 				verboseMaximum,
 				"Input error: multiple tasks were requested at a time.",
 			)
@@ -66,7 +66,7 @@ func main() {
 
 		// check if there was any parameter without flag
 		if len(remaining) > 0 {
-			writer.logMessage(
+			writer.print(
 				verboseMaximum,
 				"Input error: parameters without flags: %s",
 				strings.Join(remaining, " "),
@@ -107,7 +107,7 @@ func main() {
 			if e.Type != flags.ErrHelp {
 				helpExitCode = 1
 
-				writer.logMessage(
+				writer.print(
 					verboseMedium,
 					"Input error: %s",
 					e.Error(),

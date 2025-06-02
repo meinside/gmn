@@ -63,7 +63,7 @@ func doGeneration(
 		return 1, fmt.Errorf("cannot generate images and speech at the same time")
 	}
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"generating...",
@@ -85,14 +85,14 @@ func doGeneration(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close client: %s",
 				err,
 			)
 		}
 	}()
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMaximum,
 		vbs,
 		"with model: %s",
@@ -113,7 +113,7 @@ func doGeneration(
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				writer.logError(
+				writer.error(
 					"Failed to close file: %s",
 					err,
 				)
@@ -228,7 +228,7 @@ func doGeneration(
 	}
 	opts.History = pastGenerations
 
-	writer.logVerbose(
+	writer.verbose(
 		verboseMaximum,
 		vbs,
 		"with generation options: %v",
@@ -363,7 +363,7 @@ func doGeneration(
 											saveImagesToDir,
 										)
 
-										writer.logVerbose(
+										writer.verbose(
 											verboseMedium,
 											vbs,
 											"saving file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
@@ -377,14 +377,14 @@ func doGeneration(
 											}
 											return
 										} else {
-											writer.logMessage(
+											writer.print(
 												verboseMinimum,
 												"Saved image to file: %s",
 												fpath,
 											)
 										}
 									} else {
-										writer.logVerbose(
+										writer.verbose(
 											verboseMedium,
 											vbs,
 											"displaying image (%s;%d bytes) on terminal...",
@@ -435,7 +435,7 @@ func doGeneration(
 												saveSpeechToDir,
 											)
 
-											writer.logVerbose(
+											writer.verbose(
 												verboseMedium,
 												vbs,
 												"saving file (%s;%d bytes) to: %s...",
@@ -456,7 +456,7 @@ func doGeneration(
 												}
 												return
 											} else {
-												writer.logMessage(
+												writer.print(
 													verboseMinimum,
 													"Saved speech to file: %s",
 													fpath,
@@ -487,7 +487,7 @@ func doGeneration(
 										return
 									}
 								} else { // TODO: NOTE: add more types here
-									writer.logError(
+									writer.error(
 										"Unsupported mime type of inline data: %s",
 										part.InlineData.MIMEType,
 									)
@@ -511,8 +511,9 @@ func doGeneration(
 										Parts: []*genai.Part{
 											{
 												Text: fmt.Sprintf(
-													"Please provide the result of function: '%s'",
+													"Please provide the result of function: `%s(%s)`",
 													part.FunctionCall.Name,
+													prettify(part.FunctionCall.Args, true),
 												),
 											},
 										},
@@ -536,7 +537,7 @@ func doGeneration(
 									}
 
 									if okToRun {
-										writer.logVerbose(
+										writer.verbose(
 											verboseMinimum,
 											vbs,
 											"executing callback '%s' for function '%s' with data %s...",
@@ -578,8 +579,9 @@ func doGeneration(
 												Parts: []*genai.Part{
 													{
 														Text: fmt.Sprintf(
-															"Result of function '%s':\n\n%s",
+															"Here is the result of function `%s(%s)`:\n\n%s",
 															part.FunctionCall.Name,
+															prettify(part.FunctionCall.Args, true),
 															res,
 														),
 													},
@@ -589,9 +591,10 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function '%s'\n",
+											"Skipped execution of callback '%s' for function `%s(%s)`\n",
 											callbackPath,
 											part.FunctionCall.Name,
+											prettify(part.FunctionCall.Args, true),
 										)
 
 										// flush model response
@@ -603,8 +606,9 @@ func doGeneration(
 											Parts: []*genai.Part{
 												{
 													Text: fmt.Sprintf(
-														"User chose not to call function '%s'.",
+														"User chose not to call function `%s(%s)`.",
 														part.FunctionCall.Name,
+														prettify(part.FunctionCall.Args, true),
 													),
 												},
 											},
@@ -612,9 +616,9 @@ func doGeneration(
 									}
 								} else {
 									// just print the function call data
-									writer.logMessage(
+									writer.print(
 										verboseMinimum,
-										"Function call: %s",
+										"Generated function call: %s",
 										prettify(part.FunctionCall),
 									)
 								}
@@ -623,7 +627,7 @@ func doGeneration(
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
 								if !ignoreUnsupportedType {
-									writer.logError(
+									writer.error(
 										"Unsupported type of content part: %s",
 										prettify(part),
 									)
@@ -638,7 +642,7 @@ func doGeneration(
 
 						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
-							writer.logVerbose(
+							writer.verbose(
 								verboseMinimum,
 								vbs,
 								"tokens %s",
@@ -647,7 +651,7 @@ func doGeneration(
 						}
 
 						// print the finish reason
-						writer.logVerbose(
+						writer.verbose(
 							verboseMinimum,
 							vbs,
 							"finishing with reason: %s",
@@ -698,7 +702,7 @@ func doGeneration(
 			res.err == nil &&
 			recurseOnCallbackResults &&
 			historyEndsWithUsers(pastGenerations) {
-			writer.logVerbose(
+			writer.verbose(
 				verboseMedium,
 				vbs,
 				"Generating recursively with history: %s",
@@ -741,7 +745,7 @@ func doEmbeddingsGeneration(
 	chunkSize, overlappedChunkSize *uint,
 	vbs []bool,
 ) (exit int, e error) {
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"generating embeddings...",
@@ -783,7 +787,7 @@ func doEmbeddingsGeneration(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError("Failed to close client: %s", err)
+			writer.error("Failed to close client: %s", err)
 		}
 	}()
 
@@ -861,7 +865,7 @@ func cacheContext(
 	cachedContextDisplayName *string,
 	vbs []bool,
 ) (exit int, e error) {
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"caching context...",
@@ -883,7 +887,7 @@ func cacheContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close client: %s",
 				err,
 			)
@@ -904,7 +908,7 @@ func cacheContext(
 	defer func() {
 		for _, toClose := range filesToClose {
 			if err := toClose.Close(); err != nil {
-				writer.logError(
+				writer.error(
 					"Failed to close file: %s",
 					err,
 				)
@@ -944,7 +948,7 @@ func listCachedContexts(
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"listing cached contexts...",
@@ -963,7 +967,7 @@ func listCachedContexts(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close client: %s",
 				err,
 			)
@@ -1018,7 +1022,7 @@ func deleteCachedContext(
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"deleting cached context...",
@@ -1037,7 +1041,7 @@ func deleteCachedContext(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close client: %s",
 				err,
 			)
@@ -1063,7 +1067,7 @@ func listModels(
 	apiKey string,
 	vbs []bool,
 ) (exit int, e error) {
-	writer.logVerbose(
+	writer.verbose(
 		verboseMedium,
 		vbs,
 		"listing models...",
@@ -1082,7 +1086,7 @@ func listModels(
 	}
 	defer func() {
 		if err := gtc.Close(); err != nil {
-			writer.logError(
+			writer.error(
 				"Failed to close client: %s",
 				err,
 			)

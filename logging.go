@@ -81,7 +81,7 @@ func (w *outputWriter) printColored(
 }
 
 // print given string to stdout (will add a new line if there isn't)
-func (w *outputWriter) logMessage(
+func (w *outputWriter) print(
 	level verbosity,
 	format string,
 	a ...any,
@@ -110,7 +110,7 @@ func (w *outputWriter) logMessage(
 // print verbose message (will add new line if there isn't)
 //
 // (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
-func (w *outputWriter) logVerbose(
+func (w *outputWriter) verbose(
 	targetLevel verbosity,
 	verbosityFromParams []bool,
 	format string,
@@ -119,7 +119,7 @@ func (w *outputWriter) logVerbose(
 	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
 		format = fmt.Sprintf(">>> %s", format)
 
-		w.logMessage(
+		w.print(
 			targetLevel,
 			format,
 			a...,
@@ -128,7 +128,7 @@ func (w *outputWriter) logVerbose(
 }
 
 // print given error string to stdout (will add a new line if there isn't)
-func (w *outputWriter) logError(
+func (w *outputWriter) error(
 	format string,
 	a ...any,
 ) {
@@ -160,7 +160,7 @@ func (w *outputWriter) printErrorBeforeExit(
 	a ...any,
 ) (exit int) {
 	if code > 0 {
-		w.logError(format, a...)
+		w.error(format, a...)
 	}
 
 	return code
