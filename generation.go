@@ -511,7 +511,7 @@ func doGeneration(
 										Parts: []*genai.Part{
 											{
 												Text: fmt.Sprintf(
-													"Please provide the result of function: `%s(%s)`",
+													"I need the result of function: `%s(%s)` for answering your request.",
 													part.FunctionCall.Name,
 													prettify(part.FunctionCall.Args, true),
 												),
@@ -527,7 +527,7 @@ func doGeneration(
 									// ask for confirmation
 									if confirmNeeded, exists := toolCallbacksConfirm[part.FunctionCall.Name]; exists && confirmNeeded {
 										okToRun = confirm(fmt.Sprintf(
-											"Run callback '%s' for function '%s' with data: %s?",
+											"May I execute callback '%s' for function '%s' with data: %s?",
 											callbackPath,
 											part.FunctionCall.Name,
 											prettify(part.FunctionCall.Args, true),
