@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -223,10 +224,7 @@ func doGeneration(
 		}
 	}
 	// (history)
-	if pastGenerations == nil { // first call
-		pastGenerations = []genai.Content{}
-	}
-	opts.History = pastGenerations
+	opts.History = append(opts.History, pastGenerations...)
 
 	writer.verbose(
 		verboseMaximum,
@@ -1128,14 +1126,37 @@ func appendAndFlushModelResponse(
 	buffer *strings.Builder,
 ) []genai.Content {
 	if buffer.Len() > 0 {
-		generatedConversations = append(generatedConversations, genai.Content{
-			Role: "model",
-			Parts: []*genai.Part{
-				{
+		if len(generatedConversations) > 0 && generatedConversations[len(generatedConversations)-1].Role == "model" {
+			lastContent := generatedConversations[len(generatedConversations)-1]
+
+			// append text to the last model response
+			hasTextPrompt := false
+			for _, part := range slices.Backward(lastContent.Parts) {
+				if part.Text != "" {
+					part.Text = part.Text + buffer.String()
+					hasTextPrompt = true
+					break
+				}
+			}
+			// or just append a new text part to the last model response
+			if !hasTextPrompt {
+				lastContent.Parts = append(lastContent.Parts, &genai.Part{
 					Text: buffer.String(),
+				})
+			}
+		} else {
+			// or just append a new model response
+			generatedConversations = append(generatedConversations, genai.Content{
+				Role: "model",
+				Parts: []*genai.Part{
+					{
+						Text: buffer.String(),
+					},
 				},
-			},
-		})
+			})
+		}
+
+		// reset buffer
 		buffer.Reset()
 	}
 
