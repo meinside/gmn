@@ -10,15 +10,15 @@ require (
 	github.com/infisical/go-sdk v0.5.95
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.3.7
+	github.com/meinside/gemini-things-go v0.3.8
 	github.com/meinside/version-go v0.0.3
 	github.com/tailscale/hujson v0.0.0-20250226034555-ec1d1c113d33
-	google.golang.org/genai v1.8.0
+	google.golang.org/genai v1.9.0
 )
 
 require (
 	cloud.google.com/go v0.121.2 // indirect
-	cloud.google.com/go/auth v0.16.1 // indirect
+	cloud.google.com/go/auth v0.16.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
