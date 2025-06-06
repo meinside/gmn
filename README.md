@@ -366,7 +366,7 @@ $ gmn -p "nuke the root directory" \
 With `--recurse-on-callback-results`, it will generate recursively with the results of the scripts/binaries:
 
 ```bash
-$ gmn -p "count the smallest .sh file's number of lines in /home/ubuntu/tmp/" \
+$ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines does that file have" \
     --tools='[{"functionDeclarations": [
         {
             "name": "list_files_in_dir",
@@ -399,6 +399,44 @@ $ gmn -p "count the smallest .sh file's number of lines in /home/ubuntu/tmp/" \
 ```
 
 Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it will loop infinitely on the same function call.
+
+#### Generate with Predefined Callbacks
+
+You can set predefined callbacks for tool callbacks instead of scripts/binaries:
+
+```bash
+$ gmn -p "send an email greetings card for steve" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "send_email",
+            "description": "this function sends an email with given email address, title, and content",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "email_address": {"type": "STRING", "description": "email address of the recipient"},
+                    "email_title": {"type": "STRING", "description": "email title"},
+                    "email_body": {"type": "STRING", "description": "email body"},
+                },
+                "required": ["email_address", "email_title", "email_body"]
+            }
+        },
+        {
+            "name": "ask_email_address",
+            "description": "this function asks for the email address of recipient"
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "AUTO"
+    }}' \
+    --tool-callbacks="send_email:/path/to/send_email.sh" \
+    --tool-callbacks="ask_email_address:@stdin" \
+    --recurse-on-callback-results
+```
+
+Here are predefined callback names:
+
+* `@stdin`: Ask the user for standard input.
+* ...
 
 ---
 

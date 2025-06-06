@@ -520,34 +520,16 @@ func doGeneration(
 
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
 								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
-									okToRun := false
-
-									// ask for confirmation
-									if confirmNeeded, exists := toolCallbacksConfirm[part.FunctionCall.Name]; exists && confirmNeeded {
-										okToRun = confirm(fmt.Sprintf(
-											"May I execute callback '%s' for function '%s' with data: %s?",
-											callbackPath,
-											part.FunctionCall.Name,
-											prettify(part.FunctionCall.Args, true),
-										))
-									} else {
-										okToRun = true
-									}
+									fnCallback, okToRun := checkCallbackPath(
+										callbackPath,
+										toolCallbacksConfirm,
+										part.FunctionCall,
+										writer,
+										vbs,
+									)
 
 									if okToRun {
-										writer.verbose(
-											verboseMinimum,
-											vbs,
-											"executing callback '%s' for function '%s' with data %s...",
-											callbackPath,
-											part.FunctionCall.Name,
-											prettify(part.FunctionCall.Args, true),
-										)
-
-										if res, err := runExecutable(
-											callbackPath,
-											part.FunctionCall.Args,
-										); err != nil {
+										if res, err := fnCallback(); err != nil {
 											// error
 											ch <- result{
 												exit: 1,
@@ -1161,4 +1143,63 @@ func appendAndFlushModelResponse(
 	}
 
 	return generatedConversations
+}
+
+// predefined callback function names
+const (
+	fnCallbackStdin = `@stdin`
+)
+
+// check if given `callbackPath` is executable
+func checkCallbackPath(
+	callbackPath string,
+	confirmToolCallbacks map[string]bool,
+	fnCall *genai.FunctionCall,
+	writer *outputWriter,
+	vbs []bool,
+) (
+	fnCallback func() (string, error),
+	okToRun bool,
+) {
+	okToRun = false
+
+	// check if `callbackPath` is a predefined callback
+	if callbackPath == fnCallbackStdin {
+		okToRun = true
+
+		fnCallback = func() (string, error) {
+			return readFromStdin(fmt.Sprintf("Type your answer for function '%s' with data: %s",
+				fnCall.Name,
+				prettify(fnCall.Args, true),
+			))
+		}
+	} else { // ordinary path of binary/script:
+		// ask for confirmation
+		if confirmNeeded, exists := confirmToolCallbacks[fnCall.Name]; exists && confirmNeeded {
+			okToRun = confirm(fmt.Sprintf(
+				"May I execute callback '%s' for function '%s' with data: %s?",
+				callbackPath,
+				fnCall.Name,
+				prettify(fnCall.Args, true),
+			))
+		} else {
+			okToRun = true
+		}
+
+		// run executable
+		fnCallback = func() (string, error) {
+			writer.verbose(
+				verboseMinimum,
+				vbs,
+				"executing callback '%s' for function '%s' with data %s...",
+				callbackPath,
+				fnCall.Name,
+				prettify(fnCall.Args, true),
+			)
+
+			return runExecutable(callbackPath, fnCall.Args)
+		}
+	}
+
+	return
 }

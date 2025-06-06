@@ -892,6 +892,13 @@ func confirm(prompt string) bool {
 	}
 }
 
+// read user input from stdin
+func readFromStdin(prompt string) (string, error) {
+	fmt.Printf("%s: ", prompt)
+	reader := bufio.NewReader(os.Stdin)
+	return reader.ReadString('\n')
+}
+
 // check if the past generations end with users's message,
 func historyEndsWithUsers(history []genai.Content) bool {
 	if len(history) > 0 {
