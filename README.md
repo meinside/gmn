@@ -398,18 +398,18 @@ $ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines 
     --recurse-on-callback-results
 ```
 
-Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it will loop infinitely on the same function call.
+Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it may loop infinitely on the same function call.
 
 #### Generate with Predefined Callbacks
 
 You can set predefined callbacks for tool callbacks instead of scripts/binaries:
 
 ```bash
-$ gmn -p "send an email greetings card for steve" \
+$ gmn -p "send an email to steve that i'm still alive" \
     --tools='[{"functionDeclarations": [
         {
             "name": "send_email",
-            "description": "this function sends an email with given email address, title, and content",
+            "description": "this function sends an email with given values",
             "parameters": {
                 "type": "OBJECT",
                 "properties": {
@@ -426,7 +426,7 @@ $ gmn -p "send an email greetings card for steve" \
         }
     ]}]' \
     --tool-config='{"functionCallingConfig": {
-        "mode": "AUTO"
+        "mode": "ANY"
     }}' \
     --tool-callbacks="send_email:/path/to/send_email.sh" \
     --tool-callbacks="ask_email_address:@stdin" \
@@ -436,7 +436,7 @@ $ gmn -p "send an email greetings card for steve" \
 Here are predefined callback names:
 
 * `@stdin`: Ask the user for standard input.
-* ...
+* … (more to be added)
 
 ---
 
