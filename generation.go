@@ -229,7 +229,14 @@ func doGeneration(
 	writer.verbose(
 		verboseMaximum,
 		vbs,
-		"with generation options: %v",
+		"with prompts: %v",
+		prompts,
+	)
+
+	writer.verbose(
+		verboseMaximum,
+		vbs,
+		"with generation options: %s",
 		prettify(opts),
 	)
 
@@ -504,18 +511,21 @@ func doGeneration(
 											},
 										},
 									},
-									genai.Content{
-										Role: "model",
-										Parts: []*genai.Part{
-											{
-												Text: fmt.Sprintf(
-													"I need the result of function: `%s(%s)` for answering your request.",
-													part.FunctionCall.Name,
-													prettify(part.FunctionCall.Args, true),
-												),
+
+									/*
+										genai.Content{
+											Role: "model",
+											Parts: []*genai.Part{
+												{
+													Text: fmt.Sprintf(
+														`What is the result of function '%s(%s)'?`,
+														part.FunctionCall.Name,
+														prettify(part.FunctionCall.Args, true),
+													),
+												},
 											},
 										},
-									},
+									*/
 								)
 
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
@@ -559,7 +569,9 @@ func doGeneration(
 												Parts: []*genai.Part{
 													{
 														Text: fmt.Sprintf(
-															"Here is the result of function `%s(%s)`:\n\n%s",
+															`Result of function '%s(%s)':
+
+%s`,
 															part.FunctionCall.Name,
 															prettify(part.FunctionCall.Args, true),
 															res,
@@ -571,7 +583,7 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function `%s(%s)`\n",
+											`Skipped execution of callback '%s' for function '%s(%s)'\n`,
 											callbackPath,
 											part.FunctionCall.Name,
 											prettify(part.FunctionCall.Args, true),
@@ -586,7 +598,7 @@ func doGeneration(
 											Parts: []*genai.Part{
 												{
 													Text: fmt.Sprintf(
-														"User chose not to call function `%s(%s)`.",
+														`User chose not to call function '%s(%s)'.`,
 														part.FunctionCall.Name,
 														prettify(part.FunctionCall.Args, true),
 													),
@@ -1161,17 +1173,18 @@ func checkCallbackPath(
 	fnCallback func() (string, error),
 	okToRun bool,
 ) {
-	okToRun = false
-
 	// check if `callbackPath` is a predefined callback
 	if callbackPath == fnCallbackStdin {
 		okToRun = true
 
 		fnCallback = func() (string, error) {
-			return readFromStdin(fmt.Sprintf("Type your answer for function '%s' with data: %s",
+			prompt := fmt.Sprintf(
+				"Type your answer for function '%s(%s)'",
 				fnCall.Name,
 				prettify(fnCall.Args, true),
-			))
+			)
+
+			return readFromStdin(prompt)
 		}
 	} else { // ordinary path of binary/script:
 		// ask for confirmation
