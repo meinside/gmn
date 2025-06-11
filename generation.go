@@ -501,32 +501,19 @@ func doGeneration(
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-								// append user's prompt + function call to the past generations
-								pastGenerations = append(pastGenerations,
-									genai.Content{
-										Role: "user",
-										Parts: []*genai.Part{
-											{
-												Text: latestTextPrompt(prompts),
-											},
-										},
-									},
-
-									/*
+								// append user's prompt to the past generations
+								if latest := latestTextPrompt(prompts); len(latest) > 0 {
+									pastGenerations = append(pastGenerations,
 										genai.Content{
-											Role: "model",
+											Role: "user",
 											Parts: []*genai.Part{
 												{
-													Text: fmt.Sprintf(
-														`What is the result of function '%s(%s)'?`,
-														part.FunctionCall.Name,
-														prettify(part.FunctionCall.Args, true),
-													),
+													Text: latest,
 												},
 											},
 										},
-									*/
-								)
+									)
+								}
 
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
 								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
@@ -701,15 +688,19 @@ func doGeneration(
 				prettify(pastGenerations),
 			)
 
+			// prepare prompts for recursion
+			var promptsForRecursion []gt.Prompt = nil
+			if latest := latestTextPrompt(prompts); len(latest) > 0 {
+				promptsForRecursion = []gt.Prompt{gt.PromptFromText(latest)}
+			}
+
 			return doGeneration(
 				ctx,
 				writer,
 				timeoutSeconds,
 				apiKey, model,
 				systemInstruction, temperature, topP, topK,
-				[]gt.Prompt{
-					gt.PromptFromText(latestTextPrompt(prompts)),
-				}, nil, nil,
+				promptsForRecursion, nil, nil,
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
@@ -1190,7 +1181,7 @@ func checkCallbackPath(
 		// ask for confirmation
 		if confirmNeeded, exists := confirmToolCallbacks[fnCall.Name]; exists && confirmNeeded {
 			okToRun = confirm(fmt.Sprintf(
-				"May I execute callback '%s' for function '%s' with data: %s?",
+				"May I execute callback '%s' for function '%s(%s)'?",
 				callbackPath,
 				fnCall.Name,
 				prettify(fnCall.Args, true),
@@ -1204,7 +1195,7 @@ func checkCallbackPath(
 			writer.verbose(
 				verboseMinimum,
 				vbs,
-				"executing callback '%s' for function '%s' with data %s...",
+				"executing callback '%s' for function '%s(%s)'...",
 				callbackPath,
 				fnCall.Name,
 				prettify(fnCall.Args, true),
