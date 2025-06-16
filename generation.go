@@ -570,7 +570,7 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											`Skipped execution of callback '%s' for function '%s(%s)'\n`,
+											"Skipped execution of callback '%s' for function '%s(%s)'.\n",
 											callbackPath,
 											part.FunctionCall.Name,
 											prettify(part.FunctionCall.Args, true),
