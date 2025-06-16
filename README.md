@@ -369,8 +369,8 @@ With `--recurse-on-callback-results`, it will generate recursively with the resu
 $ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines does that file have" \
     --tools='[{"functionDeclarations": [
         {
-            "name": "list_files_in_dir",
-            "description": "this function lists the names of files in a directory",
+            "name": "list_files_info_in_dir",
+            "description": "this function lists information of files in a directory",
             "parameters": {
                 "type": "OBJECT",
                 "properties": {"directory": {"type": "STRING", "description": "an absolute path of a directory"}},
@@ -393,12 +393,12 @@ $ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines 
     --tool-config='{"functionCallingConfig": {
         "mode": "AUTO"
     }}' \
-    --tool-callbacks="list_files_in_dir:/path/to/list_files_in_dir.sh" \
+    --tool-callbacks="list_files_info_in_dir:/path/to/list_files_info_in_dir.sh" \
     --tool-callbacks="count_lines_of_file:/path/to/count_lines_of_file.sh" \
     --recurse-on-callback-results
 ```
 
-Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it may loop infinitely on the same function call.
+Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it may loop infinitely on the same function call result.
 
 #### Generate with Predefined Callbacks
 
