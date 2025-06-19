@@ -72,7 +72,7 @@ func (w *outputWriter) printColored(
 
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
 		c := color.New(c)
-		_, _ = c.Printf(formatted)
+		_, _ = c.Print(formatted)
 	} else {
 		fmt.Print(formatted)
 	}
