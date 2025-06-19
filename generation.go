@@ -343,12 +343,12 @@ func doGeneration(
 								if isThinking {
 									writer.printColored(
 										color.FgYellow,
-										part.Text,
+										escapeGeneratedText(part.Text),
 									)
 								} else {
 									writer.printColored(
 										color.FgWhite,
-										part.Text,
+										escapeGeneratedText(part.Text),
 									)
 
 									// NOTE: ignore thoughts from model
@@ -543,7 +543,7 @@ func doGeneration(
 												writer.printColored(
 													color.FgCyan,
 													"%s",
-													res,
+													escapeGeneratedText(res),
 												)
 											}
 
@@ -560,8 +560,8 @@ func doGeneration(
 
 %s`,
 															part.FunctionCall.Name,
-															prettify(part.FunctionCall.Args, true),
-															res,
+															escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+															escapeGeneratedText(res),
 														),
 													},
 												},
@@ -587,7 +587,7 @@ func doGeneration(
 													Text: fmt.Sprintf(
 														`User chose not to call function '%s(%s)'.`,
 														part.FunctionCall.Name,
-														prettify(part.FunctionCall.Args, true),
+														escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
 													),
 												},
 											},
@@ -830,7 +830,7 @@ func doEmbeddingsGeneration(
 		writer.printColored(
 			color.FgWhite,
 			"%s\n",
-			string(encoded),
+			escapeGeneratedText(string(encoded)),
 		)
 
 		return 0, nil
@@ -1172,7 +1172,7 @@ func checkCallbackPath(
 			prompt := fmt.Sprintf(
 				"Type your answer for function '%s(%s)'",
 				fnCall.Name,
-				prettify(fnCall.Args, true),
+				escapeGeneratedText(prettify(fnCall.Args, true)),
 			)
 
 			return readFromStdin(prompt)
@@ -1184,7 +1184,7 @@ func checkCallbackPath(
 				"May I execute callback '%s' for function '%s(%s)'?",
 				callbackPath,
 				fnCall.Name,
-				prettify(fnCall.Args, true),
+				escapeGeneratedText(prettify(fnCall.Args, true)),
 			))
 		} else {
 			okToRun = true

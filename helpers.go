@@ -920,6 +920,16 @@ func latestTextPrompt(prompts []gt.Prompt) string {
 	return ""
 }
 
+// escape generate text before any manipulation
+func escapeGeneratedText(text string) string {
+	// escape '%' for not littering formatted strings
+	text = strings.ReplaceAll(text, "%", "%%")
+
+	// TODO: escape more characters here
+
+	return text
+}
+
 // prettify given thing in JSON format
 func prettify(v any, flatten ...bool) string {
 	if len(flatten) > 0 && flatten[0] {
