@@ -90,8 +90,8 @@ github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHP
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/meinside/gemini-things-go v0.3.12 h1:K+VhOLKZhzIltE1D9pdBedbTPYtEu+wR6RcJhytnwzc=
-github.com/meinside/gemini-things-go v0.3.12/go.mod h1:Ys0gdnC8ur+6fya64LM4kFgSkTwz9LZ5vzw4EtRimjI=
+github.com/meinside/gemini-things-go v0.3.13 h1:dIq2+J0gwr7hLC7vBwvRoQ5RsybJTj5+ZUJEpBrZ97E=
+github.com/meinside/gemini-things-go v0.3.13/go.mod h1:jqegFTwycyFjaX9he1pHBBHX1e79kexi276ylJQZGkw=
 github.com/meinside/version-go v0.0.3 h1:GXSwi6sTmgpnSR09jAAqDGWeX2Nq52fe5xpitgAhQfM=
 github.com/meinside/version-go v0.0.3/go.mod h1:mFvlwbro1E126u4rU727CcHNa8OPFyhq+KDYYNysFj4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
