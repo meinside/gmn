@@ -21,7 +21,7 @@ const (
 	defaultConfigFilename = `config.json`
 
 	// default model names
-	defaultGoogleAIModel                 = `gemini-2.0-flash`
+	defaultGoogleAIModel                 = `gemini-2.5-flash`
 	defaultGoogleAIImageGenerationModel  = `gemini-2.0-flash-preview-image-generation`
 	defaultGoogleAISpeechGenerationModel = `gemini-2.5-flash-preview-tts`
 	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-exp-03-07`
