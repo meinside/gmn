@@ -19,7 +19,7 @@
   // configurations for google ai model
   //
   // NOTE: if not set here, default values will be used instead
-  //"google_ai_model": "gemini-2.0-flash-001",
+  //"google_ai_model": "gemini-2.5-flash",
   //"system_instruction": "You are a chat bot which responds to user requests reliably and accurately.",
 
   // network timeout seconds (for uploading files, fetching urls, and/or generating responses)
