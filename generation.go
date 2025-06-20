@@ -359,13 +359,13 @@ func doGeneration(
 									writer.printColored(
 										color.FgYellow,
 										"%s",
-										escapeGeneratedText(part.Text),
+										part.Text,
 									)
 								} else {
 									writer.printColored(
 										color.FgWhite,
 										"%s",
-										escapeGeneratedText(part.Text),
+										part.Text,
 									)
 
 									// NOTE: ignore thoughts from model
@@ -532,6 +532,33 @@ func doGeneration(
 									)
 								}
 
+								// string representation of function and its arguments
+								fn := fmt.Sprintf(
+									`%s(%s)`,
+									part.FunctionCall.Name,
+									prettify(part.FunctionCall.Args, true),
+								)
+
+								// NOTE: check if past generations has any of `fn` (for avoiding infinite loop)
+								if slices.ContainsFunc(pastGenerations, func(content genai.Content) bool {
+									for _, part := range content.Parts {
+										if strings.Contains(part.Text, fn) {
+											return true
+										}
+									}
+									return false
+								}) {
+									// error
+									ch <- result{
+										exit: 1,
+										err: fmt.Errorf(
+											"possible infinite loop of function call detected: '%s'",
+											fn,
+										),
+									}
+									return
+								}
+
 								// NOTE: if tool callbackPath exists for this function call, execute it with the args
 								if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
 									fnCallback, okToRun := checkCallbackPath(
@@ -566,7 +593,7 @@ func doGeneration(
 												writer.printColored(
 													color.FgCyan,
 													"%s",
-													escapeGeneratedText(res),
+													res,
 												)
 											}
 
@@ -579,12 +606,11 @@ func doGeneration(
 												Parts: []*genai.Part{
 													{
 														Text: fmt.Sprintf(
-															`Result of function '%s(%s)':
+															`Result of function '%s':
 
 %s`,
-															part.FunctionCall.Name,
-															escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
-															escapeGeneratedText(res),
+															fn,
+															res,
 														),
 													},
 												},
@@ -593,10 +619,9 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function '%s(%s)'.\n",
+											"Skipped execution of callback '%s' for function '%s'.\n",
 											callbackPath,
-											part.FunctionCall.Name,
-											prettify(part.FunctionCall.Args, true),
+											fn,
 										)
 
 										// flush model response
@@ -608,9 +633,8 @@ func doGeneration(
 											Parts: []*genai.Part{
 												{
 													Text: fmt.Sprintf(
-														`User chose not to call function '%s(%s)'.`,
-														part.FunctionCall.Name,
-														escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+														`User chose not to call function '%s'.`,
+														fn,
 													),
 												},
 											},
@@ -629,10 +653,9 @@ func doGeneration(
 												*tool.Annotations.DestructiveHint
 										}) {
 											okToRun = confirm(fmt.Sprintf(
-												"May I execute callback '%s' from smithery for function '%s(%s)'?",
+												"May I execute callback '%s' from smithery for function '%s'?",
 												callbackPath,
-												part.FunctionCall.Name,
-												escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+												fn,
 											))
 										} else {
 											okToRun = true
@@ -662,7 +685,7 @@ func doGeneration(
 															writer.printColored(
 																color.FgCyan,
 																"%s",
-																escapeGeneratedText(gen.String()),
+																gen.String(),
 															)
 														}
 													}
@@ -674,10 +697,9 @@ func doGeneration(
 													parts := []*genai.Part{
 														{
 															Text: fmt.Sprintf(
-																`Result of function '%s(%s)':
+																`Result of function '%s':
 `,
-																part.FunctionCall.Name,
-																escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+																fn,
 															),
 														},
 													}
@@ -721,10 +743,9 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function '%s(%s)'.\n",
+											"Skipped execution of callback '%s' for function '%s'.\n",
 											callbackPath,
-											part.FunctionCall.Name,
-											prettify(part.FunctionCall.Args, true),
+											fn,
 										)
 
 										// flush model response
@@ -736,9 +757,8 @@ func doGeneration(
 											Parts: []*genai.Part{
 												{
 													Text: fmt.Sprintf(
-														`User chose not to call function '%s(%s)'.`,
-														part.FunctionCall.Name,
-														escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+														`User chose not to call function '%s'.`,
+														fn,
 													),
 												},
 											},
@@ -994,7 +1014,7 @@ func doEmbeddingsGeneration(
 		writer.printColored(
 			color.FgWhite,
 			"%s\n",
-			escapeGeneratedText(string(encoded)),
+			string(encoded),
 		)
 
 		return 0, nil
@@ -1337,7 +1357,7 @@ func checkCallbackPath(
 			prompt := fmt.Sprintf(
 				"Type your answer for function '%s(%s)'",
 				fnCall.Name,
-				escapeGeneratedText(prettify(fnCall.Args, true)),
+				prettify(fnCall.Args, true),
 			)
 
 			return readFromStdin(prompt)
@@ -1349,7 +1369,7 @@ func checkCallbackPath(
 				"May I execute callback '%s' for function '%s(%s)'?",
 				callbackPath,
 				fnCall.Name,
-				escapeGeneratedText(prettify(fnCall.Args, true)),
+				prettify(fnCall.Args, true),
 			))
 		} else {
 			okToRun = true
