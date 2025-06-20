@@ -924,16 +924,6 @@ func latestTextPrompt(prompts []gt.Prompt) string {
 	return ""
 }
 
-// escape generate text before any manipulation
-func escapeGeneratedText(text string) string {
-	// escape '%' for not littering formatted strings
-	text = strings.ReplaceAll(text, "%", "%%")
-
-	// TODO: escape more characters here
-
-	return text
-}
-
 // check if there is any duplicated value between given arrays
 func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 	pool := map[V]struct{}{}
