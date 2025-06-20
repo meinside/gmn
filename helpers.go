@@ -972,18 +972,16 @@ func keysFromTools(
 func fetchSmitheryTools(
 	ctx context.Context,
 	smitheryAPIKey, smitheryProfileID, smitheryQualifiedServerName string,
-) (conn *mcpc.Client, decls []*genai.FunctionDeclaration, err error) {
+) (conn *mcpc.Client, tools []mcp.Tool, err error) {
 	smithery := smithery.NewClient(smitheryAPIKey)
 	if conn, err = smithery.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
 		smitheryQualifiedServerName,
 	); err == nil {
-		var tools *mcp.ListToolsResult
-		if tools, err = conn.ListTools(ctx, mcp.ListToolsRequest{}); err == nil {
-			if decls, err = gt.MCPToGeminiTools(tools.Tools); err == nil {
-				return conn, decls, nil
-			}
+		var listed *mcp.ListToolsResult
+		if listed, err = conn.ListTools(ctx, mcp.ListToolsRequest{}); err == nil {
+			return conn, listed.Tools, nil
 		}
 	}
 	return

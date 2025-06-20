@@ -11,6 +11,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	mcpc "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -235,16 +236,18 @@ func run(
 
 				// function call (smithery)
 				var smitheryConn *mcpc.Client = nil
-				var smitheryTools []*genai.FunctionDeclaration = nil
+				var smitheryTools []mcp.Tool = nil
 				if conf.SmitheryAPIKey != nil && p.SmitheryTools.SmitheryProfileID != nil && p.SmitheryTools.SmitheryServerName != nil {
 					writer.verbose(
-						verboseMaximum,
+						verboseMedium,
 						p.Verbose,
 						"fetching tools from smithery: %s",
 						*p.SmitheryTools.SmitheryServerName,
 					)
 
-					if conn, fetched, err := fetchSmitheryTools(
+					var conn *mcpc.Client
+					var decls []*genai.FunctionDeclaration
+					if conn, smitheryTools, err = fetchSmitheryTools(
 						context.TODO(),
 						*conf.SmitheryAPIKey,
 						*p.SmitheryTools.SmitheryProfileID,
@@ -252,7 +255,7 @@ func run(
 					); err == nil {
 						// check if there is any duplicated name of function
 						if value, duplicated := duplicated(
-							keysFromTools(tools, fetched),
+							keysFromTools(tools, decls),
 						); duplicated {
 							return 1, fmt.Errorf(
 								"duplicated function name in tools: '%s'",
@@ -261,7 +264,6 @@ func run(
 						}
 
 						smitheryConn = conn
-						smitheryTools = fetched
 
 						// NOTE: force recurse on callback results
 						if !p.LocalTools.RecurseOnCallbackResults {
