@@ -16,6 +16,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gabriel-vasile/mimetype"
+	mcpc "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -46,12 +48,14 @@ func doGeneration(
 	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey, model string,
+	smitheryAPIKey *string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool, forcePrintCallbackResults bool, recurseOnCallbackResults bool,
+	smitheryConn *mcpc.Client, smitheryTools []*genai.FunctionDeclaration,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -148,15 +152,18 @@ func doGeneration(
 		TopP:        ptr(generationTopP),
 		TopK:        ptr(float32(generationTopK)),
 	}
+	opts.Tools = []*genai.Tool{}
 	// (tools and tool config)
-	if tools != nil {
-		opts.Tools = []*genai.Tool{}
-		for _, tool := range tools {
-			opts.Tools = append(opts.Tools, &tool)
-		}
+	for _, tool := range tools {
+		opts.Tools = append(opts.Tools, &tool)
 	}
 	if toolConfig != nil {
 		opts.ToolConfig = toolConfig
+	}
+	if smitheryTools != nil {
+		opts.Tools = append(opts.Tools, &genai.Tool{
+			FunctionDeclarations: smitheryTools,
+		})
 	}
 	// (JSON output)
 	if outputAsJSON {
@@ -343,11 +350,13 @@ func doGeneration(
 								if isThinking {
 									writer.printColored(
 										color.FgYellow,
+										"%s",
 										escapeGeneratedText(part.Text),
 									)
 								} else {
 									writer.printColored(
 										color.FgWhite,
+										"%s",
 										escapeGeneratedText(part.Text),
 									)
 
@@ -416,7 +425,7 @@ func doGeneration(
 									// check codec and birtate
 									var speechCodec string
 									var bitRate int
-									for _, split := range strings.Split(part.InlineData.MIMEType, ";") {
+									for split := range strings.SplitSeq(part.InlineData.MIMEType, ";") {
 										if strings.HasPrefix(split, "codec=") {
 											speechCodec = split[6:]
 										} else if strings.HasPrefix(split, "rate=") {
@@ -593,6 +602,84 @@ func doGeneration(
 											},
 										})
 									}
+								} else if smitheryTools != nil {
+									// if there is a matching smithery tool,
+									if slices.ContainsFunc(smitheryTools, func(tool *genai.FunctionDeclaration) bool {
+										return tool.Name == part.FunctionCall.Name
+									}) {
+										if res, err := smitheryConn.CallTool(
+											ctx,
+											mcp.CallToolRequest{
+												Params: mcp.CallToolParams{
+													Name:      part.FunctionCall.Name,
+													Arguments: part.FunctionCall.Args,
+												},
+											},
+										); err == nil {
+											if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+												// print the result of execution
+												if forcePrintCallbackResults ||
+													verboseLevel(vbs) >= verboseMinimum {
+													for _, gen := range generated {
+														writer.printColored(
+															color.FgCyan,
+															"%s",
+															escapeGeneratedText(gen.String()),
+														)
+													}
+												}
+
+												// flush model response
+												pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+												// append function call result
+												parts := []*genai.Part{
+													{
+														Text: fmt.Sprintf(
+															`Result of function '%s(%s)':
+`,
+															part.FunctionCall.Name,
+															escapeGeneratedText(prettify(part.FunctionCall.Args, true)),
+														),
+													},
+												}
+												for _, gen := range generated {
+													parts = append(parts, ptr(gen.ToPart()))
+												}
+												pastGenerations = append(pastGenerations, genai.Content{
+													Role:  "user",
+													Parts: parts,
+												})
+											} else {
+												// error
+												ch <- result{
+													exit: 1,
+													err: fmt.Errorf(
+														"failed to read smithery tool call result: %s",
+														err,
+													),
+												}
+												return
+											}
+										} else {
+											// error
+											ch <- result{
+												exit: 1,
+												err: fmt.Errorf(
+													"smithery tool call failed: %s",
+													err,
+												),
+											}
+											return
+										}
+									} else {
+										// no matching smithery tool, just print the function call data
+										writer.print(
+											verboseMinimum,
+											"No matching smithery tool; generated function call: %s",
+											prettify(part.FunctionCall),
+										)
+									}
 								} else {
 									// just print the function call data
 									writer.print(
@@ -699,12 +786,14 @@ func doGeneration(
 				writer,
 				timeoutSeconds,
 				apiKey, model,
+				smitheryAPIKey,
 				systemInstruction, temperature, topP, topK,
 				promptsForRecursion, nil, nil,
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm, forcePrintCallbackResults, recurseOnCallbackResults,
+				smitheryConn, smitheryTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
@@ -713,6 +802,12 @@ func doGeneration(
 				vbs,
 			)
 		}
+
+		// make sure to close smithery connection
+		if smitheryConn != nil {
+			smitheryConn.Close()
+		}
+
 		return res.exit, res.err
 	}
 }
@@ -913,6 +1008,7 @@ func cacheContext(
 	); err == nil {
 		writer.printColored(
 			color.FgWhite,
+			"%s",
 			name,
 		)
 	} else {

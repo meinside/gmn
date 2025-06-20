@@ -1,7 +1,8 @@
 // config.json.sample
 {
-  // your google ai api key here:
+  // your api keys here:
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
+  //"smithery_api_key": "abcdefg-01234-xyzw", // (optional)
   /*
   // or, for fetching google ai api key from infisical:
   "infisical": {
@@ -12,7 +13,8 @@
     "environment": "dev",
     "secret_type": "shared",
 
-    "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY"
+    "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
+    //"smithery_api_key_key_path": "/path/to/your/KEY_TO_SMITHERY_API_KEY", // (optional)
   },
   */
 

@@ -107,7 +107,7 @@ func (w *outputWriter) print(
 	)
 }
 
-// print verbose message (will add new line if there isn't)
+// print verbose message (will add a new line if there isn't)
 //
 // (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
 func (w *outputWriter) verbose(
@@ -127,8 +127,9 @@ func (w *outputWriter) verbose(
 	}
 }
 
-// print given error string to stdout (will add a new line if there isn't)
-func (w *outputWriter) error(
+// print given string to stdout and append a new line if there isn't
+func (w *outputWriter) printWithNewlineAppended(
+	c color.Attribute,
 	format string,
 	a ...any,
 ) {
@@ -137,10 +138,26 @@ func (w *outputWriter) error(
 	}
 
 	w.printColored(
-		color.FgRed,
+		c,
 		format,
 		a...,
 	)
+}
+
+// print given warning string to stdout (will add a new line if there isn't)
+func (w *outputWriter) warn(
+	format string,
+	a ...any,
+) {
+	w.printWithNewlineAppended(color.FgMagenta, format, a...)
+}
+
+// print given error string to stdout (will add a new line if there isn't)
+func (w *outputWriter) error(
+	format string,
+	a ...any,
+) {
+	w.printWithNewlineAppended(color.FgRed, format, a...)
 }
 
 // print help message before os.Exit()

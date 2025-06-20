@@ -1,6 +1,6 @@
 module github.com/meinside/gmn
 
-go 1.23.2
+go 1.24.4
 
 require (
 	github.com/BourgeoisBear/rasterm v1.1.1
@@ -10,7 +10,9 @@ require (
 	github.com/infisical/go-sdk v0.5.96
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
+	github.com/mark3labs/mcp-go v0.32.0
 	github.com/meinside/gemini-things-go v0.3.13
+	github.com/meinside/smithery-go v0.0.3
 	github.com/meinside/version-go v0.0.3
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	google.golang.org/genai v1.12.0
@@ -42,11 +44,11 @@ require (
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/mark3labs/mcp-go v0.32.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/spf13/cast v1.9.2 // indirect
