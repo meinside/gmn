@@ -442,6 +442,24 @@ Here are predefined callback names:
 
 There is a [document](https://ai.google.dev/api/caching#FunctionDeclaration) about function declarations.
 
+### Generate with Smithery (MCP)
+
+Put your Smithery API key in your `config.json`,
+
+```json
+{
+  "smithery_api_key": "YOUR_SMITHERY_API_KEY",
+}
+```
+
+then call with your smithery profile id and desired server name like:
+
+```bash
+$ gmn -p "what is shoebill? search from the web" \
+    --smithery-profile-id="your-smithery-profile-id" \
+    --smithery-server-name="@some/qualified-server-name"
+```
+
 ### Generate Embeddings
 
 You can generate embeddings with `-E` or `--generate-embeddings` parameter:

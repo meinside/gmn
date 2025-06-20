@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
+	mcpc "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -193,10 +195,10 @@ func run(
 					}
 				}
 
-				// function call
+				// function call (local)
 				var tools []genai.Tool
-				if p.Generation.Tools != nil {
-					if bytes, err := standardizeJSON([]byte(*p.Generation.Tools)); err == nil {
+				if p.LocalTools.Tools != nil {
+					if bytes, err := standardizeJSON([]byte(*p.LocalTools.Tools)); err == nil {
 						if err := json.Unmarshal(bytes, &tools); err != nil {
 							return 1, fmt.Errorf(
 								"failed to read tools: %w",
@@ -211,8 +213,8 @@ func run(
 					}
 				}
 				var toolConfig *genai.ToolConfig
-				if p.Generation.ToolConfig != nil {
-					if bytes, err := standardizeJSON([]byte(*p.Generation.ToolConfig)); err == nil {
+				if p.LocalTools.ToolConfig != nil {
+					if bytes, err := standardizeJSON([]byte(*p.LocalTools.ToolConfig)); err == nil {
 						if err := json.Unmarshal(bytes, &toolConfig); err != nil {
 							return 1, fmt.Errorf(
 								"failed to read tool config: %w",
@@ -232,11 +234,68 @@ func run(
 					return 1, fmt.Errorf("both tools and tool config should be given at the same time")
 				}
 
+				// function call (smithery)
+				var smitheryConn *mcpc.Client = nil
+				var smitheryTools []mcp.Tool = nil
+				if conf.SmitheryAPIKey != nil && p.SmitheryTools.SmitheryProfileID != nil && p.SmitheryTools.SmitheryServerName != nil {
+					writer.verbose(
+						verboseMedium,
+						p.Verbose,
+						"fetching tools from smithery: %s",
+						*p.SmitheryTools.SmitheryServerName,
+					)
+
+					var conn *mcpc.Client
+					var decls []*genai.FunctionDeclaration
+					if conn, smitheryTools, err = fetchSmitheryTools(
+						context.TODO(),
+						*conf.SmitheryAPIKey,
+						*p.SmitheryTools.SmitheryProfileID,
+						*p.SmitheryTools.SmitheryServerName,
+					); err == nil {
+						// check if there is any duplicated name of function
+						if value, duplicated := duplicated(
+							keysFromTools(tools, decls),
+						); duplicated {
+							return 1, fmt.Errorf(
+								"duplicated function name in tools: '%s'",
+								value,
+							)
+						}
+
+						smitheryConn = conn
+
+						// NOTE: force recurse on callback results
+						if !p.LocalTools.RecurseOnCallbackResults {
+							writer.warn(
+								"Forcing recursion on callback results for smithery.",
+							)
+							p.LocalTools.RecurseOnCallbackResults = true
+						}
+					} else {
+						return 1, fmt.Errorf(
+							"failed to fetch tools from smithery: %w",
+							err,
+						)
+					}
+				} else if p.SmitheryTools.SmitheryProfileID != nil || p.SmitheryTools.SmitheryServerName != nil {
+					if conf.SmitheryAPIKey == nil {
+						writer.warn(
+							"Smithery API key is not set in the config file, so ignoring it for now.",
+						)
+					} else {
+						writer.warn(
+							"Both profile id and server name is needed for using Smithery, so ignoring them for now.",
+						)
+					}
+				}
+
 				return doGeneration(context.TODO(),
 					writer,
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
 					*p.Configuration.GoogleAIModel,
+					conf.SmitheryAPIKey,
 					*p.Generation.SystemInstruction,
 					p.Generation.Temperature,
 					p.Generation.TopP,
@@ -250,10 +309,12 @@ func run(
 					p.Caching.CachedContextName,
 					tools,
 					toolConfig,
-					p.Generation.ToolCallbacks,
-					p.Generation.ToolCallbacksConfirm,
-					p.Generation.ShowCallbackResults,
-					p.Generation.RecurseOnCallbackResults,
+					p.LocalTools.ToolCallbacks,
+					p.LocalTools.ToolCallbacksConfirm,
+					p.LocalTools.ShowCallbackResults,
+					p.LocalTools.RecurseOnCallbackResults,
+					smitheryConn,
+					smitheryTools,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,

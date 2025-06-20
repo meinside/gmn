@@ -38,13 +38,7 @@ type params struct {
 		UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 		// other generation options
-		Tools                    *string           `long:"tools" description:"Tools for function call (in JSON)"`
-		ToolConfig               *string           `long:"tool-config" description:"Tool configuration for function call (in JSON)"`
-		ToolCallbacks            map[string]string `long:"tool-callbacks" description:"Tool callbacks (can be used multiple times, eg. 'fn_name1:/path/to/script1.sh', 'fn_name2:/path/to/script2.sh')"`
-		ToolCallbacksConfirm     map[string]bool   `long:"tool-callbacks-confirm" description:"Confirm before executing tool callbacks (can be used multiple times, eg. 'fn_name1:true', 'fn_name2:false')"`
-		ShowCallbackResults      bool              `long:"show-callback-results" description:"Whether to force print the results of tool callbacks (default: only in verbose mode)"`
-		RecurseOnCallbackResults bool              `long:"recurse-on-callback-results" description:"Whether to do recursive generations on callback results (default: false)"`
-		OutputAsJSON             bool              `short:"j" long:"json" description:"Output generated results as JSON"`
+		OutputAsJSON bool `short:"j" long:"json" description:"Output generated results as JSON"`
 
 		// for image generation
 		GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
@@ -58,6 +52,22 @@ type params struct {
 		SpeechVoices    map[string]string `long:"speech-voices" description:"Voices for speech generation (can be used multiple times, eg. 'Speaker 1:Kore', 'Speaker 2:Puck')"`
 		SaveSpeechToDir *string           `long:"save-speech-to-dir" description:"Save generated speech to a directory ($TMPDIR when not given)"`
 	} `group:"Generation"`
+
+	// tools (local)
+	LocalTools struct {
+		Tools                    *string           `long:"tools" description:"Tools for function call (in JSON)"`
+		ToolConfig               *string           `long:"tool-config" description:"Tool configuration for function call (in JSON)"`
+		ToolCallbacks            map[string]string `long:"tool-callbacks" description:"Tool callbacks (can be used multiple times, eg. 'fn_name1:/path/to/script1.sh', 'fn_name2:/path/to/script2.sh')"`
+		ToolCallbacksConfirm     map[string]bool   `long:"tool-callbacks-confirm" description:"Confirm before executing tool callbacks (can be used multiple times, eg. 'fn_name1:true', 'fn_name2:false')"`
+		ShowCallbackResults      bool              `long:"show-callback-results" description:"Whether to force print the results of tool callbacks (default: only in verbose mode)"`
+		RecurseOnCallbackResults bool              `long:"recurse-on-callback-results" description:"Whether to do recursive generations on callback results (default: false)"`
+	} `group:"Tools (Local)"`
+
+	// tools (smithery)
+	SmitheryTools struct {
+		SmitheryProfileID  *string `long:"smithery-profile-id" description:"Smithery profile ID for function call"`
+		SmitheryServerName *string `long:"smithery-server-name" description:"Smithery qualified server name for function call"`
+	} `group:"Tools (Smithery)"`
 
 	// for embedding
 	Embeddings struct {
