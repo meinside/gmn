@@ -163,9 +163,13 @@ func doGeneration(
 	var smitheryToGeminiTools []*genai.FunctionDeclaration = nil
 	if smitheryTools != nil {
 		if smitheryToGeminiTools, err = gt.MCPToGeminiTools(smitheryTools); err == nil {
-			opts.Tools = append(opts.Tools, &genai.Tool{
-				FunctionDeclarations: smitheryToGeminiTools,
-			})
+			if len(opts.Tools) > 0 {
+				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, smitheryToGeminiTools...)
+			} else {
+				opts.Tools = append(opts.Tools, &genai.Tool{
+					FunctionDeclarations: smitheryToGeminiTools,
+				})
+			}
 		} else {
 			return 1, fmt.Errorf(
 				"failed to convert smithery tools for gemini: %w",
@@ -743,7 +747,7 @@ func doGeneration(
 									} else {
 										writer.printColored(
 											color.FgYellow,
-											"Skipped execution of callback '%s' for function '%s'.\n",
+											"Skipped execution of smithery tool '%s' for function '%s'.\n",
 											callbackPath,
 											fn,
 										)
