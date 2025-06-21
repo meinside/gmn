@@ -460,6 +460,34 @@ $ gmn -p "what is shoebill? search from the web" \
     --smithery-server-name="@some/qualified-server-name"
 ```
 
+You can even mix local tools and Smithery:
+
+```bash
+$ gmn -p "get the latest commits of repository 'gmn' of github user @meinside and send them as an email to asdf@zxcv.net" \
+    --smithery-profile-id="your-smithery-profile-id" \
+    --smithery-server-name="@smithery-ai/github" \
+    --tools='[{"functionDeclarations": [
+        {
+            "name": "send_email",
+            "description": "this function sends an email with given values",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "email_address": {"type": "STRING", "description": "email address of the recipient"},
+                    "email_title": {"type": "STRING", "description": "email title"},
+                    "email_body": {"type": "STRING", "description": "email body"},
+                },
+                "required": ["email_address", "email_title", "email_body"]
+            }
+        }
+    ]}]' \
+    --tool-config='{"functionCallingConfig": {
+        "mode": "ANY"
+    }}' \
+    --tool-callbacks="send_email:/path/to/send_email.sh" \
+    --recurse-on-callback-results
+```
+
 ### Generate Embeddings
 
 You can generate embeddings with `-E` or `--generate-embeddings` parameter:
