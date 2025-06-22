@@ -228,11 +228,6 @@ func run(
 						)
 					}
 				}
-				// NOTE: both `tools` and `toolConfig` should be given at the same time
-				if tools != nil && toolConfig == nil ||
-					tools == nil && toolConfig != nil {
-					return 1, fmt.Errorf("both tools and tool config should be given at the same time")
-				}
 
 				// function call (smithery)
 				var smitheryConn *mcpc.Client = nil
