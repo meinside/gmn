@@ -264,14 +264,6 @@ func run(
 						}
 
 						smitheryConn = conn
-
-						// NOTE: force recurse on callback results
-						if !p.LocalTools.RecurseOnCallbackResults {
-							writer.warn(
-								"Forcing recursion on callback results for smithery.",
-							)
-							p.LocalTools.RecurseOnCallbackResults = true
-						}
 					} else {
 						return 1, fmt.Errorf(
 							"failed to fetch tools from smithery: %w",
@@ -307,12 +299,12 @@ func run(
 					p.Generation.ThinkingBudget,
 					p.Generation.GroundingOn,
 					p.Caching.CachedContextName,
+					p.Tools.ShowCallbackResults,
+					p.Tools.RecurseOnCallbackResults,
 					tools,
 					toolConfig,
 					p.LocalTools.ToolCallbacks,
 					p.LocalTools.ToolCallbacksConfirm,
-					p.LocalTools.ShowCallbackResults,
-					p.LocalTools.RecurseOnCallbackResults,
 					smitheryConn,
 					smitheryTools,
 					p.Generation.OutputAsJSON,

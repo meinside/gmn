@@ -233,7 +233,7 @@ $ gmn -p "how is the weather today?" \
 
 #### Callback on Function Calls
 
-With `--tool-callbacks`, it will execute matched scripts/binaries with the function call data.
+With `--tool-callbacks`, it will run matched scripts/binaries with the function call data.
 
 Here is a sample bash script `categorize_image.sh` which categorizes given image with function call:
 
@@ -363,7 +363,7 @@ $ gmn -p "nuke the root directory" \
 
 #### Generate Recursively with Callback Results
 
-With `--recurse-on-callback-results`, it will generate recursively with the results of the scripts/binaries:
+With `--recurse-on-callback-results` / `-r`, it will generate recursively with the results of the scripts/binaries:
 
 ```bash
 $ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines does that file have" \
@@ -399,6 +399,8 @@ $ gmn -p "what is the smallest .sh file in /home/ubuntu/tmp/ and how many lines 
 ```
 
 Note that the mode of function calling config here is set to `AUTO`. If it is `ANY`, it may loop infinitely on the same function call result.
+
+You can omit `--recurse-on-callback-results` / `-r` if you don't need it, but then it will just print the first function call result and exit.
 
 #### Generate with Predefined Callbacks
 
@@ -457,7 +459,8 @@ then call with your smithery profile id and desired server name like:
 ```bash
 $ gmn -p "what is shoebill? search from the web" \
     --smithery-profile-id="your-smithery-profile-id" \
-    --smithery-server-name="@some/qualified-server-name"
+    --smithery-server-name="@some/qualified-server-name" \
+    --recurse-on-callback-results
 ```
 
 You can even mix local tools and Smithery:
