@@ -54,7 +54,8 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool, forcePrintCallbackResults bool, recurseOnCallbackResults bool,
+	forcePrintCallbackResults bool, recurseOnCallbackResults bool,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
 	smitheryConn *mcpc.Client, smitheryTools []mcp.Tool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
@@ -591,12 +592,20 @@ func doGeneration(
 											}
 											return
 										} else {
+											// warn that there are tool callbacks ignored
+											if len(toolCallbacks) > 0 && !recurseOnCallbackResults {
+												writer.warn(
+													"Not recursing, ignoring the result of '%s'.",
+													fn,
+												)
+											}
+
 											// print the result of execution
 											if forcePrintCallbackResults ||
 												verboseLevel(vbs) >= verboseMinimum {
 												writer.printColored(
 													color.FgCyan,
-													"%s",
+													`%s`,
 													res,
 												)
 											}
@@ -682,6 +691,14 @@ func doGeneration(
 												},
 											); err == nil {
 												if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+													// warn that there are smithery tools ignored
+													if len(smitheryTools) > 0 && !recurseOnCallbackResults {
+														writer.warn(
+															"Not recursing, ignoring the result of '%s'.",
+															fn,
+														)
+													}
+
 													// print the result of execution
 													if forcePrintCallbackResults ||
 														verboseLevel(vbs) >= verboseMinimum {
@@ -775,6 +792,12 @@ func doGeneration(
 										"Generated function call: %s",
 										prettify(part.FunctionCall),
 									)
+
+									// NOTE: not to recurse infinitely
+									if recurseOnCallbackResults {
+										writer.warn("Will skip further execution of function '%s' for avoiding infinite recursion.", fn)
+										recurseOnCallbackResults = false
+									}
 								}
 							} else {
 								// flush model response
@@ -880,7 +903,8 @@ func doGeneration(
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
-				tools, toolConfig, toolCallbacks, toolCallbacksConfirm, forcePrintCallbackResults, recurseOnCallbackResults,
+				forcePrintCallbackResults, recurseOnCallbackResults,
+				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
 				smitheryConn, smitheryTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,

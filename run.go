@@ -228,11 +228,6 @@ func run(
 						)
 					}
 				}
-				// NOTE: both `tools` and `toolConfig` should be given at the same time
-				if tools != nil && toolConfig == nil ||
-					tools == nil && toolConfig != nil {
-					return 1, fmt.Errorf("both tools and tool config should be given at the same time")
-				}
 
 				// function call (smithery)
 				var smitheryConn *mcpc.Client = nil
@@ -264,14 +259,6 @@ func run(
 						}
 
 						smitheryConn = conn
-
-						// NOTE: force recurse on callback results
-						if !p.LocalTools.RecurseOnCallbackResults {
-							writer.warn(
-								"Forcing recursion on callback results for smithery.",
-							)
-							p.LocalTools.RecurseOnCallbackResults = true
-						}
 					} else {
 						return 1, fmt.Errorf(
 							"failed to fetch tools from smithery: %w",
@@ -307,12 +294,12 @@ func run(
 					p.Generation.ThinkingBudget,
 					p.Generation.GroundingOn,
 					p.Caching.CachedContextName,
+					p.Tools.ShowCallbackResults,
+					p.Tools.RecurseOnCallbackResults,
 					tools,
 					toolConfig,
 					p.LocalTools.ToolCallbacks,
 					p.LocalTools.ToolCallbacksConfirm,
-					p.LocalTools.ShowCallbackResults,
-					p.LocalTools.RecurseOnCallbackResults,
 					smitheryConn,
 					smitheryTools,
 					p.Generation.OutputAsJSON,
