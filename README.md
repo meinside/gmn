@@ -341,24 +341,11 @@ $ gmn -p "nuke the root directory" \
                 "properties": {"directory": {"type": "STRING"}},
                 "required": ["directory"]
             }
-        },
-        {
-            "name": "remove_file",
-            "description": "this function deletes a file", 
-            "parameters": {
-                "type": "OBJECT",
-                "properties": {"filepath": {"type": "STRING"}},
-                "required": ["filepath"]
-            }
         }
     ]}]' \
-    --tool-config='{"functionCallingConfig": {
-        "mode": "ANY",
-        "allowedFunctionNames": ["remove_dir_recursively", "remove_file"]
-    }}' \
     --tool-callbacks="remove_dir_recursively:/path/to/rm_rf_dir.sh" \
-    --tool-callbacks="create_dir:/path/to/mkdir.sh" \
-    --tool-callbacks-confirm="remove_dir_recursively:true"
+    --tool-callbacks-confirm="remove_dir_recursively:true" \
+    --recurse-on-callback-results
 ```
 
 #### Generate Recursively with Callback Results
