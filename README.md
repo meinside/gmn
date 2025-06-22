@@ -287,12 +287,12 @@ read -r -d '' TOOL_CONFIG <<-'EOF'
 }
 EOF
 
-# run gmn with params
+# run gmn with params (drop error/warning messages)
 gmn -f "$filename" -p "categorize this image" \
   --tools="$TOOLS" \
   --tool-config="$TOOL_CONFIG" \
   --tool-callbacks="categorize_image:$CALLBACK_SCRIPT" \
-  --show-callback-results
+  --show-callback-results 2>/dev/null
 ```
 
 And this is a callback script `callback_categorize_image.sh`:

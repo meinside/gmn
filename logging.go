@@ -80,6 +80,24 @@ func (w *outputWriter) printColored(
 	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
 }
 
+// print given string to stderr with color (if possible)
+func (w *outputWriter) errorColored(
+	c color.Attribute,
+	format string,
+	a ...any,
+) {
+	formatted := fmt.Sprintf(format, a...)
+
+	if supportscolor.Stderr().SupportsColor { // if color is supported,
+		c := color.New(c)
+		_, _ = c.Fprint(os.Stderr, formatted)
+	} else {
+		fmt.Fprint(os.Stderr, formatted)
+	}
+
+	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
+}
+
 // print given string to stdout (will add a new line if there isn't)
 func (w *outputWriter) print(
 	level verbosity,
@@ -127,8 +145,8 @@ func (w *outputWriter) verbose(
 	}
 }
 
-// print given string to stdout and append a new line if there isn't
-func (w *outputWriter) printWithNewlineAppended(
+// print given string to stderr and append a new line if there isn't
+func (w *outputWriter) errWithNewlineAppended(
 	c color.Attribute,
 	format string,
 	a ...any,
@@ -137,27 +155,27 @@ func (w *outputWriter) printWithNewlineAppended(
 		format += "\n"
 	}
 
-	w.printColored(
+	w.errorColored(
 		c,
 		format,
 		a...,
 	)
 }
 
-// print given warning string to stdout (will add a new line if there isn't)
+// print given warning string to stderr (will add a new line if there isn't)
 func (w *outputWriter) warn(
 	format string,
 	a ...any,
 ) {
-	w.printWithNewlineAppended(color.FgMagenta, format, a...)
+	w.errWithNewlineAppended(color.FgMagenta, format, a...)
 }
 
-// print given error string to stdout (will add a new line if there isn't)
+// print given error string to stderr (will add a new line if there isn't)
 func (w *outputWriter) error(
 	format string,
 	a ...any,
 ) {
-	w.printWithNewlineAppended(color.FgRed, format, a...)
+	w.errWithNewlineAppended(color.FgRed, format, a...)
 }
 
 // print help message before os.Exit()
