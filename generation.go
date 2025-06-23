@@ -16,11 +16,11 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gabriel-vasile/mimetype"
-	mcpc "github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
+	"github.com/meinside/smithery-go"
 )
 
 // generation parameter constants
@@ -56,7 +56,7 @@ func doGeneration(
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
-	smitheryConn *mcpc.Client, smitheryTools []mcp.Tool,
+	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]mcp.Tool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -162,15 +162,16 @@ func doGeneration(
 		opts.ToolConfig = toolConfig
 	}
 	var smitheryToGeminiTools []*genai.FunctionDeclaration = nil
-	if smitheryTools != nil {
-		if smitheryToGeminiTools, err = gt.MCPToGeminiTools(smitheryTools); err == nil {
+	for _, tools := range smitheryTools {
+		if geminiTools, err := gt.MCPToGeminiTools(tools); err == nil {
 			if len(opts.Tools) > 0 {
-				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, smitheryToGeminiTools...)
+				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, geminiTools...)
 			} else {
 				opts.Tools = append(opts.Tools, &genai.Tool{
-					FunctionDeclarations: smitheryToGeminiTools,
+					FunctionDeclarations: geminiTools,
 				})
 			}
+			smitheryToGeminiTools = append(smitheryToGeminiTools, geminiTools...)
 		} else {
 			return 1, fmt.Errorf(
 				"failed to convert smithery tools for gemini: %w",
@@ -653,42 +654,58 @@ func doGeneration(
 											},
 										})
 									}
-								} else if smitheryToGeminiTools != nil {
+								} else if smitheryProfileID != nil && smitheryToGeminiTools != nil {
 									// if there is a matching smithery tool,
 									if slices.ContainsFunc(smitheryToGeminiTools, func(tool *genai.FunctionDeclaration) bool {
 										return tool.Name == part.FunctionCall.Name
 									}) {
 										okToRun := false
-										// check if matched smithery tool requires confirmation
-										if slices.ContainsFunc(smitheryTools, func(tool mcp.Tool) bool {
-											return tool.Name == part.FunctionCall.Name &&
-												tool.Annotations.DestructiveHint != nil &&
-												*tool.Annotations.DestructiveHint
-										}) {
-											okToRun = confirm(fmt.Sprintf(
-												"May I execute callback '%s' from smithery for function '%s'?",
-												callbackPath,
-												fn,
-											))
+
+										var serverName string
+										var tool mcp.Tool
+										var toolExists bool
+										if serverName, tool, toolExists = smitheryToolFrom(
+											smitheryTools,
+											part.FunctionCall.Name,
+										); toolExists {
+											// check if matched smithery tool requires confirmation
+											if tool.Annotations.DestructiveHint != nil &&
+												*tool.Annotations.DestructiveHint {
+												okToRun = confirm(fmt.Sprintf(
+													"May I execute callback '%s' from smithery for function '%s'?",
+													callbackPath,
+													fn,
+												))
+											} else {
+												okToRun = true
+											}
 										} else {
-											okToRun = true
+											// no matching smithery tool with given server & function name
+											writer.warn(
+												"No matching smithery tool '%s/%s'; generated function call: %s",
+												serverName,
+												part.FunctionCall.Name,
+												prettify(part.FunctionCall),
+											)
 										}
 
 										if okToRun {
 											writer.verbose(
 												verboseMedium,
 												vbs,
-												"calling smithery tool...",
+												"calling smithery tool '%s/%s'...",
+												serverName,
+												part.FunctionCall.Name,
 											)
 
-											if res, err := smitheryConn.CallTool(
+											// call smithery tool
+											if res, err := fetchSmitheryToolCallResult(
 												ctx,
-												mcp.CallToolRequest{
-													Params: mcp.CallToolParams{
-														Name:      part.FunctionCall.Name,
-														Arguments: part.FunctionCall.Args,
-													},
-												},
+												smitheryClient,
+												*smitheryProfileID,
+												serverName,
+												part.FunctionCall.Name,
+												part.FunctionCall.Args,
 											); err == nil {
 												if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
 													// warn that there are smithery tools ignored
@@ -754,36 +771,36 @@ func doGeneration(
 												return
 											}
 										} else {
-											// no matching smithery tool, just print the function call data
-											writer.print(
-												verboseMinimum,
-												"No matching smithery tool; generated function call: %s",
-												prettify(part.FunctionCall),
+											writer.printColored(
+												color.FgYellow,
+												"Skipped execution of smithery tool '%s' for function '%s'.\n",
+												part.FunctionCall.Name,
+												fn,
 											)
+
+											// flush model response
+											pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+											// append function call result (not called)
+											pastGenerations = append(pastGenerations, genai.Content{
+												Role: "user",
+												Parts: []*genai.Part{
+													{
+														Text: fmt.Sprintf(
+															`User chose not to call function '%s'.`,
+															fn,
+														),
+													},
+												},
+											})
 										}
 									} else {
-										writer.printColored(
-											color.FgYellow,
-											"Skipped execution of smithery tool '%s' for function '%s'.\n",
-											callbackPath,
-											fn,
+										// no matching smithery tool, just print the function call data
+										writer.print(
+											verboseMinimum,
+											"No matching smithery tool; generated function call: %s",
+											prettify(part.FunctionCall),
 										)
-
-										// flush model response
-										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-										// append function call result (not called)
-										pastGenerations = append(pastGenerations, genai.Content{
-											Role: "user",
-											Parts: []*genai.Part{
-												{
-													Text: fmt.Sprintf(
-														`User chose not to call function '%s'.`,
-														fn,
-													),
-												},
-											},
-										})
 									}
 								} else {
 									// just print the function call data
@@ -905,7 +922,7 @@ func doGeneration(
 				cachedContextName,
 				forcePrintCallbackResults, recurseOnCallbackResults,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
-				smitheryConn, smitheryTools,
+				smitheryClient, smitheryProfileID, smitheryTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
@@ -913,16 +930,6 @@ func doGeneration(
 				ignoreUnsupportedType,
 				vbs,
 			)
-		}
-
-		// make sure to close smithery connection
-		if smitheryConn != nil {
-			if err := smitheryConn.Close(); err != nil {
-				writer.error(
-					"Failed to close connection to smithery: %s",
-					err,
-				)
-			}
 		}
 
 		return res.exit, res.err
