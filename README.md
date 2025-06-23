@@ -213,7 +213,7 @@ TODO
 
 TODO
 
-### Generate with Tool Config (Function Call)
+### Generate with Local Tools (Function/Tool Calls)
 
 With `--tools` and `--tool-config`, it will print the data of returned function call:
 
@@ -446,7 +446,17 @@ then call with your smithery profile id and desired server name like:
 ```bash
 $ gmn -p "what is shoebill? search from the web" \
     --smithery-profile-id="your-smithery-profile-id" \
-    --smithery-server-name="@some/qualified-server-name" \
+    --smithery-server-name="@nickclyde/duckduckgo-mcp-server" \
+    --recurse-on-callback-results
+```
+
+You can use `--smithery-server-name` multiple times for using multiple servers' functions:
+
+```bash
+$ gmn -p "get the description of repository 'gmn' of github user @meinside, search it from duckduckgo, and summarize the duckduckgo result" \
+    --smithery-profile-id="your-smithery-profile-id" \
+    --smithery-server-name="@nickclyde/duckduckgo-mcp-server" \
+    --smithery-server-name="@smithery-ai/github" \
     --recurse-on-callback-results
 ```
 

@@ -69,8 +69,8 @@ type params struct {
 
 	// tools (smithery)
 	SmitheryTools struct {
-		SmitheryProfileID  *string `long:"smithery-profile-id" description:"Smithery profile ID for function call"`
-		SmitheryServerName *string `long:"smithery-server-name" description:"Smithery qualified server name for function call"`
+		SmitheryProfileID   *string  `long:"smithery-profile-id" description:"Smithery profile ID for function call"`
+		SmitheryServerNames []string `long:"smithery-server-name" description:"Smithery qualified server name for function call (can be used multiple times)"`
 	} `group:"Tools (Smithery)"`
 
 	// for embedding

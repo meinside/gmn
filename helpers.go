@@ -942,36 +942,89 @@ func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 // extract keys from given tools
 func keysFromTools(
 	localTools []genai.Tool,
-	smitheryTools []*genai.FunctionDeclaration,
+	smitheryTools map[string][]mcp.Tool,
 ) (localToolKeys, smitheryToolKeys []string) {
 	for _, tool := range localTools {
 		for _, decl := range tool.FunctionDeclarations {
 			localToolKeys = append(localToolKeys, decl.Name)
 		}
 	}
-	for _, tool := range smitheryTools {
-		smitheryToolKeys = append(smitheryToolKeys, tool.Name)
+	for _, tools := range smitheryTools {
+		for _, tool := range tools {
+			smitheryToolKeys = append(smitheryToolKeys, tool.Name)
+		}
 	}
 
 	return
 }
 
+// get a matched server name and tool from given smithery tools and function name
+func smitheryToolFrom(smitheryTools map[string][]mcp.Tool, fnName string) (serverName string, tool mcp.Tool, exists bool) {
+	for serverName, tools := range smitheryTools {
+		for _, tool := range tools {
+			if tool.Name == fnName {
+				return serverName, tool, true
+			}
+		}
+	}
+
+	return "", mcp.Tool{}, false
+}
+
+// get a new smithery client
+func smitheryClient(
+	smitheryAPIKey string,
+) *smithery.Client {
+	return smithery.NewClient(smitheryAPIKey)
+}
+
 // fetch function declarations from smithery
-//
-// NOTE: `conn` should be closed after use
 func fetchSmitheryTools(
 	ctx context.Context,
-	smitheryAPIKey, smitheryProfileID, smitheryQualifiedServerName string,
-) (conn *mcpc.Client, tools []mcp.Tool, err error) {
-	smithery := smithery.NewClient(smitheryAPIKey)
-	if conn, err = smithery.ConnectWithProfileID(
+	client *smithery.Client,
+	smitheryProfileID, smitheryQualifiedServerName string,
+) (tools []mcp.Tool, err error) {
+	var conn *mcpc.Client
+	if conn, err = client.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
 		smitheryQualifiedServerName,
 	); err == nil {
+		defer conn.Close()
+
 		var listed *mcp.ListToolsResult
 		if listed, err = conn.ListTools(ctx, mcp.ListToolsRequest{}); err == nil {
-			return conn, listed.Tools, nil
+			return listed.Tools, nil
+		}
+	}
+	return
+}
+
+// fetch function result from smithery
+func fetchSmitheryToolCallResult(
+	ctx context.Context,
+	client *smithery.Client,
+	smitheryProfileID, smitheryQualifiedServerName string,
+	fnName string, fnArgs map[string]any,
+) (res *mcp.CallToolResult, err error) {
+	var conn *mcpc.Client
+	if conn, err = client.ConnectWithProfileID(
+		ctx,
+		smitheryProfileID,
+		smitheryQualifiedServerName,
+	); err == nil {
+		defer conn.Close()
+
+		if res, err = conn.CallTool(
+			ctx,
+			mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      fnName,
+					Arguments: fnArgs,
+				},
+			},
+		); err == nil {
+			return res, nil
 		}
 	}
 	return
