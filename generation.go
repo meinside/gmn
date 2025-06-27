@@ -5,9 +5,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"os"
 	"slices"
 	"strconv"
@@ -1370,7 +1372,8 @@ func appendAndFlushModelResponse(
 
 // predefined callback function names
 const (
-	fnCallbackStdin = `@stdin`
+	fnCallbackStdin     = `@stdin`
+	fnCallbackFormatter = `@format`
 )
 
 // check if given `callbackPath` is executable
@@ -1385,7 +1388,7 @@ func checkCallbackPath(
 	okToRun bool,
 ) {
 	// check if `callbackPath` is a predefined callback
-	if callbackPath == fnCallbackStdin {
+	if callbackPath == fnCallbackStdin { // @stdin
 		okToRun = true
 
 		fnCallback = func() (string, error) {
@@ -1396,6 +1399,29 @@ func checkCallbackPath(
 			)
 
 			return readFromStdin(prompt)
+		}
+	} else if strings.HasPrefix(callbackPath, fnCallbackFormatter) { // @format
+		okToRun = true
+
+		fnCallback = func() (string, error) {
+			if tpl, exists := strings.CutPrefix(callbackPath, fnCallbackFormatter+"="); exists {
+				if t, err := template.New("fnFormatter").Parse(tpl); err == nil {
+					buf := new(bytes.Buffer)
+					if err := t.Execute(buf, fnCall.Args); err == nil {
+						return buf.String(), nil
+					} else {
+						return "", fmt.Errorf("failed to execute template for %s: %w", fnCallbackFormatter, err)
+					}
+				} else {
+					return "", fmt.Errorf("failed to parse format for %s: %w", fnCallbackFormatter, err)
+				}
+			} else {
+				if marshalled, err := json.MarshalIndent(fnCall.Args, "", "  "); err == nil {
+					return string(marshalled), nil
+				} else {
+					return "", fmt.Errorf("failed to marshal to JSON for %s: %w", fnCallbackFormatter, err)
+				}
+			}
 		}
 	} else { // ordinary path of binary/script:
 		// ask for confirmation

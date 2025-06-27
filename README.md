@@ -391,7 +391,15 @@ You can omit `--recurse-on-callback-results` / `-r` if you don't need it, but th
 
 #### Generate with Predefined Callbacks
 
-You can set predefined callbacks for tool callbacks instead of scripts/binaries:
+You can set predefined callbacks for tool callbacks instead of scripts/binaries.
+
+Here are predefined callback names:
+
+* `@stdin`: Ask the user for standard input.
+* `@format`: Print a formatted string with the resulting function arguments.
+* … (more to be added)
+
+##### @stdin
 
 ```bash
 $ gmn -p "send an email to steve that i'm still alive" \
@@ -422,10 +430,40 @@ $ gmn -p "send an email to steve that i'm still alive" \
     --recurse-on-callback-results
 ```
 
-Here are predefined callback names:
+##### @format
 
-* `@stdin`: Ask the user for standard input.
-* … (more to be added)
+With `--tool-callbacks="YOUR_CALLBACK:@format=YOUR_FORMAT_STRING"`, it will print the resulting function arguments as a string formatted with the [text/template](https://pkg.go.dev/text/template) syntax:
+
+```bash
+$ gmn -f /some/image/file.jpg -p "categorize this image" \
+    --tools='[{
+        "functionDeclarations": [{
+            "name": "categorize_image",
+            "description": "this function categorizes the provided image",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "category": {
+                        "type": "STRING",
+                        "description": "the category of the provided image",
+                        "enum": ["animal", "person", "scenary", "object", "other"],
+                        "nullable": false
+                    },
+                    "description": {
+                        "type": "STRING",
+                        "description": "the detailed description of the provided image",
+                        "nullable": false
+                    }
+                },
+                "required": ["category", "description"]
+            }
+        }]}]' \
+    --tool-config='{"functionCallingConfig": {"mode": "ANY"}}' \
+    --tool-callbacks='categorize_image:@format={{printf "Category: %s\nDescription: %s\n" .category .description}}' \
+    --show-callback-results 2>/dev/null
+```
+
+When the format string is omitted (`--tool-callbacks="YOUR_CALLBACK:@format"`), it will be printed as a JSON string.
 
 ---
 
