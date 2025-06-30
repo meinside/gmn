@@ -18,7 +18,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -58,7 +58,7 @@ func doGeneration(
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
-	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]mcp.Tool,
+	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]*mcp.Tool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -671,7 +671,8 @@ func doGeneration(
 											part.FunctionCall.Name,
 										); toolExists {
 											// check if matched smithery tool requires confirmation
-											if tool.Annotations.DestructiveHint != nil &&
+											if tool.Annotations != nil &&
+												tool.Annotations.DestructiveHint != nil &&
 												*tool.Annotations.DestructiveHint {
 												okToRun = confirm(fmt.Sprintf(
 													"May I execute callback '%s' from smithery for function '%s'?",

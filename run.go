@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -231,7 +231,7 @@ func run(
 
 				// function call (smithery)
 				var sc *smithery.Client
-				var allSmitheryTools map[string][]mcp.Tool = nil
+				var allSmitheryTools map[string][]*mcp.Tool = nil
 				if conf.SmitheryAPIKey != nil &&
 					p.SmitheryTools.SmitheryProfileID != nil &&
 					len(p.SmitheryTools.SmitheryServerNames) > 0 {
@@ -245,7 +245,7 @@ func run(
 							smitheryServerName,
 						)
 
-						var fetchedSmitheryTools []mcp.Tool
+						var fetchedSmitheryTools []*mcp.Tool
 						if fetchedSmitheryTools, err = fetchSmitheryTools(
 							context.TODO(),
 							sc,
@@ -253,7 +253,7 @@ func run(
 							smitheryServerName,
 						); err == nil {
 							if allSmitheryTools == nil {
-								allSmitheryTools = map[string][]mcp.Tool{}
+								allSmitheryTools = map[string][]*mcp.Tool{}
 							}
 							allSmitheryTools[smitheryServerName] = fetchedSmitheryTools
 
