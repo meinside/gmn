@@ -10,10 +10,10 @@ require (
 	github.com/infisical/go-sdk v0.5.97
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/mark3labs/mcp-go v0.32.0
-	github.com/meinside/gemini-things-go v0.3.14
-	github.com/meinside/smithery-go v0.0.3
+	github.com/meinside/gemini-things-go v0.3.15
+	github.com/meinside/smithery-go v0.1.0
 	github.com/meinside/version-go v0.0.3
+	github.com/modelcontextprotocol/go-sdk v0.0.0-20250627194314-8a3f272dbbcf
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	google.golang.org/genai v1.13.0
 )
@@ -44,15 +44,12 @@ require (
 	github.com/go-resty/resty/v2 v2.16.5 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/spf13/cast v1.9.2 // indirect
-	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect

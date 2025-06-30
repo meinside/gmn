@@ -28,8 +28,7 @@ import (
 
 	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
-	mcpc "github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tailscale/hujson"
 	"google.golang.org/genai"
 
@@ -600,7 +599,7 @@ func fetchContent(
 func removeConsecutiveEmptyLines(input string) string {
 	// trim each line
 	trimmed := []string{}
-	for _, line := range strings.Split(input, "\n") {
+	for line := range strings.SplitSeq(input, "\n") {
 		trimmed = append(trimmed, strings.TrimRight(line, " "))
 	}
 	input = strings.Join(trimmed, "\n")
@@ -942,7 +941,7 @@ func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 // extract keys from given tools
 func keysFromTools(
 	localTools []genai.Tool,
-	smitheryTools map[string][]mcp.Tool,
+	smitheryTools map[string][]*mcp.Tool,
 ) (localToolKeys, smitheryToolKeys []string) {
 	for _, tool := range localTools {
 		for _, decl := range tool.FunctionDeclarations {
@@ -959,11 +958,11 @@ func keysFromTools(
 }
 
 // get a matched server name and tool from given smithery tools and function name
-func smitheryToolFrom(smitheryTools map[string][]mcp.Tool, fnName string) (serverName string, tool mcp.Tool, exists bool) {
+func smitheryToolFrom(smitheryTools map[string][]*mcp.Tool, fnName string) (serverName string, tool mcp.Tool, exists bool) {
 	for serverName, tools := range smitheryTools {
 		for _, tool := range tools {
-			if tool.Name == fnName {
-				return serverName, tool, true
+			if tool != nil && tool.Name == fnName {
+				return serverName, *tool, true
 			}
 		}
 	}
@@ -983,8 +982,8 @@ func fetchSmitheryTools(
 	ctx context.Context,
 	client *smithery.Client,
 	smitheryProfileID, smitheryQualifiedServerName string,
-) (tools []mcp.Tool, err error) {
-	var conn *mcpc.Client
+) (tools []*mcp.Tool, err error) {
+	var conn *mcp.ClientSession
 	if conn, err = client.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
@@ -993,7 +992,7 @@ func fetchSmitheryTools(
 		defer conn.Close()
 
 		var listed *mcp.ListToolsResult
-		if listed, err = conn.ListTools(ctx, mcp.ListToolsRequest{}); err == nil {
+		if listed, err = conn.ListTools(ctx, &mcp.ListToolsParams{}); err == nil {
 			return listed.Tools, nil
 		}
 	}
@@ -1007,7 +1006,7 @@ func fetchSmitheryToolCallResult(
 	smitheryProfileID, smitheryQualifiedServerName string,
 	fnName string, fnArgs map[string]any,
 ) (res *mcp.CallToolResult, err error) {
-	var conn *mcpc.Client
+	var conn *mcp.ClientSession
 	if conn, err = client.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
@@ -1017,11 +1016,9 @@ func fetchSmitheryToolCallResult(
 
 		if res, err = conn.CallTool(
 			ctx,
-			mcp.CallToolRequest{
-				Params: mcp.CallToolParams{
-					Name:      fnName,
-					Arguments: fnArgs,
-				},
+			&mcp.CallToolParams{
+				Name:      fnName,
+				Arguments: fnArgs,
 			},
 		); err == nil {
 			return res, nil
