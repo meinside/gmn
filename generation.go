@@ -338,7 +338,7 @@ func doGeneration(
 								if part.Thought {
 									if !thoughtBegan {
 										writer.printColored(
-											color.FgYellow,
+											color.FgHiYellow,
 											"<thought>\n",
 										)
 
@@ -351,7 +351,7 @@ func doGeneration(
 
 										if !thoughtEnded {
 											writer.printColored(
-												color.FgYellow,
+												color.FgHiYellow,
 												"</thought>\n",
 											)
 
@@ -365,13 +365,13 @@ func doGeneration(
 							if part.Text != "" {
 								if isThinking {
 									writer.printColored(
-										color.FgYellow,
+										color.FgHiYellow,
 										"%s",
 										part.Text,
 									)
 								} else {
 									writer.printColored(
-										color.FgWhite,
+										color.FgHiWhite,
 										"%s",
 										part.Text,
 									)
@@ -526,20 +526,6 @@ func doGeneration(
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-								// append user's prompt to the past generations
-								if latest := latestTextPrompt(prompts); len(latest) > 0 {
-									pastGenerations = append(pastGenerations,
-										genai.Content{
-											Role: "user",
-											Parts: []*genai.Part{
-												{
-													Text: latest,
-												},
-											},
-										},
-									)
-								}
-
 								// string representation of function and its arguments
 								fn := fmt.Sprintf(
 									`%s(%s)`,
@@ -547,7 +533,7 @@ func doGeneration(
 									prettify(part.FunctionCall.Args, true),
 								)
 
-								// NOTE: check if past generations has any of `fn` (for avoiding infinite loop)
+								// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
 								if slices.ContainsFunc(pastGenerations, func(content genai.Content) bool {
 									for _, part := range content.Parts {
 										if strings.Contains(part.Text, fn) {
@@ -607,8 +593,8 @@ func doGeneration(
 											if forcePrintCallbackResults ||
 												verboseLevel(vbs) >= verboseMinimum {
 												writer.printColored(
-													color.FgCyan,
-													`%s`,
+													color.FgHiCyan,
+													"%s\n",
 													res,
 												)
 											}
@@ -634,7 +620,7 @@ func doGeneration(
 										}
 									} else {
 										writer.printColored(
-											color.FgYellow,
+											color.FgHiYellow,
 											"Skipped execution of callback '%s' for function '%s'.\n",
 											callbackPath,
 											fn,
@@ -724,8 +710,8 @@ func doGeneration(
 														verboseLevel(vbs) >= verboseMinimum {
 														for _, gen := range generated {
 															writer.printColored(
-																color.FgCyan,
-																"%s",
+																color.FgHiCyan,
+																"%s\n",
 																gen.String(),
 															)
 														}
@@ -775,7 +761,7 @@ func doGeneration(
 											}
 										} else {
 											writer.printColored(
-												color.FgYellow,
+												color.FgHiYellow,
 												"Skipped execution of smithery tool '%s' for function '%s'.\n",
 												part.FunctionCall.Name,
 												fn,
@@ -906,12 +892,7 @@ func doGeneration(
 				prettify(pastGenerations),
 			)
 
-			// prepare prompts for recursion
-			var promptsForRecursion []gt.Prompt = nil
-			if latest := latestTextPrompt(prompts); len(latest) > 0 {
-				promptsForRecursion = []gt.Prompt{gt.PromptFromText(latest)}
-			}
-
+			// do recursion
 			return doGeneration(
 				ctx,
 				writer,
@@ -919,7 +900,7 @@ func doGeneration(
 				apiKey, model,
 				smitheryAPIKey,
 				systemInstruction, temperature, topP, topK,
-				promptsForRecursion, nil, nil,
+				prompts, promptFiles, filepaths,
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
@@ -1050,7 +1031,7 @@ func doEmbeddingsGeneration(
 		)
 	} else {
 		writer.printColored(
-			color.FgWhite,
+			color.FgHiWhite,
 			"%s\n",
 			string(encoded),
 		)
@@ -1134,7 +1115,7 @@ func cacheContext(
 		cachedContextDisplayName,
 	); err == nil {
 		writer.printColored(
-			color.FgWhite,
+			color.FgHiWhite,
 			"%s",
 			name,
 		)
@@ -1187,13 +1168,13 @@ func listCachedContexts(
 		if len(listed) > 0 {
 			for _, content := range listed {
 				writer.printColored(
-					color.FgGreen,
+					color.FgHiGreen,
 					"%s",
 					content.Name,
 				)
 				if len(content.DisplayName) > 0 {
 					writer.printColored(
-						color.FgWhite,
+						color.FgHiWhite,
 						" (%s)",
 						content.DisplayName,
 					)
@@ -1307,17 +1288,21 @@ func listModels(
 	} else {
 		for _, model := range models {
 			writer.printColored(
-				color.FgGreen,
+				color.FgHiGreen,
 				"%s",
 				model.Name,
 			)
+			writer.printColored(
+				color.FgHiWhite,
+				` (%s)`,
+				model.DisplayName,
+			)
 
-			writer.printColored(color.FgWhite, ` (%s)
+			writer.printColored(color.FgWhite, `
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s
-`, model.DisplayName,
-				model.InputTokenLimit,
+`, model.InputTokenLimit,
 				model.OutputTokenLimit,
 				strings.Join(model.SupportedActions, ", "),
 			)
