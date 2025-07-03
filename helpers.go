@@ -912,17 +912,6 @@ func historyEndsWithUsers(history []genai.Content) bool {
 	return false
 }
 
-// get the latest text prompt from the given prompts
-func latestTextPrompt(prompts []gt.Prompt) string {
-	for _, prompt := range slices.Backward(prompts) {
-		if textPrompt, ok := prompt.(gt.TextPrompt); ok {
-			return textPrompt.ToPart().Text
-		}
-	}
-
-	return ""
-}
-
 // check if there is any duplicated value between given arrays
 func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 	pool := map[V]struct{}{}
@@ -989,7 +978,9 @@ func fetchSmitheryTools(
 		smitheryProfileID,
 		smitheryQualifiedServerName,
 	); err == nil {
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		var listed *mcp.ListToolsResult
 		if listed, err = conn.ListTools(ctx, &mcp.ListToolsParams{}); err == nil {
@@ -1012,7 +1003,9 @@ func fetchSmitheryToolCallResult(
 		smitheryProfileID,
 		smitheryQualifiedServerName,
 	); err == nil {
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		if res, err = conn.CallTool(
 			ctx,
