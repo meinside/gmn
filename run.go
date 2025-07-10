@@ -304,6 +304,7 @@ func run(
 					p.Caching.CachedContextName,
 					p.Tools.ShowCallbackResults,
 					p.Tools.RecurseOnCallbackResults,
+					p.Tools.ForceCallDestructiveTools,
 					tools,
 					toolConfig,
 					p.LocalTools.ToolCallbacks,
