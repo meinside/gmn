@@ -765,7 +765,8 @@ func doGeneration(
 										} else {
 											writer.printColored(
 												color.FgHiYellow,
-												"Skipped execution of smithery tool '%s' for function '%s'.\n",
+												"Skipped execution of smithery tool '%s/%s' for function '%s'.\n",
+												serverName,
 												part.FunctionCall.Name,
 												fn,
 											)
@@ -804,7 +805,10 @@ func doGeneration(
 
 									// NOTE: not to recurse infinitely
 									if recurseOnCallbackResults {
-										writer.warn("Will skip further execution of function '%s' for avoiding infinite recursion.", fn)
+										writer.warn(
+											"Will skip further execution of function '%s' for avoiding infinite recursion.",
+											fn,
+										)
 										recurseOnCallbackResults = false
 									}
 								}
