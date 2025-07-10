@@ -56,7 +56,7 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	forcePrintCallbackResults bool, recurseOnCallbackResults bool,
+	forcePrintCallbackResults bool, recurseOnCallbackResults bool, forceCallDestructiveTools bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
 	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]*mcp.Tool,
 	outputAsJSON bool,
@@ -558,6 +558,7 @@ func doGeneration(
 									fnCallback, okToRun := checkCallbackPath(
 										callbackPath,
 										toolCallbacksConfirm,
+										forceCallDestructiveTools,
 										part.FunctionCall,
 										writer,
 										vbs,
@@ -659,7 +660,8 @@ func doGeneration(
 											// check if matched smithery tool requires confirmation
 											if tool.Annotations != nil &&
 												tool.Annotations.DestructiveHint != nil &&
-												*tool.Annotations.DestructiveHint {
+												*tool.Annotations.DestructiveHint &&
+												!forceCallDestructiveTools {
 												okToRun = confirm(fmt.Sprintf(
 													"May I execute callback '%s' from smithery for function '%s'?",
 													callbackPath,
@@ -904,7 +906,7 @@ func doGeneration(
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
-				forcePrintCallbackResults, recurseOnCallbackResults,
+				forcePrintCallbackResults, recurseOnCallbackResults, forceCallDestructiveTools,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
 				smitheryClient, smitheryProfileID, smitheryTools,
 				outputAsJSON,
@@ -1366,6 +1368,7 @@ const (
 func checkCallbackPath(
 	callbackPath string,
 	confirmToolCallbacks map[string]bool,
+	forceCallDestructiveTools bool,
 	fnCall *genai.FunctionCall,
 	writer *outputWriter,
 	vbs []bool,
@@ -1411,7 +1414,7 @@ func checkCallbackPath(
 		}
 	} else { // ordinary path of binary/script:
 		// ask for confirmation
-		if confirmNeeded, exists := confirmToolCallbacks[fnCall.Name]; exists && confirmNeeded {
+		if confirmNeeded, exists := confirmToolCallbacks[fnCall.Name]; exists && confirmNeeded && !forceCallDestructiveTools {
 			okToRun = confirm(fmt.Sprintf(
 				"May I execute callback '%s' for function '%s(%s)'?",
 				callbackPath,
