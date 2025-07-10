@@ -663,8 +663,9 @@ func doGeneration(
 												*tool.Annotations.DestructiveHint &&
 												!forceCallDestructiveTools {
 												okToRun = confirm(fmt.Sprintf(
-													"May I execute callback '%s' from smithery for function '%s'?",
-													callbackPath,
+													"May I call smithery tool '%s/%s' for function '%s'?",
+													serverName,
+													part.FunctionCall.Name,
 													fn,
 												))
 											} else {
