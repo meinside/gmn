@@ -988,7 +988,7 @@ func doEmbeddingsGeneration(
 	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	// embeddings task type
-	selectedTaskType := gt.EmbeddingTaskUnspecified
+	var selectedTaskType gt.EmbeddingTaskType
 	if taskType != nil {
 		selectedTaskType = gt.EmbeddingTaskType(*taskType)
 	}

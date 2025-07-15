@@ -33,7 +33,7 @@ with following content:
   "google_ai_model": "gemini-2.5-flash",
   "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
   "google_ai_speech_generation_model": "gemini-2.5-flash-preview-tts",
-  "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
+  "google_ai_embeddings_model": "gemini-embedding-001",
 }
 ```
 
@@ -63,7 +63,7 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   "google_ai_model": "gemini-2.5-flash",
   "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
   "google_ai_speech_generation_model": "gemini-2.5-flash-preview-tts",
-  "google_ai_embeddings_model": "gemini-embedding-exp-03-07",
+  "google_ai_embeddings_model": "gemini-embedding-001",
 }
 ```
 
@@ -532,7 +532,7 @@ You can generate embeddings with `-E` or `--generate-embeddings` parameter:
 
 ```bash
 # generate embeddings with a specific embeddings model,
-$ gmn -m "gemini-embedding-exp-03-07" -E -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+$ gmn -m "gemini-embedding-001" -E -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
 
 # or with the default/configured one:
 $ gmn -E -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"

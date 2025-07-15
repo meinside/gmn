@@ -24,7 +24,7 @@ const (
 	defaultGoogleAIModel                 = `gemini-2.5-flash`
 	defaultGoogleAIImageGenerationModel  = `gemini-2.0-flash-preview-image-generation`
 	defaultGoogleAISpeechGenerationModel = `gemini-2.5-flash-preview-tts`
-	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-exp-03-07`
+	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-001`
 
 	// default system instruction
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API.
