@@ -56,7 +56,7 @@ func doGeneration(
 	withThinking bool, thinkingBudget *int32,
 	withGrounding bool,
 	cachedContextName *string,
-	forcePrintCallbackResults bool, recurseOnCallbackResults bool, forceCallDestructiveTools bool,
+	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
 	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]*mcp.Tool,
 	outputAsJSON bool,
@@ -534,19 +534,21 @@ func doGeneration(
 								)
 
 								// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
-								if slices.ContainsFunc(pastGenerations, func(content genai.Content) bool {
-									for _, part := range content.Parts {
+								duplicated := 0
+								for _, past := range pastGenerations {
+									for _, part := range past.Parts {
 										if strings.Contains(part.Text, fn) {
-											return true
+											duplicated++
 										}
 									}
-									return false
-								}) {
+								}
+								if duplicated > maxCallbackLoopCount {
 									// error
 									ch <- result{
 										exit: 1,
 										err: fmt.Errorf(
-											"possible infinite loop of function call detected: '%s'",
+											"possible infinite loop of function call detected (permitted max count: %d): '%s'",
+											maxCallbackLoopCount,
 											fn,
 										),
 									}
@@ -911,7 +913,7 @@ func doGeneration(
 				withThinking, thinkingBudget,
 				withGrounding,
 				cachedContextName,
-				forcePrintCallbackResults, recurseOnCallbackResults, forceCallDestructiveTools,
+				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
 				smitheryClient, smitheryProfileID, smitheryTools,
 				outputAsJSON,
