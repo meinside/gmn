@@ -57,6 +57,7 @@ type params struct {
 	Tools struct {
 		ShowCallbackResults      bool `long:"show-callback-results" description:"Whether to force printing the results of tool callbacks (default: only in verbose mode)"`
 		RecurseOnCallbackResults bool `short:"r" long:"recurse-on-callback-results" description:"Whether to do recursive generations on callback results (default: false)"`
+		MaxCallbackLoopCount     int  `long:"max-callback-loop-count" description:"Maximum number of times to call a tool callback with the same arguments (default: 0)"`
 
 		ForceCallDestructiveTools bool `long:"force-call-destructive-tools" description:"Whether to force calling destructive tools without asking"`
 	} `group:"Tools"`
