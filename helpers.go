@@ -972,7 +972,7 @@ func fetchSmitheryTools(
 	client *smithery.Client,
 	smitheryProfileID, smitheryQualifiedServerName string,
 ) (tools []*mcp.Tool, err error) {
-	var conn *mcp.ClientSession
+	var conn *smithery.ClientSession
 	if conn, err = client.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
@@ -997,7 +997,7 @@ func fetchSmitheryToolCallResult(
 	smitheryProfileID, smitheryQualifiedServerName string,
 	fnName string, fnArgs map[string]any,
 ) (res *mcp.CallToolResult, err error) {
-	var conn *mcp.ClientSession
+	var conn *smithery.ClientSession
 	if conn, err = client.ConnectWithProfileID(
 		ctx,
 		smitheryProfileID,
@@ -1009,10 +1009,8 @@ func fetchSmitheryToolCallResult(
 
 		if res, err = conn.CallTool(
 			ctx,
-			&mcp.CallToolParams{
-				Name:      fnName,
-				Arguments: fnArgs,
-			},
+			fnName,
+			fnArgs,
 		); err == nil {
 			return res, nil
 		}
