@@ -70,11 +70,10 @@ type params struct {
 		ToolCallbacksConfirm map[string]bool   `long:"tool-callbacks-confirm" description:"Confirm before executing tool callbacks (can be used multiple times, eg. 'fn_name1:true', 'fn_name2:false')"`
 	} `group:"Tools (Local)"`
 
-	// tools (smithery)
-	SmitheryTools struct {
-		SmitheryProfileID   *string  `long:"smithery-profile-id" description:"Smithery profile ID for function call"`
-		SmitheryServerNames []string `long:"smithery-server-name" description:"Smithery qualified server name for function call (can be used multiple times)"`
-	} `group:"Tools (Smithery)"`
+	// tools (MCP)
+	MCPTools struct {
+		StreamableHTTPURLs []string `long:"mcp-streamable-url" description:"Streamable HTTP URLs for MCP Tools (can be used multiple times)"`
+	} `group:"Tools (MCP)"`
 
 	// for embedding
 	Embeddings struct {

@@ -469,41 +469,32 @@ When the format string is omitted (`--tool-callbacks="YOUR_CALLBACK:@format"`), 
 
 There is a [document](https://ai.google.dev/api/caching#FunctionDeclaration) about function declarations.
 
-### Generate with Smithery (MCP)
+### Generate with MCP
 
-Put your Smithery API key in your `config.json`,
+You can generate with MCP servers.
 
-```json
-{
-  "smithery_api_key": "YOUR_SMITHERY_API_KEY",
-}
-```
-
-then call with your smithery profile id and desired server name like:
+#### Streamable HTTP URLs
 
 ```bash
 $ gmn -p "what is shoebill? search from the web" \
-    --smithery-profile-id="your-smithery-profile-id" \
-    --smithery-server-name="@nickclyde/duckduckgo-mcp-server" \
+    --mcp-streamable-url="https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=xxxxx&profile=yyyyy" \
     --recurse-on-callback-results
 ```
 
-You can use `--smithery-server-name` multiple times for using multiple servers' functions:
+You can use `--mcp-streamable-url` multiple times for using multiple servers' functions:
 
 ```bash
 $ gmn -p "get the description of repository 'gmn' of github user @meinside, search it from duckduckgo, and summarize the duckduckgo result" \
-    --smithery-profile-id="your-smithery-profile-id" \
-    --smithery-server-name="@nickclyde/duckduckgo-mcp-server" \
-    --smithery-server-name="@smithery-ai/github" \
+    --mcp-streamable-url="https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp?api_key=xxxxx&profile=yyyyy" \
+    --mcp-streamable-url="https://server.smithery.ai/@smithery-ai/github/mcp?api_key=xxxxx&profile=yyyyy" \
     --recurse-on-callback-results
 ```
 
-You can even mix local tools and Smithery:
+You can even mix tools from local and MCP servers:
 
 ```bash
 $ gmn -p "get the latest commits of repository 'gmn' of github user @meinside and send them as an email to asdf@zxcv.net" \
-    --smithery-profile-id="your-smithery-profile-id" \
-    --smithery-server-name="@smithery-ai/github" \
+    --mcp-streamable-url="https://server.smithery.ai/@smithery-ai/github/mcp?api_key=xxxxx&profile=yyyyy" \
     --tools='[{"functionDeclarations": [
         {
             "name": "send_email",
