@@ -48,7 +48,6 @@ Respond to user messages according to the following principles:
 // config struct
 type config struct {
 	GoogleAIAPIKey *string `json:"google_ai_api_key,omitempty"`
-	SmitheryAPIKey *string `json:"smithery_api_key,omitempty"`
 
 	Infisical *infisicalSetting `json:"infisical,omitempty"`
 
@@ -72,8 +71,7 @@ type infisicalSetting struct {
 	Environment string `json:"environment"`
 	SecretType  string `json:"secret_type"`
 
-	GoogleAIAPIKeyKeyPath string  `json:"google_ai_api_key_key_path"`
-	SmitheryAPIKeyKeyPath *string `json:"smithery_api_key_key_path,omitempty"`
+	GoogleAIAPIKeyKeyPath string `json:"google_ai_api_key_key_path"`
 }
 
 // read config from given filepath
@@ -156,22 +154,6 @@ func fetchConfFromInfisical(conf config) (config, error) {
 		return config{}, err
 	}
 	conf.GoogleAIAPIKey = ptr(secret.SecretValue)
-
-	// smithery api key
-	if conf.Infisical.SmitheryAPIKeyKeyPath != nil {
-		keyPath = *conf.Infisical.SmitheryAPIKeyKeyPath
-		secret, err = client.Secrets().Retrieve(infisical.RetrieveSecretOptions{
-			ProjectID:   conf.Infisical.ProjectID,
-			Type:        conf.Infisical.SecretType,
-			Environment: conf.Infisical.Environment,
-			SecretPath:  path.Dir(keyPath),
-			SecretKey:   path.Base(keyPath),
-		})
-		if err != nil {
-			return config{}, err
-		}
-		conf.SmitheryAPIKey = ptr(secret.SecretValue)
-	}
 
 	return conf, nil
 }

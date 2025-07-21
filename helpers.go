@@ -16,6 +16,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,13 +34,15 @@ import (
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
-	"github.com/meinside/smithery-go"
+	"github.com/meinside/version-go"
 )
 
 const (
 	// for replacing URLs in prompt to body texts
 	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
+
+	mcpClientName = `gmn/mcp`
 )
 
 // file/directory names to ignore while recursing directories
@@ -930,28 +933,28 @@ func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 // extract keys from given tools
 func keysFromTools(
 	localTools []genai.Tool,
-	smitheryTools map[string][]*mcp.Tool,
-) (localToolKeys, smitheryToolKeys []string) {
+	mcpTools map[string][]*mcp.Tool,
+) (localToolKeys, mcpToolKeys []string) {
 	for _, tool := range localTools {
 		for _, decl := range tool.FunctionDeclarations {
 			localToolKeys = append(localToolKeys, decl.Name)
 		}
 	}
-	for _, tools := range smitheryTools {
+	for _, tools := range mcpTools {
 		for _, tool := range tools {
-			smitheryToolKeys = append(smitheryToolKeys, tool.Name)
+			mcpToolKeys = append(mcpToolKeys, tool.Name)
 		}
 	}
 
 	return
 }
 
-// get a matched server name and tool from given smithery tools and function name
-func smitheryToolFrom(smitheryTools map[string][]*mcp.Tool, fnName string) (serverName string, tool mcp.Tool, exists bool) {
-	for serverName, tools := range smitheryTools {
+// get a matched server name and tool from given mcp tools and function name
+func mcpToolFrom(mcpTools map[string][]*mcp.Tool, fnName string) (serverURL string, tool mcp.Tool, exists bool) {
+	for serverURL, tools := range mcpTools {
 		for _, tool := range tools {
 			if tool != nil && tool.Name == fnName {
-				return serverName, *tool, true
+				return serverURL, *tool, true
 			}
 		}
 	}
@@ -959,63 +962,102 @@ func smitheryToolFrom(smitheryTools map[string][]*mcp.Tool, fnName string) (serv
 	return "", mcp.Tool{}, false
 }
 
-// get a new smithery client
-func smitheryClient(
-	smitheryAPIKey string,
-) *smithery.Client {
-	return smithery.NewClient(smitheryAPIKey)
+// connect to MCP server, start, initialize, and return the client
+func mcpConnect(
+	ctx context.Context,
+	url string,
+) (connection *mcp.ClientSession, err error) {
+	streamable := mcp.NewStreamableClientTransport(
+		url,
+		&mcp.StreamableClientTransportOptions{
+			HTTPClient: mcpHTTPClient(),
+		},
+	)
+
+	client := mcp.NewClient(
+		&mcp.Implementation{
+			Name:    mcpClientName,
+			Version: version.Build(version.OS | version.Architecture),
+		},
+		&mcp.ClientOptions{},
+	)
+
+	if connection, err = client.Connect(ctx, streamable); err == nil {
+		return connection, nil
+	}
+
+	return nil, err
 }
 
-// fetch function declarations from smithery
-func fetchSmitheryTools(
+// fetch function declarations from MCP (streamable http url)
+func fetchToolsFromStreamableURL(
 	ctx context.Context,
-	client *smithery.Client,
-	smitheryProfileID, smitheryQualifiedServerName string,
+	connection *mcp.ClientSession,
 ) (tools []*mcp.Tool, err error) {
-	var conn *smithery.ClientSession
-	if conn, err = client.ConnectWithProfileID(
-		ctx,
-		smitheryProfileID,
-		smitheryQualifiedServerName,
-	); err == nil {
-		defer func() {
-			_ = conn.Close()
-		}()
-
-		var listed *mcp.ListToolsResult
-		if listed, err = conn.ListTools(ctx, &mcp.ListToolsParams{}); err == nil {
-			return listed.Tools, nil
-		}
+	var listed *mcp.ListToolsResult
+	if listed, err = connection.ListTools(ctx, &mcp.ListToolsParams{}); err == nil {
+		return listed.Tools, nil
 	}
+
 	return
 }
 
-// fetch function result from smithery
-func fetchSmitheryToolCallResult(
+// fetch function result from MCP server
+func fetchMCPToolCallResult(
 	ctx context.Context,
-	client *smithery.Client,
-	smitheryProfileID, smitheryQualifiedServerName string,
+	connection *mcp.ClientSession,
 	fnName string, fnArgs map[string]any,
 ) (res *mcp.CallToolResult, err error) {
-	var conn *smithery.ClientSession
-	if conn, err = client.ConnectWithProfileID(
+	if res, err = connection.CallTool(
 		ctx,
-		smitheryProfileID,
-		smitheryQualifiedServerName,
+		&mcp.CallToolParams{
+			Name:      fnName,
+			Arguments: fnArgs,
+		},
 	); err == nil {
-		defer func() {
-			_ = conn.Close()
-		}()
+		return res, nil
+	}
 
-		if res, err = conn.CallTool(
-			ctx,
-			fnName,
-			fnArgs,
-		); err == nil {
-			return res, nil
+	return
+}
+
+const (
+	mcpDefaultTimeoutSeconds               = 120 // FIXME: ideally, should be 0 for keeping the connection
+	mcpDefaultDialTimeoutSeconds           = 10
+	mcpDefaultKeepAliveSeconds             = 60
+	mcpDefaultIdleTimeoutSeconds           = 180
+	mcpDefaultTLSHandshakeTimeoutSeconds   = 20
+	mcpDefaultResponseHeaderTimeoutSeconds = 60
+	mcpDefaultExpectContinueTimeoutSeconds = 15
+)
+
+// for reusing http client
+var _mcpHttpClient *http.Client
+
+// helper function for generating a http client
+func mcpHTTPClient() *http.Client {
+	if _mcpHttpClient == nil {
+		_mcpHttpClient = &http.Client{
+			Timeout: defaultTimeoutSeconds * time.Second,
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   mcpDefaultDialTimeoutSeconds * time.Second,
+					KeepAlive: mcpDefaultKeepAliveSeconds * time.Second,
+				}).DialContext,
+				IdleConnTimeout:       mcpDefaultIdleTimeoutSeconds * time.Second,
+				TLSHandshakeTimeout:   mcpDefaultTLSHandshakeTimeoutSeconds * time.Second,
+				ResponseHeaderTimeout: mcpDefaultResponseHeaderTimeoutSeconds * time.Second,
+				ExpectContinueTimeout: mcpDefaultExpectContinueTimeoutSeconds * time.Second,
+				DisableCompression:    true,
+			},
 		}
 	}
-	return
+	return _mcpHttpClient
+}
+
+// strip query parameters from given url
+func stripURLParams(url string) string {
+	return strings.Split(url, "?")[0]
 }
 
 // prettify given thing in JSON format

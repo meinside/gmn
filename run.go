@@ -14,7 +14,6 @@ import (
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
-	"github.com/meinside/smithery-go"
 	"github.com/meinside/version-go"
 )
 
@@ -229,59 +228,58 @@ func run(
 					}
 				}
 
-				// function call (smithery)
-				var sc *smithery.Client
-				var allSmitheryTools map[string][]*mcp.Tool = nil
-				if conf.SmitheryAPIKey != nil &&
-					p.SmitheryTools.SmitheryProfileID != nil &&
-					len(p.SmitheryTools.SmitheryServerNames) > 0 {
-					sc = smitheryClient(*conf.SmitheryAPIKey)
-
-					for _, smitheryServerName := range p.SmitheryTools.SmitheryServerNames {
+				// function call (MCP)
+				var allMCPTools map[string][]*mcp.Tool = nil // key: streamable http url, value: mcp tools
+				if len(p.MCPTools.StreamableHTTPURLs) > 0 {
+					for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
 						writer.verbose(
 							verboseMedium,
 							p.Verbose,
-							"fetching tools for '%s' from smithery...",
-							smitheryServerName,
+							"fetching tools from MCP server: %s",
+							stripURLParams(serverURL),
 						)
 
-						var fetchedSmitheryTools []*mcp.Tool
-						if fetchedSmitheryTools, err = fetchSmitheryTools(
+						// connect to MCP server,
+						if mc, err := mcpConnect(
 							context.TODO(),
-							sc,
-							*p.SmitheryTools.SmitheryProfileID,
-							smitheryServerName,
+							serverURL,
 						); err == nil {
-							if allSmitheryTools == nil {
-								allSmitheryTools = map[string][]*mcp.Tool{}
-							}
-							allSmitheryTools[smitheryServerName] = fetchedSmitheryTools
+							defer func() { _ = mc.Close() }()
 
-							// check if there is any duplicated name of function
-							if value, duplicated := duplicated(
-								keysFromTools(tools, allSmitheryTools),
-							); duplicated {
+							// and fetch tools
+							var fetchedTools []*mcp.Tool
+							if fetchedTools, err = fetchToolsFromStreamableURL(
+								context.TODO(),
+								mc,
+							); err == nil {
+								if allMCPTools == nil {
+									allMCPTools = map[string][]*mcp.Tool{}
+								}
+								allMCPTools[serverURL] = fetchedTools
+
+								// check if there is any duplicated name of function
+								if value, duplicated := duplicated(
+									keysFromTools(tools, allMCPTools),
+								); duplicated {
+									return 1, fmt.Errorf(
+										"duplicated function name in tools: '%s'",
+										value,
+									)
+								}
+							} else {
 								return 1, fmt.Errorf(
-									"duplicated function name in tools: '%s'",
-									value,
+									"failed to fetch tools from MCP server '%s': %w",
+									stripURLParams(serverURL),
+									err,
 								)
 							}
 						} else {
 							return 1, fmt.Errorf(
-								"failed to fetch tools from smithery: %w",
+								"failed to connect to MCP server '%s': %w",
+								stripURLParams(serverURL),
 								err,
 							)
 						}
-					}
-				} else if p.SmitheryTools.SmitheryProfileID != nil || len(p.SmitheryTools.SmitheryServerNames) > 0 {
-					if conf.SmitheryAPIKey == nil {
-						writer.warn(
-							"Smithery API key is not set in the config file, so ignoring it for now.",
-						)
-					} else {
-						writer.warn(
-							"Both profile id and server name is needed for using Smithery, so ignoring them for now.",
-						)
 					}
 				}
 
@@ -290,7 +288,6 @@ func run(
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
 					*p.Configuration.GoogleAIModel,
-					conf.SmitheryAPIKey,
 					*p.Generation.SystemInstruction,
 					p.Generation.Temperature,
 					p.Generation.TopP,
@@ -310,9 +307,7 @@ func run(
 					toolConfig,
 					p.LocalTools.ToolCallbacks,
 					p.LocalTools.ToolCallbacksConfirm,
-					sc,
-					p.SmitheryTools.SmitheryProfileID,
-					allSmitheryTools,
+					allMCPTools,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,

@@ -22,7 +22,6 @@ import (
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
-	"github.com/meinside/smithery-go"
 )
 
 // generation parameter constants
@@ -50,7 +49,6 @@ func doGeneration(
 	writer *outputWriter,
 	timeoutSeconds int,
 	apiKey, model string,
-	smitheryAPIKey *string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	withThinking bool, thinkingBudget *int32,
@@ -58,7 +56,7 @@ func doGeneration(
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
-	smitheryClient *smithery.Client, smitheryProfileID *string, smitheryTools map[string][]*mcp.Tool,
+	mcpTools map[string][]*mcp.Tool,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -163,8 +161,8 @@ func doGeneration(
 	if toolConfig != nil {
 		opts.ToolConfig = toolConfig
 	}
-	var smitheryToGeminiTools []*genai.FunctionDeclaration = nil
-	for _, tools := range smitheryTools {
+	var mcpToGeminiTools []*genai.FunctionDeclaration = nil
+	for _, tools := range mcpTools {
 		if geminiTools, err := gt.MCPToGeminiTools(tools); err == nil {
 			if len(opts.Tools) > 0 {
 				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, geminiTools...)
@@ -173,10 +171,10 @@ func doGeneration(
 					FunctionDeclarations: geminiTools,
 				})
 			}
-			smitheryToGeminiTools = append(smitheryToGeminiTools, geminiTools...)
+			mcpToGeminiTools = append(mcpToGeminiTools, geminiTools...)
 		} else {
 			return 1, fmt.Errorf(
-				"failed to convert smithery tools for gemini: %w",
+				"failed to convert MCP tools for gemini: %w",
 				err,
 			)
 		}
@@ -645,40 +643,40 @@ func doGeneration(
 											},
 										})
 									}
-								} else if smitheryProfileID != nil && smitheryToGeminiTools != nil {
-									// if there is a matching smithery tool,
-									if slices.ContainsFunc(smitheryToGeminiTools, func(tool *genai.FunctionDeclaration) bool {
+								} else if mcpToGeminiTools != nil {
+									// if there is a matching tool,
+									if slices.ContainsFunc(mcpToGeminiTools, func(tool *genai.FunctionDeclaration) bool {
 										return tool.Name == part.FunctionCall.Name
 									}) {
 										okToRun := false
 
-										var serverName string
+										var serverURL string
 										var tool mcp.Tool
 										var toolExists bool
-										if serverName, tool, toolExists = smitheryToolFrom(
-											smitheryTools,
+										if serverURL, tool, toolExists = mcpToolFrom(
+											mcpTools,
 											part.FunctionCall.Name,
 										); toolExists {
-											// check if matched smithery tool requires confirmation
+											// check if matched tool requires confirmation
 											if tool.Annotations != nil &&
 												tool.Annotations.DestructiveHint != nil &&
 												*tool.Annotations.DestructiveHint &&
 												!forceCallDestructiveTools {
 												okToRun = confirm(fmt.Sprintf(
-													"May I call smithery tool '%s/%s' for function '%s'?",
-													serverName,
+													"May I call tool '%s' from '%s' for function '%s'?",
 													part.FunctionCall.Name,
+													stripURLParams(serverURL),
 													fn,
 												))
 											} else {
 												okToRun = true
 											}
 										} else {
-											// no matching smithery tool with given server & function name
+											// no matching tool with given server & function name
 											writer.warn(
-												"No matching smithery tool '%s/%s'; generated function call: %s",
-												serverName,
+												"No matching tool '%s' from '%s'; generated function call: %s",
 												part.FunctionCall.Name,
+												stripURLParams(serverURL),
 												prettify(part.FunctionCall),
 											)
 										}
@@ -687,67 +685,83 @@ func doGeneration(
 											writer.verbose(
 												verboseMedium,
 												vbs,
-												"calling smithery tool '%s/%s'...",
-												serverName,
+												"calling tool '%s' from '%s'...",
 												part.FunctionCall.Name,
+												stripURLParams(serverURL),
 											)
 
-											// call smithery tool
-											if res, err := fetchSmitheryToolCallResult(
-												ctx,
-												smitheryClient,
-												*smitheryProfileID,
-												serverName,
-												part.FunctionCall.Name,
-												part.FunctionCall.Args,
+											// connect to MCP server,
+											if mc, err := mcpConnect(
+												context.TODO(),
+												serverURL,
 											); err == nil {
-												if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
-													// warn that there are smithery tools ignored
-													if len(smitheryTools) > 0 && !recurseOnCallbackResults {
-														writer.warn(
-															"Not recursing, ignoring the result of '%s'.",
-															fn,
-														)
-													}
+												defer func() { _ = mc.Close() }()
 
-													// print the result of execution
-													if forcePrintCallbackResults ||
-														verboseLevel(vbs) >= verboseMinimum {
-														for _, gen := range generated {
-															writer.printColored(
-																color.FgHiCyan,
-																"%s\n",
-																gen.String(),
+												// call tool,
+												if res, err := fetchMCPToolCallResult(
+													ctx,
+													mc,
+													part.FunctionCall.Name,
+													part.FunctionCall.Args,
+												); err == nil {
+													if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+														// warn that there are tools ignored
+														if len(mcpTools) > 0 && !recurseOnCallbackResults {
+															writer.warn(
+																"Not recursing, ignoring the result of '%s'.",
+																fn,
 															)
 														}
-													}
 
-													// flush model response
-													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+														// print the result of execution
+														if forcePrintCallbackResults ||
+															verboseLevel(vbs) >= verboseMinimum {
+															for _, gen := range generated {
+																writer.printColored(
+																	color.FgHiCyan,
+																	"%s\n",
+																	gen.String(),
+																)
+															}
+														}
 
-													// append function call result
-													parts := []*genai.Part{
-														{
-															Text: fmt.Sprintf(
-																`Result of function '%s':
+														// flush model response
+														pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+														// append function call result
+														parts := []*genai.Part{
+															{
+																Text: fmt.Sprintf(
+																	`Result of function '%s':
 `,
-																fn,
+																	fn,
+																),
+															},
+														}
+														for _, gen := range generated {
+															parts = append(parts, ptr(gen.ToPart()))
+														}
+														pastGenerations = append(pastGenerations, genai.Content{
+															Role:  "user",
+															Parts: parts,
+														})
+													} else {
+														// error
+														ch <- result{
+															exit: 1,
+															err: fmt.Errorf(
+																"failed to read tool call result: %s",
+																err,
 															),
-														},
+														}
+														return
 													}
-													for _, gen := range generated {
-														parts = append(parts, ptr(gen.ToPart()))
-													}
-													pastGenerations = append(pastGenerations, genai.Content{
-														Role:  "user",
-														Parts: parts,
-													})
 												} else {
 													// error
 													ch <- result{
 														exit: 1,
 														err: fmt.Errorf(
-															"failed to read smithery tool call result: %s",
+															"tool call failed: %s",
 															err,
 														),
 													}
@@ -758,7 +772,8 @@ func doGeneration(
 												ch <- result{
 													exit: 1,
 													err: fmt.Errorf(
-														"smithery tool call failed: %s",
+														"failed to connect to MCP server '%s': %w",
+														stripURLParams(serverURL),
 														err,
 													),
 												}
@@ -767,9 +782,9 @@ func doGeneration(
 										} else {
 											writer.printColored(
 												color.FgHiYellow,
-												"Skipped execution of smithery tool '%s/%s' for function '%s'.\n",
-												serverName,
+												"Skipped execution of tool '%s' from '%s' for function '%s'.\n",
 												part.FunctionCall.Name,
+												stripURLParams(serverURL),
 												fn,
 											)
 
@@ -790,10 +805,10 @@ func doGeneration(
 											})
 										}
 									} else {
-										// no matching smithery tool, just print the function call data
+										// no matching tool, just print the function call data
 										writer.print(
 											verboseMinimum,
-											"No matching smithery tool; generated function call: %s",
+											"No matching tool; generated function call: %s",
 											prettify(part.FunctionCall),
 										)
 									}
@@ -907,7 +922,6 @@ func doGeneration(
 				writer,
 				timeoutSeconds,
 				apiKey, model,
-				smitheryAPIKey,
 				systemInstruction, temperature, topP, topK,
 				prompts, promptFiles, filepaths,
 				withThinking, thinkingBudget,
@@ -915,7 +929,7 @@ func doGeneration(
 				cachedContextName,
 				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
-				smitheryClient, smitheryProfileID, smitheryTools,
+				mcpTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
