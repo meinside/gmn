@@ -1032,12 +1032,12 @@ const (
 )
 
 // for reusing http client
-var _mcpHttpClient *http.Client
+var _mcpHTTPClient *http.Client
 
 // helper function for generating a http client
 func mcpHTTPClient() *http.Client {
-	if _mcpHttpClient == nil {
-		_mcpHttpClient = &http.Client{
+	if _mcpHTTPClient == nil {
+		_mcpHTTPClient = &http.Client{
 			Timeout: defaultTimeoutSeconds * time.Second,
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
@@ -1052,7 +1052,7 @@ func mcpHTTPClient() *http.Client {
 			},
 		}
 	}
-	return _mcpHttpClient
+	return _mcpHTTPClient
 }
 
 // strip query parameters from given url
