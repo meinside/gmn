@@ -248,7 +248,7 @@ func run(
 
 							// and fetch tools
 							var fetchedTools []*mcp.Tool
-							if fetchedTools, err = fetchToolsFromStreamableURL(
+							if fetchedTools, err = fetchMCPTools(
 								context.TODO(),
 								mc,
 							); err == nil {
