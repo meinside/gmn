@@ -55,15 +55,15 @@ func mcpHTTPClient() *http.Client {
 // extract keys from given tools
 func keysFromTools(
 	localTools []genai.Tool,
-	mcpTools map[string][]*mcp.Tool,
+	mcpConnsAndTools mcpConnectionsAndTools,
 ) (localToolKeys, mcpToolKeys []string) {
 	for _, tool := range localTools {
 		for _, decl := range tool.FunctionDeclarations {
 			localToolKeys = append(localToolKeys, decl.Name)
 		}
 	}
-	for _, tools := range mcpTools {
-		for _, tool := range tools {
+	for _, connsAndTools := range mcpConnsAndTools {
+		for _, tool := range connsAndTools.tools {
 			mcpToolKeys = append(mcpToolKeys, tool.Name)
 		}
 	}
@@ -72,16 +72,22 @@ func keysFromTools(
 }
 
 // get a matched server name and tool from given mcp tools and function name
-func mcpToolFrom(mcpTools map[string][]*mcp.Tool, fnName string) (serverURL string, tool mcp.Tool, exists bool) {
-	for serverURL, tools := range mcpTools {
-		for _, tool := range tools {
+func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (serverURL string, mc *mcp.ClientSession, tool mcp.Tool, exists bool) {
+	for serverURL, connsAndTools := range mcpConnsAndTools {
+		for _, tool := range connsAndTools.tools {
 			if tool != nil && tool.Name == fnName {
-				return serverURL, *tool, true
+				return serverURL, connsAndTools.connection, *tool, true
 			}
 		}
 	}
 
-	return "", mcp.Tool{}, false
+	return "", nil, mcp.Tool{}, false
+}
+
+// a map for keeping MCP connections and their tools, keys are server URLs
+type mcpConnectionsAndTools map[string]struct {
+	connection *mcp.ClientSession
+	tools      []*mcp.Tool
 }
 
 // connect to MCP server, start, initialize, and return the client
@@ -124,7 +130,7 @@ func fetchMCPTools(
 	return
 }
 
-// fetch function result from MCP server
+// fetch function result from MCP server connection
 func fetchMCPToolCallResult(
 	ctx context.Context,
 	connection *mcp.ClientSession,
