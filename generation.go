@@ -56,7 +56,7 @@ func doGeneration(
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
-	mcpTools map[string][]*mcp.Tool,
+	mcpConnsAndTools mcpConnectionsAndTools,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
@@ -162,8 +162,8 @@ func doGeneration(
 		opts.ToolConfig = toolConfig
 	}
 	var mcpToGeminiTools []*genai.FunctionDeclaration = nil
-	for _, tools := range mcpTools {
-		if geminiTools, err := gt.MCPToGeminiTools(tools); err == nil {
+	for _, connsAndTools := range mcpConnsAndTools {
+		if geminiTools, err := gt.MCPToGeminiTools(connsAndTools.tools); err == nil {
 			if len(opts.Tools) > 0 {
 				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, geminiTools...)
 			} else {
@@ -651,10 +651,11 @@ func doGeneration(
 										okToRun := false
 
 										var serverURL string
+										var mc *mcp.ClientSession
 										var tool mcp.Tool
 										var toolExists bool
-										if serverURL, tool, toolExists = mcpToolFrom(
-											mcpTools,
+										if serverURL, mc, tool, toolExists = mcpToolFrom(
+											mcpConnsAndTools,
 											part.FunctionCall.Name,
 										); toolExists {
 											// check if matched tool requires confirmation
@@ -690,78 +691,60 @@ func doGeneration(
 												stripURLParams(serverURL),
 											)
 
-											// connect to MCP server,
-											if mc, err := mcpConnect(
-												context.TODO(),
-												serverURL,
+											// call tool,
+											if res, err := fetchMCPToolCallResult(
+												ctx,
+												mc,
+												part.FunctionCall.Name,
+												part.FunctionCall.Args,
 											); err == nil {
-												defer func() { _ = mc.Close() }()
+												if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+													// warn that there are tools ignored
+													if len(mcpConnsAndTools) > 0 && !recurseOnCallbackResults {
+														writer.warn(
+															"Not recursing, ignoring the result of '%s'.",
+															fn,
+														)
+													}
 
-												// call tool,
-												if res, err := fetchMCPToolCallResult(
-													ctx,
-													mc,
-													part.FunctionCall.Name,
-													part.FunctionCall.Args,
-												); err == nil {
-													if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
-														// warn that there are tools ignored
-														if len(mcpTools) > 0 && !recurseOnCallbackResults {
-															writer.warn(
-																"Not recursing, ignoring the result of '%s'.",
-																fn,
+													// print the result of execution
+													if forcePrintCallbackResults ||
+														verboseLevel(vbs) >= verboseMinimum {
+														for _, gen := range generated {
+															writer.printColored(
+																color.FgHiCyan,
+																"%s\n",
+																gen.String(),
 															)
 														}
-
-														// print the result of execution
-														if forcePrintCallbackResults ||
-															verboseLevel(vbs) >= verboseMinimum {
-															for _, gen := range generated {
-																writer.printColored(
-																	color.FgHiCyan,
-																	"%s\n",
-																	gen.String(),
-																)
-															}
-														}
-
-														// flush model response
-														pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-														// append function call result
-														parts := []*genai.Part{
-															{
-																Text: fmt.Sprintf(
-																	`Result of function '%s':
-`,
-																	fn,
-																),
-															},
-														}
-														for _, gen := range generated {
-															parts = append(parts, ptr(gen.ToPart()))
-														}
-														pastGenerations = append(pastGenerations, genai.Content{
-															Role:  "user",
-															Parts: parts,
-														})
-													} else {
-														// error
-														ch <- result{
-															exit: 1,
-															err: fmt.Errorf(
-																"failed to read tool call result: %s",
-																err,
-															),
-														}
-														return
 													}
+
+													// flush model response
+													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+													// append function call result
+													parts := []*genai.Part{
+														{
+															Text: fmt.Sprintf(
+																`Result of function '%s':
+`,
+																fn,
+															),
+														},
+													}
+													for _, gen := range generated {
+														parts = append(parts, ptr(gen.ToPart()))
+													}
+													pastGenerations = append(pastGenerations, genai.Content{
+														Role:  "user",
+														Parts: parts,
+													})
 												} else {
 													// error
 													ch <- result{
 														exit: 1,
 														err: fmt.Errorf(
-															"tool call failed: %s",
+															"failed to read tool call result: %s",
 															err,
 														),
 													}
@@ -772,8 +755,7 @@ func doGeneration(
 												ch <- result{
 													exit: 1,
 													err: fmt.Errorf(
-														"failed to connect to MCP server '%s': %w",
-														stripURLParams(serverURL),
+														"tool call failed: %s",
 														err,
 													),
 												}
@@ -929,7 +911,7 @@ func doGeneration(
 				cachedContextName,
 				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
-				mcpTools,
+				mcpConnsAndTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,

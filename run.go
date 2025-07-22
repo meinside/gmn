@@ -229,7 +229,7 @@ func run(
 				}
 
 				// function call (MCP)
-				var allMCPTools map[string][]*mcp.Tool = nil // key: streamable http url, value: mcp tools
+				var allMCPTools mcpConnectionsAndTools = nil // key: streamable http url, value: mcp tools
 				if len(p.MCPTools.StreamableHTTPURLs) > 0 {
 					for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
 						writer.verbose(
@@ -253,9 +253,15 @@ func run(
 								mc,
 							); err == nil {
 								if allMCPTools == nil {
-									allMCPTools = map[string][]*mcp.Tool{}
+									allMCPTools = mcpConnectionsAndTools{}
 								}
-								allMCPTools[serverURL] = fetchedTools
+								allMCPTools[serverURL] = struct {
+									connection *mcp.ClientSession
+									tools      []*mcp.Tool
+								}{
+									connection: mc,
+									tools:      fetchedTools,
+								}
 
 								// check if there is any duplicated name of function
 								if value, duplicated := duplicated(
@@ -282,6 +288,13 @@ func run(
 						}
 					}
 				}
+
+				// close all MCP connections
+				defer func() {
+					for _, connAndTools := range allMCPTools {
+						_ = connAndTools.connection.Close()
+					}
+				}()
 
 				return doGeneration(context.TODO(),
 					writer,
