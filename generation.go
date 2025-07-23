@@ -828,6 +828,9 @@ func doGeneration(
 
 					// finish reason
 					if cand.FinishReason != "" {
+						// flush model response
+						pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
 						writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
 
 						// print the number of tokens before printing the finish reason
