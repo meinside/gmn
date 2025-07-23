@@ -15,6 +15,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,6 +30,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/tailscale/hujson"
 	"google.golang.org/genai"
+	"mvdan.cc/sh/v3/syntax"
 
 	gt "github.com/meinside/gemini-things-go"
 )
@@ -924,9 +926,40 @@ func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 	return zero, false
 }
 
-// strip query parameters from given url
-func stripURLParams(url string) string {
-	return strings.Split(url, "?")[0]
+// parse commandline
+func parseCommandline(cmdline string) (command string, args []string, err error) {
+	parser := syntax.NewParser()
+
+	var node *syntax.File
+	if node, err = parser.Parse(strings.NewReader(cmdline), ""); err == nil {
+		var parts []string
+		syntax.Walk(node, func(node syntax.Node) bool {
+			switch x := node.(type) {
+			case *syntax.CallExpr:
+				printer := syntax.NewPrinter()
+				for _, word := range x.Args {
+					var buf bytes.Buffer
+					if err := printer.Print(&buf, word); err != nil {
+						log.Printf("failure while serializing command line: %s", err)
+						continue
+					}
+					parts = append(parts, buf.String())
+				}
+				return false
+			}
+			return true
+		})
+
+		if len(parts) > 0 {
+			return parts[0], parts[1:], nil
+		} else {
+			err = fmt.Errorf("there was no available command or arguments from the command line")
+		}
+	} else {
+		err = fmt.Errorf("failed to parse command line: %w", err)
+	}
+
+	return cmdline, nil, err
 }
 
 // prettify given thing in JSON format

@@ -6,8 +6,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -72,20 +75,30 @@ func keysFromTools(
 }
 
 // get a matched server name and tool from given mcp tools and function name
-func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (serverURL string, mc *mcp.ClientSession, tool mcp.Tool, exists bool) {
-	for serverURL, connsAndTools := range mcpConnsAndTools {
+func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (serverKey string, serverType mcpServerType, mc *mcp.ClientSession, tool mcp.Tool, exists bool) {
+	for serverKey, connsAndTools := range mcpConnsAndTools {
 		for _, tool := range connsAndTools.tools {
 			if tool != nil && tool.Name == fnName {
-				return serverURL, connsAndTools.connection, *tool, true
+				return serverKey, serverType, connsAndTools.connection, *tool, true
 			}
 		}
 	}
 
-	return "", nil, mcp.Tool{}, false
+	return "", "", nil, mcp.Tool{}, false
 }
 
-// a map for keeping MCP connections and their tools, keys are server URLs
+type mcpServerType string
+
+const (
+	mcpServerStreamable mcpServerType = "streamable"
+	mcpServerStdio      mcpServerType = "stdio"
+)
+
+// a map for keeping MCP connections and their tools
+//
+// * keys are identifiers of servers (server url or commandline string)
 type mcpConnectionsAndTools map[string]struct {
+	serverType mcpServerType
 	connection *mcp.ClientSession
 	tools      []*mcp.Tool
 }
@@ -95,22 +108,53 @@ func mcpConnect(
 	ctx context.Context,
 	url string,
 ) (connection *mcp.ClientSession, err error) {
-	streamable := mcp.NewStreamableClientTransport(
-		url,
-		&mcp.StreamableClientTransportOptions{
-			HTTPClient: mcpHTTPClient(),
-		},
-	)
-
-	client := mcp.NewClient(
+	if connection, err = mcp.NewClient(
 		&mcp.Implementation{
 			Name:    mcpClientName,
 			Version: version.Build(version.OS | version.Architecture),
 		},
 		&mcp.ClientOptions{},
-	)
+	).Connect(
+		ctx,
+		mcp.NewStreamableClientTransport(
+			url,
+			&mcp.StreamableClientTransportOptions{
+				HTTPClient: mcpHTTPClient(),
+			},
+		),
+	); err == nil {
+		return connection, nil
+	}
 
-	if connection, err = client.Connect(ctx, streamable); err == nil {
+	return nil, err
+}
+
+// run MCP server with given `cmdline`, connect to it, start, initialize, and return the client
+func mcpRun(
+	ctx context.Context,
+	cmdline string,
+) (connection *mcp.ClientSession, err error) {
+	cmdline = expandPath(cmdline)
+
+	command, args, err := parseCommandline(cmdline)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to parse command line `%s` %w",
+			stripServerInfo(mcpServerStdio, cmdline),
+			err,
+		)
+	}
+
+	if connection, err = mcp.NewClient(
+		&mcp.Implementation{
+			Name:    mcpClientName,
+			Version: version.Build(version.OS | version.Architecture),
+		},
+		&mcp.ClientOptions{},
+	).Connect(
+		ctx,
+		mcp.NewCommandTransport(exec.Command(command, args...)),
+	); err == nil {
 		return connection, nil
 	}
 
@@ -147,4 +191,16 @@ func fetchMCPToolCallResult(
 	}
 
 	return
+}
+
+// strip sensitive information from given server info
+func stripServerInfo(serverType mcpServerType, info string) string {
+	switch serverType {
+	case mcpServerStreamable:
+		return strings.Split(info, "?")[0]
+	case mcpServerStdio:
+		cmd, _, _ := parseCommandline(info)
+		return cmd
+	}
+	return info
 }
