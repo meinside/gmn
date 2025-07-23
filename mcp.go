@@ -79,7 +79,7 @@ func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (server
 	for serverKey, connsAndTools := range mcpConnsAndTools {
 		for _, tool := range connsAndTools.tools {
 			if tool != nil && tool.Name == fnName {
-				return serverKey, serverType, connsAndTools.connection, *tool, true
+				return serverKey, connsAndTools.serverType, connsAndTools.connection, *tool, true
 			}
 		}
 	}
