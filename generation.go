@@ -650,11 +650,12 @@ func doGeneration(
 									}) {
 										okToRun := false
 
-										var serverURL string
+										var serverKey string
+										var serverType mcpServerType
 										var mc *mcp.ClientSession
 										var tool mcp.Tool
 										var toolExists bool
-										if serverURL, mc, tool, toolExists = mcpToolFrom(
+										if serverKey, serverType, mc, tool, toolExists = mcpToolFrom(
 											mcpConnsAndTools,
 											part.FunctionCall.Name,
 										); toolExists {
@@ -666,7 +667,7 @@ func doGeneration(
 												okToRun = confirm(fmt.Sprintf(
 													"May I call tool '%s' from '%s' for function '%s'?",
 													part.FunctionCall.Name,
-													stripURLParams(serverURL),
+													stripServerInfo(serverType, serverKey),
 													fn,
 												))
 											} else {
@@ -677,7 +678,7 @@ func doGeneration(
 											writer.warn(
 												"No matching tool '%s' from '%s'; generated function call: %s",
 												part.FunctionCall.Name,
-												stripURLParams(serverURL),
+												stripServerInfo(serverType, serverKey),
 												prettify(part.FunctionCall),
 											)
 										}
@@ -688,7 +689,7 @@ func doGeneration(
 												vbs,
 												"calling tool '%s' from '%s'...",
 												part.FunctionCall.Name,
-												stripURLParams(serverURL),
+												stripServerInfo(serverType, serverKey),
 											)
 
 											// call tool,
@@ -766,7 +767,7 @@ func doGeneration(
 												color.FgHiYellow,
 												"Skipped execution of tool '%s' from '%s' for function '%s'.\n",
 												part.FunctionCall.Name,
-												stripURLParams(serverURL),
+												stripServerInfo(serverType, serverKey),
 												fn,
 											)
 

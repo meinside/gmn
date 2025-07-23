@@ -517,6 +517,15 @@ $ gmn -p "get the latest commits of repository 'gmn' of github user @meinside an
     --recurse-on-callback-results
 ```
 
+#### Local MCP Servers with STDIO Pipings
+
+Provide command line strings for running & connecting local STDIO MCP servers:
+
+```bash
+$ gmn -p "hello my friend, my name is meinside" \
+    --mcp-stdio-command="~/tmp/some-mcp-servers/hello --stdio --title 'hello world'"
+```
+
 ### Generate Embeddings
 
 You can generate embeddings with `-E` or `--generate-embeddings` parameter:
