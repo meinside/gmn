@@ -244,8 +244,6 @@ func run(
 							context.TODO(),
 							serverURL,
 						); err == nil {
-							defer func() { _ = mc.Close() }()
-
 							// and fetch tools
 							var fetchedTools []*mcp.Tool
 							if fetchedTools, err = fetchMCPTools(
