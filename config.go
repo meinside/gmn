@@ -37,6 +37,8 @@ Respond to user messages according to the following principles:
 - Be as accurate as possible.
 - Be as truthful as possible.
 - Be as comprehensive and informative as possible.
+- If you are generating with tool calling, make sure not to repeat the same response by checking the previous conversations and history.
+- Try not to call the same tool with the same arguments repeatedly if the result of tool call was not erroneous.
 `
 
 	// other default parameters
