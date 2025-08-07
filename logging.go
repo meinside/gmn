@@ -49,9 +49,10 @@ func newOutputWriter() *outputWriter {
 	}
 }
 
-// force add a new line
+// force add a new line to stdout
 func (w *outputWriter) println() {
-	fmt.Println()
+	_, _ = fmt.Fprintf(os.Stdout, "\n")
+
 	w.endsWithNewLine = true
 }
 
@@ -71,8 +72,7 @@ func (w *outputWriter) printColored(
 	formatted := fmt.Sprintf(format, a...)
 
 	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		c := color.New(c)
-		_, _ = c.Print(formatted)
+		_, _ = color.New(c).Fprint(os.Stdout, formatted)
 	} else {
 		fmt.Print(formatted)
 	}
@@ -89,10 +89,9 @@ func (w *outputWriter) errorColored(
 	formatted := fmt.Sprintf(format, a...)
 
 	if supportscolor.Stderr().SupportsColor { // if color is supported,
-		c := color.New(c)
-		_, _ = c.Fprint(os.Stderr, formatted)
+		_, _ = color.New(c).Fprint(os.Stderr, formatted)
 	} else {
-		fmt.Fprint(os.Stderr, formatted)
+		_, _ = fmt.Fprint(os.Stderr, formatted)
 	}
 
 	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
@@ -125,7 +124,34 @@ func (w *outputWriter) print(
 	)
 }
 
-// print verbose message (will add a new line if there isn't)
+// print given string to stderr (will add a new line if there isn't)
+func (w *outputWriter) err(
+	level verbosity,
+	format string,
+	a ...any,
+) {
+	if !strings.HasSuffix(format, "\n") {
+		format += "\n"
+	}
+
+	var c color.Attribute
+	switch level {
+	case verboseMinimum:
+		c = color.FgGreen
+	case verboseMedium, verboseMaximum:
+		c = color.FgYellow
+	default:
+		c = color.FgWhite
+	}
+
+	w.errorColored(
+		c,
+		format,
+		a...,
+	)
+}
+
+// print verbose message to stderr (will add a new line if there isn't)
 //
 // (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
 func (w *outputWriter) verbose(
@@ -137,7 +163,7 @@ func (w *outputWriter) verbose(
 	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
 		format = fmt.Sprintf(">>> %s", format)
 
-		w.print(
+		w.err(
 			targetLevel,
 			format,
 			a...,
@@ -178,17 +204,17 @@ func (w *outputWriter) error(
 	w.errWithNewlineAppended(color.FgRed, format, a...)
 }
 
-// print help message before os.Exit()
+// print help message to stderr before os.Exit()
 func (w *outputWriter) printHelpBeforeExit(
 	code int,
 	parser *flags.Parser,
 ) (exit int) {
-	parser.WriteHelp(os.Stdout)
+	parser.WriteHelp(os.Stderr)
 
 	return code
 }
 
-// print error before os.Exit()
+// print error to stderr before os.Exit()
 func (w *outputWriter) printErrorBeforeExit(
 	code int,
 	format string,
