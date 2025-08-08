@@ -765,6 +765,18 @@ func expandPath(path string) string {
 		}
 	}
 
+	// handle `./*`,
+	if strings.HasPrefix(path, "./") {
+		if cwd, err := os.Getwd(); err == nil {
+			path = strings.Replace(
+				path,
+				"./",
+				cwd+"/",
+				1,
+			)
+		}
+	}
+
 	// expand environment variables, eg. $HOME
 	path = os.ExpandEnv(path)
 
@@ -772,6 +784,21 @@ func expandPath(path string) string {
 	path = filepath.Clean(path)
 
 	return path
+}
+
+// get speech codec and bit rate from mime type
+func speechCodecAndBitRateFromMimeType(mimeType string) (
+	speechCodec string,
+	bitRate int,
+) {
+	for split := range strings.SplitSeq(mimeType, ";") {
+		if strings.HasPrefix(split, "codec=") {
+			speechCodec = split[6:]
+		} else if strings.HasPrefix(split, "rate=") {
+			bitRate, _ = strconv.Atoi(split[5:])
+		}
+	}
+	return
 }
 
 // convert pcm data to wav

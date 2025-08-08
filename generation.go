@@ -12,7 +12,6 @@ import (
 	"html/template"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -437,18 +436,9 @@ func doGeneration(
 									}
 								} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
 									// check codec and birtate
-									var speechCodec string
-									var bitRate int
-									for split := range strings.SplitSeq(part.InlineData.MIMEType, ";") {
-										if strings.HasPrefix(split, "codec=") {
-											speechCodec = split[6:]
-										} else if strings.HasPrefix(split, "rate=") {
-											bitRate, _ = strconv.Atoi(split[5:])
-										}
-									}
-
-									// convert,
+									speechCodec, bitRate := speechCodecAndBitRateFromMimeType(part.InlineData.MIMEType)
 									if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+										// convert,
 										if converted, err := pcmToWav(
 											part.InlineData.Data,
 											bitRate,
@@ -708,15 +698,123 @@ func doGeneration(
 														)
 													}
 
-													// print the result of execution
-													if forcePrintCallbackResults ||
-														verboseLevel(vbs) >= verboseMinimum {
-														for _, gen := range generated {
+													// print the result of execution,
+													for _, prompt := range generated {
+														if forcePrintCallbackResults ||
+															verboseLevel(vbs) >= verboseMinimum {
 															writer.printColored(
 																color.FgHiCyan,
 																"%s\n",
-																gen.String(),
+																prompt.String(),
 															)
+														}
+
+														// and save files if needed
+														switch p := prompt.(type) {
+														case gt.FilePrompt, gt.BytesPrompt:
+															bytes := p.ToPart().InlineData.Data
+															mimeType := p.ToPart().InlineData.MIMEType
+
+															if strings.HasPrefix(mimeType, "image/") {
+																if saveImagesToFiles || saveImagesToDir != nil {
+																	fpath := genFilepath(
+																		mimeType,
+																		"image",
+																		saveImagesToDir,
+																	)
+
+																	writer.verbose(
+																		verboseMedium,
+																		vbs,
+																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																	)
+
+																	if err := os.WriteFile(fpath, bytes, 0640); err != nil {
+																		// error
+																		ch <- result{
+																			exit: 1,
+																			err:  fmt.Errorf("saving file failed: %s", err),
+																		}
+																		return
+																	} else {
+																		writer.print(
+																			verboseMinimum,
+																			"Saved image to file: %s",
+																			fpath,
+																		)
+																	}
+																} else {
+																	writer.verbose(
+																		verboseMedium,
+																		vbs,
+																		"displaying image (%s;%d bytes) on terminal...",
+																		mimeType,
+																		len(bytes),
+																	)
+
+																	// display on terminal
+																	if err := displayImageOnTerminal(
+																		bytes,
+																		mimeType,
+																	); err != nil {
+																		// error
+																		ch <- result{
+																			exit: 1,
+																			err:  fmt.Errorf("image display failed: %s", err),
+																		}
+																		return
+																	} else { // NOTE: make sure to insert a new line after an image
+																		writer.println()
+																	}
+																}
+															} else if strings.HasPrefix(mimeType, "audio/") {
+																if saveSpeechToDir != nil {
+																	// check codec and birtate
+																	speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
+																	if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+																		// convert,
+																		var ce error
+																		if bytes, ce = pcmToWav(
+																			bytes,
+																			bitRate,
+																			wavBitDepth,
+																			wavNumChannels,
+																		); ce == nil {
+																			mimeType = mimetype.Detect(bytes).String()
+																		}
+																	}
+																	fpath := genFilepath(
+																		mimeType,
+																		"audio",
+																		saveSpeechToDir,
+																	)
+
+																	writer.verbose(
+																		verboseMedium,
+																		vbs,
+																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																	)
+
+																	if err := os.WriteFile(
+																		fpath,
+																		bytes,
+																		0640,
+																	); err != nil {
+																		// error
+																		ch <- result{
+																			exit: 1,
+																			err:  fmt.Errorf("saving file failed: %s", err),
+																		}
+																		return
+																	} else {
+																		writer.print(
+																			verboseMinimum,
+																			"Saved speech to file: %s",
+																			fpath,
+																		)
+																	}
+																}
+															}
 														}
 													}
 

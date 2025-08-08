@@ -18,11 +18,20 @@ func TestExpandPath(t *testing.T) {
 		t.Errorf("failed to get home directory: %s", err)
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Errorf("failed to get current working directory: %s", err)
+	}
+
 	tests := []test{
 		// should handle '~' correctly
 		{
 			input:  "~/tmp",
 			output: homeDir + "/tmp",
+		},
+		{
+			input:  "./test",
+			output: cwd + "/test",
 		},
 		// should handle environment variables correctly
 		{
