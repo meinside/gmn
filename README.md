@@ -526,6 +526,26 @@ $ gmn -p "hello my friend, my name is meinside" \
     --mcp-stdio-command="~/tmp/some-mcp-servers/hello --stdio --title 'hello world'"
 ```
 
+#### Run `gmn` itself as a MCP Server
+
+Run with `-M` or `--mcp-server` parameter, like:
+
+```bash
+$ gmn -p "hello there?" \
+    --mcp-stdio-command="/path/to/gmn -M" \
+    -r
+$ gmn -p "generate images of a cute cat" \
+    --mcp-stdio-command="/path/to/gmn -M" \
+    -r \
+    --save-images-to-dir=~/Downloads
+$ gmn -p "generate a speech file which says 'ahhhh i wanna go home right now' in a very tired voice" \
+    --mcp-stdio-command="/path/to/gmn -M" \
+    -r \
+    --save-speech-to-dir=~/Downloads
+```
+
+then it will work as another MCP server which provides functionalities of `gmn`.
+
 ### Generate Embeddings
 
 You can generate embeddings with `-E` or `--generate-embeddings` parameter:
@@ -598,5 +618,5 @@ gmnt() {
 
 ## License
 
-MIT
+See [LICENSE.md](LICENSE.md).
 

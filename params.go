@@ -74,6 +74,8 @@ type params struct {
 	MCPTools struct {
 		StreamableHTTPURLs []string `long:"mcp-streamable-url" description:"Streamable HTTP URLs of MCP Tools (can be used multiple times)"`
 		StdioCommands      []string `long:"mcp-stdio-command" description:"Commands of local stdio MCP Tools (can be used multiple times)"`
+
+		RunSTDIOServer bool `short:"M" long:"mcp-server" description:"Run as a STDIO MCP server"`
 	} `group:"Tools (MCP)"`
 
 	// for embedding
@@ -109,6 +111,7 @@ func (p *params) taskRequested() bool {
 		p.Caching.ListCachedContexts ||
 		p.Caching.DeleteCachedContext != nil ||
 		p.ListModels ||
+		p.MCPTools.RunSTDIOServer ||
 		p.ShowVersion
 }
 
@@ -141,6 +144,13 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if p.ListModels { // list models
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.MCPTools.RunSTDIOServer { // run as a STDIO MCP server
 		num++
 		if hasPrompt && !promptCounted {
 			num++

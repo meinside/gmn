@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -20,7 +21,8 @@ import (
 )
 
 const (
-	mcpClientName = `gmn/mcp`
+	mcpClientName = `gmn/mcp-client`
+	mcpServerName = `gmn/mcp-server`
 
 	mcpDefaultTimeoutSeconds               = 120 // FIXME: ideally, should be 0 for keeping the connection
 	mcpDefaultDialTimeoutSeconds           = 10
@@ -134,8 +136,6 @@ func mcpRun(
 	ctx context.Context,
 	cmdline string,
 ) (connection *mcp.ClientSession, err error) {
-	cmdline = expandPath(cmdline)
-
 	command, args, err := parseCommandline(cmdline)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -143,6 +143,12 @@ func mcpRun(
 			stripServerInfo(mcpServerStdio, cmdline),
 			err,
 		)
+	}
+
+	command = expandPath(command)
+
+	if _, err = os.Stat(command); err != nil {
+		return nil, err
 	}
 
 	if connection, err = mcp.NewClient(
