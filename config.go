@@ -44,7 +44,7 @@ Respond to user messages according to the following principles:
 	// other default parameters
 	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
 	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
-	defaultUserAgent              = `GMN/fetcher`
+	defaultFetchUserAgent         = `gmn/fetcher`
 )
 
 // config struct

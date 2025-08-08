@@ -68,7 +68,7 @@ func run(
 		p.Generation.SystemInstruction = ptr(defaultSystemInstruction())
 	}
 	if p.Generation.UserAgent == nil {
-		p.Generation.UserAgent = ptr(defaultUserAgent)
+		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
 	}
 
 	// check existence of essential parameters here

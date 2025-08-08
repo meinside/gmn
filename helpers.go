@@ -325,7 +325,7 @@ func replaceURLsInPrompt(
 						url,
 					)
 
-					// NOTE: embeedings is for text only for now
+					// NOTE: embeddings is for text only for now
 					if p.Embeddings.GenerateEmbeddings {
 						// replace prompt text
 						prompt = strings.Replace(
@@ -801,10 +801,16 @@ func speechCodecAndBitRateFromMimeType(mimeType string) (
 	return
 }
 
+// wav parameter constants
+const (
+	wavBitDepth    = 16
+	wavNumChannels = 1
+)
+
 // convert pcm data to wav
 func pcmToWav(
 	data []byte,
-	sampleRate, bitDepth, numChannels int,
+	sampleRate int,
 ) (converted []byte, err error) {
 	var buf bytes.Buffer
 
@@ -831,11 +837,11 @@ func pcmToWav(
 		Subchunk1ID:   [4]byte{'f', 'm', 't', ' '},
 		Subchunk1Size: 16,
 		AudioFormat:   1, // PCM
-		NumChannels:   uint16(numChannels),
+		NumChannels:   uint16(wavNumChannels),
 		SampleRate:    uint32(sampleRate),
-		ByteRate:      uint32(sampleRate * numChannels * bitDepth / 8),
-		BlockAlign:    uint16(numChannels * bitDepth / 8),
-		BitsPerSample: uint16(bitDepth),
+		ByteRate:      uint32(sampleRate * wavNumChannels * wavBitDepth / 8),
+		BlockAlign:    uint16(wavNumChannels * wavBitDepth / 8),
+		BitsPerSample: uint16(wavBitDepth),
 		Subchunk2ID:   [4]byte{'d', 'a', 't', 'a'},
 		Subchunk2Size: dataLen,
 	}
@@ -933,7 +939,7 @@ func historyEndsWithUsers(history []genai.Content) bool {
 	if len(history) > 0 {
 		last := history[len(history)-1]
 
-		return last.Role == "user"
+		return last.Role == string(gt.RoleUser)
 	}
 	return false
 }
