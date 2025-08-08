@@ -30,16 +30,6 @@ const (
 	defaultGenerationTemperature = float32(1.0)
 	defaultGenerationTopP        = float32(0.95)
 	defaultGenerationTopK        = int32(20)
-
-	// https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding
-	defaultEmbeddingsChunkSize           uint = 2048 * 2
-	defaultEmbeddingsChunkOverlappedSize uint = 64
-)
-
-// wav parameter constants
-const (
-	wavBitDepth    = 16
-	wavNumChannels = 1
 )
 
 // generate text with given things
@@ -442,8 +432,6 @@ func doGeneration(
 										if converted, err := pcmToWav(
 											part.InlineData.Data,
 											bitRate,
-											wavBitDepth,
-											wavNumChannels,
 										); err == nil {
 											// and save file
 											mimeType := mimetype.Detect(converted).String()
@@ -595,7 +583,7 @@ func doGeneration(
 
 											// append function call result
 											pastGenerations = append(pastGenerations, genai.Content{
-												Role: "user",
+												Role: string(gt.RoleUser),
 												Parts: []*genai.Part{
 													{
 														Text: fmt.Sprintf(
@@ -622,7 +610,7 @@ func doGeneration(
 
 										// append function call result (not called)
 										pastGenerations = append(pastGenerations, genai.Content{
-											Role: "user",
+											Role: string(gt.RoleUser),
 											Parts: []*genai.Part{
 												{
 													Text: fmt.Sprintf(
@@ -777,8 +765,6 @@ func doGeneration(
 																		if bytes, ce = pcmToWav(
 																			bytes,
 																			bitRate,
-																			wavBitDepth,
-																			wavNumChannels,
 																		); ce == nil {
 																			mimeType = mimetype.Detect(bytes).String()
 																		}
@@ -835,7 +821,7 @@ func doGeneration(
 														parts = append(parts, ptr(gen.ToPart()))
 													}
 													pastGenerations = append(pastGenerations, genai.Content{
-														Role:  "user",
+														Role:  string(gt.RoleUser),
 														Parts: parts,
 													})
 												} else {
@@ -874,7 +860,7 @@ func doGeneration(
 
 											// append function call result (not called)
 											pastGenerations = append(pastGenerations, genai.Content{
-												Role: "user",
+												Role: string(gt.RoleUser),
 												Parts: []*genai.Part{
 													{
 														Text: fmt.Sprintf(
@@ -1027,406 +1013,15 @@ func doGeneration(
 	}
 }
 
-// generate embeddings with given things
-func doEmbeddingsGeneration(
-	ctx context.Context,
-	writer *outputWriter,
-	timeoutSeconds int,
-	apiKey, model string,
-	prompt string,
-	taskType *string,
-	chunkSize, overlappedChunkSize *uint,
-	vbs []bool,
-) (exit int, e error) {
-	writer.verbose(
-		verboseMedium,
-		vbs,
-		"generating embeddings...",
-	)
-
-	if chunkSize == nil {
-		chunkSize = ptr(defaultEmbeddingsChunkSize)
-	}
-	if overlappedChunkSize == nil {
-		overlappedChunkSize = ptr(defaultEmbeddingsChunkOverlappedSize)
-	}
-
-	// chunk prompt text
-	chunks, err := gt.ChunkText(prompt, gt.TextChunkOption{
-		ChunkSize:      *chunkSize,
-		OverlappedSize: *overlappedChunkSize,
-		EllipsesText:   "...",
-	})
-	if err != nil {
-		return 1, fmt.Errorf(
-			"failed to chunk text: %w",
-			err,
-		)
-	}
-
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(
-		apiKey,
-		gt.WithModel(model),
-	)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error("Failed to close client: %s", err)
-		}
-	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-
-	// embeddings task type
-	var selectedTaskType gt.EmbeddingTaskType
-	if taskType != nil {
-		selectedTaskType = gt.EmbeddingTaskType(*taskType)
-	}
-
-	// iterate chunks and generate embeddings
-	type embedding struct {
-		Text    string    `json:"text"`
-		Vectors []float32 `json:"vectors"`
-	}
-	type embeddings struct {
-		Original string               `json:"original"`
-		TaskType gt.EmbeddingTaskType `json:"taskType"`
-		Chunks   []embedding          `json:"chunks"`
-	}
-	embeds := embeddings{
-		Original: prompt,
-		TaskType: selectedTaskType,
-		Chunks:   []embedding{},
-	}
-	for i, text := range chunks.Chunks {
-		if vectors, err := gtc.GenerateEmbeddings(
-			ctx,
-			"",
-			[]*genai.Content{
-				genai.NewContentFromText(text, gt.RoleUser),
-			},
-			&selectedTaskType,
-		); err != nil {
-			return 1, fmt.Errorf(
-				"embeddings failed for chunk[%d]: %w",
-				i,
-				err,
-			)
-		} else {
-			embeds.Chunks = append(embeds.Chunks, embedding{
-				Text:    text,
-				Vectors: vectors[0],
-			})
-		}
-	}
-
-	// print result in JSON format
-	if encoded, err := json.Marshal(embeds); err != nil {
-		return 1, fmt.Errorf(
-			"embeddings encoding failed: %w",
-			err,
-		)
-	} else {
-		writer.printColored(
-			color.FgHiWhite,
-			"%s\n",
-			string(encoded),
-		)
-
-		return 0, nil
-	}
-}
-
-// cache context
-func cacheContext(
-	ctx context.Context,
-	writer *outputWriter,
-	timeoutSeconds int,
-	apiKey, model string,
-	systemInstruction string,
-	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
-	cachedContextDisplayName *string,
-	vbs []bool,
-) (exit int, e error) {
-	writer.verbose(
-		verboseMedium,
-		vbs,
-		"caching context...",
-	)
-
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(
-		apiKey,
-		gt.WithModel(model),
-	)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-	gtc.SetSystemInstructionFunc(func() string {
-		return systemInstruction
-	})
-
-	// read & close files
-	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		for _, toClose := range filesToClose {
-			if err := toClose.Close(); err != nil {
-				writer.error(
-					"Failed to close file: %s",
-					err,
-				)
-			}
-		}
-	}()
-
-	// cache context and print the cached context's name
-	for filename, file := range files {
-		prompts = append(prompts, gt.PromptFromFile(filename, file))
-	}
-	if name, err := gtc.CacheContext(
-		ctx,
-		&systemInstruction,
-		prompts,
-		nil,
-		nil,
-		cachedContextDisplayName,
-	); err == nil {
-		writer.printColored(
-			color.FgHiWhite,
-			"%s",
-			name,
-		)
-	} else {
-		return 1, err
-	}
-
-	// success
-	return 0, nil
-}
-
-// list cached contexts
-func listCachedContexts(
-	ctx context.Context,
-	writer *outputWriter,
-	timeoutSeconds int,
-	apiKey string,
-	vbs []bool,
-) (exit int, e error) {
-	writer.verbose(
-		verboseMedium,
-		vbs,
-		"listing cached contexts...",
-	)
-
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-
-	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
-		if len(listed) > 0 {
-			for _, content := range listed {
-				writer.printColored(
-					color.FgHiGreen,
-					"%s",
-					content.Name,
-				)
-				if len(content.DisplayName) > 0 {
-					writer.printColored(
-						color.FgHiWhite,
-						" (%s)",
-						content.DisplayName,
-					)
-				}
-				writer.printColored(color.FgWhite, `
-  > model: %s
-  > created: %s
-  > expires: %s
-`,
-					content.Model,
-					content.CreateTime.Format("2006-01-02 15:04 MST"),
-					content.ExpireTime.Format("2006-01-02 15:04 MST"),
-				)
-			}
-		} else {
-			return 1, fmt.Errorf("no cached contexts")
-		}
-	} else {
-		return 1, err
-	}
-
-	// success
-	return 0, nil
-}
-
-// delete cached context
-func deleteCachedContext(
-	ctx context.Context,
-	writer *outputWriter,
-	timeoutSeconds int,
-	apiKey string,
-	cachedContextName string,
-	vbs []bool,
-) (exit int, e error) {
-	writer.verbose(
-		verboseMedium,
-		vbs,
-		"deleting cached context...",
-	)
-
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-
-	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
-		return 1, err
-	}
-
-	// success
-	return 0, nil
-}
-
-// list models
-func listModels(
-	ctx context.Context,
-	writer *outputWriter,
-	timeoutSeconds int,
-	apiKey string,
-	vbs []bool,
-) (exit int, e error) {
-	writer.verbose(
-		verboseMedium,
-		vbs,
-		"listing models...",
-	)
-
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-
-	if models, err := gtc.ListModels(ctx); err != nil {
-		return 1, err
-	} else {
-		for _, model := range models {
-			writer.printColored(
-				color.FgHiGreen,
-				"%s",
-				model.Name,
-			)
-			writer.printColored(
-				color.FgHiWhite,
-				` (%s)`,
-				model.DisplayName,
-			)
-
-			writer.printColored(color.FgWhite, `
-  > input tokens: %d
-  > output tokens: %d
-  > supported actions: %s
-`, model.InputTokenLimit,
-				model.OutputTokenLimit,
-				strings.Join(model.SupportedActions, ", "),
-			)
-		}
-	}
-
-	// success
-	return 0, nil
-}
-
 // append and flush model response
 func appendAndFlushModelResponse(
 	generatedConversations []genai.Content,
 	buffer *strings.Builder,
 ) []genai.Content {
 	if buffer.Len() > 0 {
-		if len(generatedConversations) > 0 && generatedConversations[len(generatedConversations)-1].Role == "model" {
+		// if the last conversation is from model, append to it
+		if len(generatedConversations) > 0 &&
+			generatedConversations[len(generatedConversations)-1].Role == string(gt.RoleModel) {
 			lastContent := generatedConversations[len(generatedConversations)-1]
 
 			// append text to the last model response
@@ -1444,10 +1039,9 @@ func appendAndFlushModelResponse(
 					Text: buffer.String(),
 				})
 			}
-		} else {
-			// or just append a new model response
+		} else { // or, just append a new model response
 			generatedConversations = append(generatedConversations, genai.Content{
-				Role: "model",
+				Role: string(gt.RoleModel),
 				Parts: []*genai.Part{
 					{
 						Text: buffer.String(),

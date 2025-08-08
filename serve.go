@@ -51,7 +51,7 @@ func serve(
 
 	// set default values
 	if p.Generation.UserAgent == nil {
-		p.Generation.UserAgent = ptr(defaultUserAgent)
+		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
 	}
 
 	// check existence of essential parameters here
@@ -406,7 +406,7 @@ func runStdioServer(
 						); err == nil {
 							content := []mcp.Content{}
 							for _, candidate := range res.Candidates {
-								if candidate.Content.Role != "model" {
+								if candidate.Content.Role != string(gt.RoleModel) {
 									continue
 								}
 								for i, part := range candidate.Content.Parts {
@@ -453,8 +453,6 @@ func runStdioServer(
 												if converted, err := pcmToWav(
 													part.InlineData.Data,
 													bitRate,
-													wavBitDepth,
-													wavNumChannels,
 												); err == nil {
 													bytes = converted
 													mimeType = mimetype.Detect(converted).String()
