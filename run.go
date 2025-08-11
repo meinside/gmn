@@ -1,4 +1,6 @@
 // run.go
+//
+// Things for running this application.
 
 package main
 

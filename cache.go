@@ -1,4 +1,6 @@
 // cache.go
+//
+// Things for managing cached contexts.
 
 package main
 

@@ -1,4 +1,6 @@
 // serve.go
+//
+// Things for serving a local STDIO MCP server.
 
 package main
 

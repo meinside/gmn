@@ -1,6 +1,6 @@
 // helpers.go
 //
-// helper functions and constants
+// Helper functions and constants.
 
 package main
 

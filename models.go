@@ -1,4 +1,6 @@
 // models.go
+//
+// Things for managing Gemini models.
 
 package main
 

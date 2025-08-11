@@ -1,6 +1,6 @@
 // generation.go
 //
-// things for using Gemini APIs and generating files
+// Things for generations using Gemini APIs.
 
 package main
 

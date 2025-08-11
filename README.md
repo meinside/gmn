@@ -542,6 +542,9 @@ $ gmn -p "generate a speech file which says 'ahhhh i wanna go home right now' in
     --mcp-stdio-command="/path/to/gmn -M" \
     -r \
     --save-speech-to-dir=~/Downloads
+$ gmn -p "summarize this file: /home/ubuntu/document.md" \
+    --mcp-stdio-command="/path/to/gmn -M" \
+    -r
 ```
 
 then it will work as another MCP server which provides functionalities of `gmn`.
