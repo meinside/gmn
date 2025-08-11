@@ -654,7 +654,12 @@ func openFilesForPrompt(
 		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
 		i++
 	}
-	for i, fp := range filepaths {
+	for i, fp := range slices.DeleteFunc(
+		filepaths,
+		func(fp *string) bool { // skip nil
+			return fp == nil
+		},
+	) {
 		if opened, err := os.Open(*fp); err == nil {
 			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
 			filesToClose = append(filesToClose, opened)
