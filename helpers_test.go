@@ -1,3 +1,7 @@
+// helpers_test.go
+//
+// Things for testing `helpers.go`.
+
 package main
 
 import (

@@ -1,6 +1,6 @@
 // params.go
 //
-// input parameters from command line and their helper functions
+// Input parameters from command line and their helper functions.
 
 package main
 

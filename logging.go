@@ -1,6 +1,6 @@
 // logging.go
 //
-// things for logging messages
+// Things for logging messages.
 
 package main
 

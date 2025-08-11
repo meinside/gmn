@@ -1,4 +1,6 @@
 // embeddings.go
+//
+// Things for generating embeddings.
 
 package main
 

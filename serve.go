@@ -1,4 +1,6 @@
 // serve.go
+//
+// Things for serving a local STDIO MCP server.
 
 package main
 
@@ -21,7 +23,7 @@ import (
 )
 
 const (
-	mcpTimeoutSeconds = 60
+	mcpFunctionTimeoutSeconds = 60
 )
 
 // serve MCP server with params
@@ -82,7 +84,7 @@ func runStdioServer(
 	ctx context.Context,
 	conf config,
 	p params,
-	output *outputWriter,
+	writer *outputWriter,
 	vbs []bool,
 ) (err error) {
 	// new server
@@ -93,44 +95,6 @@ func runStdioServer(
 		},
 		&mcp.ServerOptions{},
 	)
-
-	/*
-			// model for embeddings
-		if p.Configuration.GoogleAIModel == nil {
-			if conf.GoogleAIEmbeddingsModel != nil {
-				p.Configuration.GoogleAIModel = conf.GoogleAIEmbeddingsModel
-			} else {
-				p.Configuration.GoogleAIModel = ptr(defaultGoogleAIEmbeddingsModel)
-			}
-		}
-
-				// model for generations
-				if p.Generation.GenerateImages {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAIImageGenerationModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAIImageGenerationModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIImageGenerationModel)
-						}
-					}
-				} else if p.Generation.GenerateSpeech {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAISpeechGenerationModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAISpeechGenerationModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAISpeechGenerationModel)
-						}
-					}
-				} else {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAIModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAIModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
-						}
-					}
-				}
-	*/
 
 	// add tools
 	//
@@ -154,7 +118,7 @@ func runStdioServer(
 			var gtc *gt.Client
 			gtc, err = gt.NewClient(
 				*p.Configuration.GoogleAIAPIKey,
-				gt.WithTimeoutSeconds(mcpTimeoutSeconds),
+				gt.WithTimeoutSeconds(mcpFunctionTimeoutSeconds),
 			)
 			if err == nil {
 				var models []*genai.Model
@@ -187,6 +151,11 @@ func runStdioServer(
 						Title:       "prompt",
 						Description: `The user's prompt for generation.`,
 						Type:        "string",
+					},
+					"filepaths": {
+						Title:       "filepaths",
+						Description: `Paths to local files to be processed along with the given 'prompt'. If a path is not absolute, it will be resolved against the current working directory of this MCP server.`,
+						Type:        "array",
 					},
 					"modality": {
 						Title:       "modality",
@@ -236,6 +205,17 @@ func runStdioServer(
 			var prompt *string
 			prompt, err = gt.FuncArg[string](params.Arguments, "prompt")
 			if err == nil {
+				// get 'filepaths'
+				var filepaths []*string = nil
+				fps, _ := gt.FuncArg[[]any](params.Arguments, "filepaths")
+				if fps != nil {
+					for _, fp := range *fps {
+						if pth, ok := fp.(string); ok {
+							filepaths = append(filepaths, ptr(expandPath(pth)))
+						}
+					}
+				}
+
 				// get 'modality',
 				var modality *string
 				modality, err = gt.FuncArg[string](params.Arguments, "modality")
@@ -337,13 +317,13 @@ func runStdioServer(
 					var gtc *gt.Client
 					gtc, err = gt.NewClient(
 						*p.Configuration.GoogleAIAPIKey,
-						gt.WithTimeoutSeconds(mcpTimeoutSeconds),
+						gt.WithTimeoutSeconds(mcpFunctionTimeoutSeconds),
 						gt.WithModel(*model),
 					)
 					if err == nil {
 						gtc.SetSystemInstructionFunc(nil)
 
-						output.verbose(
+						writer.verbose(
 							verboseMedium,
 							p.Verbose,
 							"generating response with modality: %s (%s), model: '%s', with grounding: %v, with thinking: %v, convert url: %v, and prompt: '%s'",
@@ -368,29 +348,44 @@ func runStdioServer(
 
 						// convert prompt
 						prompts := []gt.Prompt{}
-						if *convertURL {
+						promptFiles := map[string][]byte{}
+						if *convertURL { // (convert urls to file prompts, and read local files)
 							p.Generation.Prompt = prompt
-							replacedPrompt, extractedPromptsWithURL := replaceURLsInPrompt(output, conf, p)
+							replacedPrompt, extractedPromptsWithURL := replaceURLsInPrompt(writer, conf, p)
 
 							// add prompt with urls replaced with some placeholders
 							prompts = append(prompts, gt.PromptFromText(replacedPrompt))
-
-							urlPrompts := map[string][]byte{}
 							for customURL, data := range extractedPromptsWithURL {
 								if customURL.isLink() {
-									urlPrompts[customURL.url()] = data
+									promptFiles[customURL.url()] = data
 								} else if customURL.isYoutube() {
 									prompts = append(prompts, gt.PromptFromURI(customURL.url()))
 								}
 							}
+						} else { // (just use the original prompt)
+							prompts = append(prompts, gt.PromptFromText(*prompt))
+						}
 
-							// read bytes from url prompts and append them as prompts
-							urlBytes, _, _ := openFilesForPrompt(urlPrompts, nil)
-							for filename, file := range urlBytes {
+						// read bytes from url prompts and local files, and append them as prompts
+						if files, filesToClose, err := openFilesForPrompt(
+							promptFiles,
+							filepaths,
+						); err == nil {
+							for filename, file := range files {
 								prompts = append(prompts, gt.PromptFromFile(filename, file))
 							}
+							defer func() {
+								for _, toClose := range filesToClose {
+									if err := toClose.Close(); err != nil {
+										writer.error(
+											"Failed to close file: %s",
+											err,
+										)
+									}
+								}
+							}()
 						} else {
-							prompts = append(prompts, gt.PromptFromText(*prompt))
+							return nil, fmt.Errorf("failed to open files: %w", err)
 						}
 
 						// generate,
@@ -411,7 +406,7 @@ func runStdioServer(
 								}
 								for i, part := range candidate.Content.Parts {
 									if len(part.Text) > 0 {
-										output.verbose(
+										writer.verbose(
 											verboseMaximum,
 											p.Verbose,
 											"text[%d]: '%s'", i, part.Text,
@@ -424,7 +419,7 @@ func runStdioServer(
 										bytes := part.InlineData.Data
 										mimeType := part.InlineData.MIMEType
 
-										output.verbose(
+										writer.verbose(
 											verboseMaximum,
 											p.Verbose,
 											"data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
@@ -474,7 +469,7 @@ func runStdioServer(
 												},
 											)
 										} else {
-											output.err(
+											writer.err(
 												verboseMaximum,
 												"unknown inline data type: %s", part.InlineData.MIMEType,
 											)
@@ -500,7 +495,7 @@ func runStdioServer(
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	output.verbose(
+	writer.verbose(
 		verboseMinimum,
 		vbs,
 		"connecting to MCP server...",
@@ -509,14 +504,14 @@ func runStdioServer(
 	// connect,
 	if _, err = server.Connect(ctx, mcp.NewStdioTransport()); err != nil {
 		if err == context.Canceled {
-			output.verbose(
+			writer.verbose(
 				verboseNone,
 				vbs,
 				"Server context canceled. Exiting.",
 			)
 			return nil
 		} else {
-			output.verbose(
+			writer.verbose(
 				verboseNone,
 				vbs,
 				"Server connection error: %v", err,
@@ -526,13 +521,13 @@ func runStdioServer(
 	}
 
 	// wait for signal
-	output.verbose(
+	writer.verbose(
 		verboseNone,
 		vbs,
 		"Server waiting for explicit shutdown signal (Ctrl+C / SIGTERM)...",
 	)
 	<-ctx.Done()
-	output.verbose(
+	writer.verbose(
 		verboseNone,
 		vbs,
 		"Shutdown signal received: %v", ctx.Err(),

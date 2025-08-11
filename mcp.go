@@ -1,6 +1,6 @@
 // mcp.go
 //
-// functions for MCP integration
+// Things for MCP integration.
 
 package main
 

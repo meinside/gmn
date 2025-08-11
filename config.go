@@ -1,6 +1,6 @@
 // config.go
 //
-// things for configurations
+// Things for configurations of this application.
 
 package main
 

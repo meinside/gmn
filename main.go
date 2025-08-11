@@ -1,6 +1,6 @@
 // main.go
 //
-// entry point of this application
+// Entry point of this application.
 
 package main
 
