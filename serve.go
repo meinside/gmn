@@ -154,7 +154,7 @@ func runStdioServer(
 					},
 					"filepaths": {
 						Title:       "filepaths",
-						Description: `Paths to local files to be processed along with the given 'prompt'.`,
+						Description: `Paths to local files to be processed along with the given 'prompt'. If a path is not absolute, it will be resolved against the current working directory of this MCP server.`,
 						Type:        "array",
 					},
 					"modality": {
