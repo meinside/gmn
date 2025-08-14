@@ -528,7 +528,13 @@ $ gmn -p "hello my friend, my name is meinside" \
 
 #### Run `gmn` itself as a MCP Server
 
-Run with `-M` or `--mcp-server` parameter, like:
+Launch a local(STDIO) MCP server with `-M` or `--mcp-server` parameter, like:
+
+```bash
+$ gmn --mcp-server --config=$HOME/.config/gmn/config.json
+```
+
+You can even run `gmn` with itself as a MCP server, like:
 
 ```bash
 $ gmn -p "hello there?" \
@@ -547,7 +553,7 @@ $ gmn -p "summarize this file: /home/ubuntu/document.md" \
     -r
 ```
 
-then it will work as another MCP server which provides functionalities of `gmn`.
+then it will work as a MCP server which provides functionalities of `gmn`.
 
 ### Generate Embeddings
 
