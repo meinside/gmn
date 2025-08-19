@@ -358,7 +358,7 @@ func run(
 
 				// check if prompt has any http url in it,
 				if !p.Generation.KeepURLsAsIs {
-					if urlsInPrompt(p) {
+					if urlsInPrompt(p) && !p.Generation.GenerateImages && !p.Generation.GenerateSpeech {
 						tools = append(tools, genai.Tool{
 							URLContext: &genai.URLContext{},
 						})
