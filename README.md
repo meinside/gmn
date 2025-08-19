@@ -127,7 +127,11 @@ $ ls -al | gmn -p "what is the largest file in the list, and how big is it?"
 
 ### Fetch URL Contents from the Prompt
 
-Run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all URLs in the given prompt.
+By default, URLs included in the prompt will be automatically fetched or reused from caches by Gemini API.
+
+If you want to fetch contents manually from each URL and use them as contexts in the prompt,
+
+run with `-x` or `--convert-urls` parameter, then it will try fetching contents from all URLs in the given prompt:
 
 ```bash
 # generate with a text prompt which includes some urls in it 
@@ -135,6 +139,12 @@ $ gmn -x -p "what's the latest book of douglas adams? check from here: https://o
 
 # query about youtube videos
 $ gmn -x -p "summarize this youtube video: https://www.youtube.com/watch?v=I_PntcnBWHw"
+```
+
+If you want to keep the original URLs in the prompt, run with `-X` or `--keep-urls` parameter:
+
+```bash
+$ gmn -X -p "what can be inferred from the given urls?: https://test.com/users/1, https://test.com/pages/2, https://test.com/contents/3"
 ```
 
 ---

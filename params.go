@@ -34,7 +34,8 @@ type params struct {
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding"`
 
 		// for fetching contents
-		ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations"`
+		ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
+		KeepURLsAsIs            bool    `short:"X" long:"keep-urls" description:"Keep URLs in the prompt as-is (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
 		UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
 
 		// other generation options

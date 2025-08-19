@@ -121,6 +121,10 @@ func run(
 			promptFiles := map[string][]byte{}
 
 			if p.Generation.ReplaceHTTPURLsInPrompt {
+				if p.Generation.KeepURLsAsIs {
+					return 1, fmt.Errorf("cannot use `--keep-urls` with `--convert-urls`")
+				}
+
 				// replace urls in the prompt,
 				replacedPrompt, extractedFiles := replaceURLsInPrompt(writer, conf, p)
 
@@ -351,6 +355,15 @@ func run(
 						_ = connAndTools.connection.Close()
 					}
 				}()
+
+				// check if prompt has any http url in it,
+				if !p.Generation.KeepURLsAsIs {
+					if urlsInPrompt(p) {
+						tools = append(tools, genai.Tool{
+							URLContext: &genai.URLContext{},
+						})
+					}
+				}
 
 				return doGeneration(context.TODO(),
 					writer,

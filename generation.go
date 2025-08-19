@@ -311,6 +311,12 @@ func doGeneration(
 							it.UsageMetadata.TotalTokenCount,
 						))
 					}
+					if it.UsageMetadata.TrafficType != "" && it.UsageMetadata.TrafficType != genai.TrafficTypeUnspecified {
+						tokenUsages = append(tokenUsages, fmt.Sprintf(
+							"traffic type: %s",
+							it.UsageMetadata.TrafficType,
+						))
+					}
 				}
 
 				// string buffer for model responses
