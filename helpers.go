@@ -308,6 +308,14 @@ func replaceURLsInPrompt(
 		// if `url` is from YouTube,
 		if isURLFromYoutube(url) {
 			files[youtubeURLInPrompt(url)] = []byte(url)
+
+			// replace prompt text
+			prompt = strings.Replace(
+				prompt,
+				url,
+				fmt.Sprintf("<youtube url=\"%s\">", url),
+				1,
+			)
 		} else {
 			if fetched, contentType, err := fetchContent(
 				writer,
@@ -384,6 +392,12 @@ func replaceURLsInPrompt(
 	}
 
 	return prompt, files
+}
+
+// check if there is any http url in given text prompt
+func urlsInPrompt(p params) bool {
+	return regexp.MustCompile(urlRegexp).
+		FindAllString(*p.Generation.Prompt, -1) != nil
 }
 
 // fetch the content from given url and convert it to text for prompting.
