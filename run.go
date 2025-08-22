@@ -6,18 +6,60 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
 	"github.com/meinside/version-go"
 )
+
+// modelPurpose represents the purpose of a model.
+type modelPurpose string
+
+const (
+	modelForEmbeddings       modelPurpose = "embeddings"
+	modelForImageGeneration  modelPurpose = "image_generation"
+	modelForSpeechGeneration modelPurpose = "speech_generation"
+	modelForGeneralPurpose   modelPurpose = ""
+)
+
+// resolveGoogleAIModel resolves the appropriate Google AI model based on the purpose.
+func resolveGoogleAIModel(
+	p *params,
+	conf *config,
+	purpose modelPurpose,
+) *string {
+	if p.Configuration.GoogleAIModel != nil {
+		return p.Configuration.GoogleAIModel
+	}
+
+	switch purpose {
+	case modelForEmbeddings:
+		if conf.GoogleAIEmbeddingsModel != nil {
+			return conf.GoogleAIEmbeddingsModel
+		}
+		return ptr(defaultGoogleAIEmbeddingsModel)
+	case modelForImageGeneration:
+		if conf.GoogleAIImageGenerationModel != nil {
+			return conf.GoogleAIImageGenerationModel
+		}
+		return ptr(defaultGoogleAIImageGenerationModel)
+	case modelForSpeechGeneration:
+		if conf.GoogleAISpeechGenerationModel != nil {
+			return conf.GoogleAISpeechGenerationModel
+		}
+		return ptr(defaultGoogleAISpeechGenerationModel)
+	default: // general generation
+		if conf.GoogleAIModel != nil {
+			return conf.GoogleAIModel
+		}
+		return ptr(defaultGoogleAIModel)
+	}
+}
 
 // run with params
 func run(
@@ -74,7 +116,7 @@ func run(
 	}
 
 	// check existence of essential parameters here
-	if conf.GoogleAIAPIKey == nil {
+	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil {
 		return 1, fmt.Errorf("google AI API Key is missing")
 	}
 
@@ -97,13 +139,7 @@ func run(
 
 		if p.Embeddings.GenerateEmbeddings { // generate embeddings with given prompt,
 			// model
-			if p.Configuration.GoogleAIModel == nil {
-				if conf.GoogleAIEmbeddingsModel != nil {
-					p.Configuration.GoogleAIModel = conf.GoogleAIEmbeddingsModel
-				} else {
-					p.Configuration.GoogleAIModel = ptr(defaultGoogleAIEmbeddingsModel)
-				}
-			}
+			p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForEmbeddings)
 
 			return doEmbeddingsGeneration(context.TODO(),
 				writer,
@@ -152,13 +188,7 @@ func run(
 
 			if p.Caching.CacheContext { // cache context
 				// model
-				if p.Configuration.GoogleAIModel == nil {
-					if conf.GoogleAIModel != nil {
-						p.Configuration.GoogleAIModel = conf.GoogleAIModel
-					} else {
-						p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
-					}
-				}
+				p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForGeneralPurpose)
 
 				return cacheContext(context.TODO(),
 					writer,
@@ -175,186 +205,77 @@ func run(
 			} else { // generate
 				// model
 				if p.Generation.GenerateImages {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAIImageGenerationModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAIImageGenerationModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIImageGenerationModel)
-						}
-					}
+					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForImageGeneration)
 				} else if p.Generation.GenerateSpeech {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAISpeechGenerationModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAISpeechGenerationModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAISpeechGenerationModel)
-						}
-					}
+					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForSpeechGeneration)
 				} else {
-					if p.Configuration.GoogleAIModel == nil {
-						if conf.GoogleAIModel != nil {
-							p.Configuration.GoogleAIModel = conf.GoogleAIModel
-						} else {
-							p.Configuration.GoogleAIModel = ptr(defaultGoogleAIModel)
-						}
-					}
+					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForGeneralPurpose)
 				}
 
 				// function call (local)
 				var tools []genai.Tool
-				if p.LocalTools.Tools != nil {
-					if bytes, err := standardizeJSON([]byte(*p.LocalTools.Tools)); err == nil {
-						if err := json.Unmarshal(bytes, &tools); err != nil {
-							return 1, fmt.Errorf(
-								"failed to read tools: %w",
-								err,
-							)
-						}
-					} else {
-						return 1, fmt.Errorf(
-							"failed to standardize tools' JSON: %w",
-							err,
-						)
-					}
+				if err := unmarshalJSONFromBytes(p.LocalTools.Tools, &tools); err != nil {
+					return 1, fmt.Errorf("failed to read tools: %w", err)
 				}
+
 				var toolConfig *genai.ToolConfig
-				if p.LocalTools.ToolConfig != nil {
-					if bytes, err := standardizeJSON([]byte(*p.LocalTools.ToolConfig)); err == nil {
-						if err := json.Unmarshal(bytes, &toolConfig); err != nil {
-							return 1, fmt.Errorf(
-								"failed to read tool config: %w",
-								err,
-							)
-						}
-					} else {
-						return 1, fmt.Errorf(
-							"failed to standardize tool config's JSON: %w",
-							err,
-						)
-					}
+				if err := unmarshalJSONFromBytes(p.LocalTools.ToolConfig, &toolConfig); err != nil {
+					return 1, fmt.Errorf("failed to read tool config: %w", err)
 				}
 
 				// function call (MCP)
-				var allMCPTools mcpConnectionsAndTools = nil // key: streamable http url, value: mcp tools
-				for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
-					writer.verbose(
-						verboseMedium,
-						p.Verbose,
-						"fetching tools from MCP server: %s",
-						stripServerInfo(mcpServerStreamable, serverURL),
-					)
-
-					// connect to MCP server,
-					if mc, err := mcpConnect(
-						context.TODO(),
-						serverURL,
-					); err == nil {
-						// and fetch tools
-						var fetchedTools []*mcp.Tool
-						if fetchedTools, err = fetchMCPTools(
-							context.TODO(),
-							mc,
-						); err == nil {
-							if allMCPTools == nil {
-								allMCPTools = mcpConnectionsAndTools{}
-							}
-							allMCPTools[serverURL] = struct {
-								serverType mcpServerType
-								connection *mcp.ClientSession
-								tools      []*mcp.Tool
-							}{
-								serverType: mcpServerStreamable,
-								connection: mc,
-								tools:      fetchedTools,
-							}
-
-							// check if there is any duplicated name of function
-							if value, duplicated := duplicated(
-								keysFromTools(tools, allMCPTools),
-							); duplicated {
-								return 1, fmt.Errorf(
-									"duplicated function name in tools: '%s'",
-									value,
-								)
-							}
-						} else {
-							return 1, fmt.Errorf(
-								"failed to fetch tools from MCP server '%s': %w",
-								stripServerInfo(mcpServerStreamable, serverURL),
-								err,
-							)
-						}
-					} else {
-						return 1, fmt.Errorf(
-							"failed to connect to MCP server '%s': %w",
-							stripServerInfo(mcpServerStreamable, serverURL),
-							err,
-						)
-					}
-				}
-				for _, cmdline := range p.MCPTools.StdioCommands {
-					writer.verbose(
-						verboseMedium,
-						p.Verbose,
-						"fetching tools from MCP server: %s",
-						stripServerInfo(mcpServerStdio, cmdline),
-					)
-
-					// connect to MCP server,
-					if mc, err := mcpRun(
-						context.TODO(),
-						cmdline,
-					); err == nil {
-						// and fetch tools
-						var fetchedTools []*mcp.Tool
-						if fetchedTools, err = fetchMCPTools(
-							context.TODO(),
-							mc,
-						); err == nil {
-							if allMCPTools == nil {
-								allMCPTools = mcpConnectionsAndTools{}
-							}
-							allMCPTools[cmdline] = struct {
-								serverType mcpServerType
-								connection *mcp.ClientSession
-								tools      []*mcp.Tool
-							}{
-								serverType: mcpServerStdio,
-								connection: mc,
-								tools:      fetchedTools,
-							}
-
-							// check if there is any duplicated name of function
-							if value, duplicated := duplicated(
-								keysFromTools(tools, allMCPTools),
-							); duplicated {
-								return 1, fmt.Errorf(
-									"duplicated function name in tools: '%s'",
-									value,
-								)
-							}
-						} else {
-							return 1, fmt.Errorf(
-								"failed to fetch tools from MCP server '%s': %w",
-								stripServerInfo(mcpServerStdio, cmdline),
-								err,
-							)
-						}
-					} else {
-						return 1, fmt.Errorf(
-							"failed to connect to MCP server '%s': %w",
-							stripServerInfo(mcpServerStdio, cmdline),
-							err,
-						)
-					}
-				}
-
-				// close all MCP connections
+				allMCPConnections := make(mcpConnectionsAndTools)
 				defer func() {
-					for _, connAndTools := range allMCPTools {
-						_ = connAndTools.connection.Close()
+					for _, connDetails := range allMCPConnections {
+						_ = connDetails.connection.Close()
 					}
 				}()
+
+				// from streamable http urls
+				for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
+					ctx, cancel := context.WithTimeout(context.TODO(), mcpDefaultDialTimeoutSeconds*time.Second)
+					defer cancel()
+
+					connDetails, err := fetchAndRegisterMCPTools(
+						ctx,
+						writer,
+						p,
+						mcpServerStreamable,
+						serverURL,
+					)
+					if err != nil {
+						return 1, err
+					}
+					allMCPConnections[serverURL] = *connDetails
+				}
+
+				// from local commands
+				for _, cmdline := range p.MCPTools.StdioCommands {
+					ctx, cancel := context.WithTimeout(context.TODO(), mcpDefaultDialTimeoutSeconds*time.Second)
+					defer cancel()
+
+					connDetails, err := fetchAndRegisterMCPTools(
+						ctx,
+						writer,
+						p,
+						mcpServerStdio,
+						cmdline,
+					)
+					if err != nil {
+						return 1, err
+					}
+					allMCPConnections[cmdline] = *connDetails
+				}
+
+				// check for duplicated function names after all tools are collected
+				if value, duplicated := duplicated(
+					keysFromTools(tools, allMCPConnections),
+				); duplicated {
+					return 1, fmt.Errorf(
+						"duplicated function name in tools: '%s'",
+						value,
+					)
+				}
 
 				// check if prompt has any http url in it,
 				if !p.Generation.KeepURLsAsIs {
@@ -365,7 +286,8 @@ func run(
 					}
 				}
 
-				return doGeneration(context.TODO(),
+				return doGeneration(
+					context.TODO(),
 					writer,
 					conf.TimeoutSeconds,
 					*p.Configuration.GoogleAIAPIKey,
@@ -389,7 +311,7 @@ func run(
 					toolConfig,
 					p.LocalTools.ToolCallbacks,
 					p.LocalTools.ToolCallbacksConfirm,
-					allMCPTools,
+					allMCPConnections,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages,
 					p.Generation.SaveImagesToFiles,
@@ -414,7 +336,8 @@ func run(
 		)
 
 		if p.Caching.CacheContext { // cache context
-			return cacheContext(context.TODO(),
+			return cacheContext(
+				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
@@ -427,14 +350,16 @@ func run(
 				p.Verbose,
 			)
 		} else if p.Caching.ListCachedContexts { // list cached contexts
-			return listCachedContexts(context.TODO(),
+			return listCachedContexts(
+				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
 		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
-			return deleteCachedContext(context.TODO(),
+			return deleteCachedContext(
+				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
@@ -442,7 +367,8 @@ func run(
 				p.Verbose,
 			)
 		} else if p.ListModels { // list models
-			return listModels(context.TODO(),
+			return listModels(
+				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
 				*p.Configuration.GoogleAIAPIKey,
@@ -462,7 +388,10 @@ func run(
 // generate a default system instruction with given params
 func defaultSystemInstruction() string {
 	datetime := time.Now().Format("2006-01-02 15:04:05 MST (Mon)")
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown-host" // Fallback if hostname cannot be retrieved
+	}
 
 	return fmt.Sprintf(defaultSystemInstructionFormat,
 		appName,

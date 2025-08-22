@@ -1027,3 +1027,18 @@ func prettify(v any, flatten ...bool) string {
 	}
 	return fmt.Sprintf("%+v", v)
 }
+
+// unmarshalJSONFromBytes handles standardizing and unmarshaling JSON bytes.
+func unmarshalJSONFromBytes(data *string, target any) error {
+	if data == nil {
+		return nil // No data to unmarshal
+	}
+	bytes, err := standardizeJSON([]byte(*data))
+	if err != nil {
+		return fmt.Errorf("failed to standardize JSON: %w", err)
+	}
+	if err := json.Unmarshal(bytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+	return nil
+}

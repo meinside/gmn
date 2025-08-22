@@ -33,6 +33,64 @@ const (
 	mcpDefaultExpectContinueTimeoutSeconds = 15
 )
 
+// mcpConnectionDetails holds the details of an MCP server connection and its tools.
+type mcpConnectionDetails struct {
+	serverType mcpServerType
+	connection *mcp.ClientSession
+	tools      []*mcp.Tool
+}
+
+// fetchAndRegisterMCPTools connects to an MCP server and fetches its tools.
+func fetchAndRegisterMCPTools(
+	ctx context.Context,
+	writer *outputWriter,
+	p params,
+	serverType mcpServerType,
+	serverIdentifier string,
+) (*mcpConnectionDetails, error) {
+	writer.verbose(
+		verboseMedium,
+		p.Verbose,
+		"fetching tools from MCP server: %s",
+		stripServerInfo(serverType, serverIdentifier),
+	)
+
+	var mc *mcp.ClientSession
+	var err error
+	switch serverType {
+	case mcpServerStreamable:
+		mc, err = mcpConnect(ctx, serverIdentifier)
+	case mcpServerStdio:
+		mc, err = mcpRun(ctx, serverIdentifier)
+	default:
+		return nil, fmt.Errorf("unsupported MCP server type: %v", serverType)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to connect to MCP server '%s': %w",
+			stripServerInfo(serverType, serverIdentifier),
+			err,
+		)
+	}
+
+	fetchedTools, err := fetchMCPTools(ctx, mc)
+	if err != nil {
+		_ = mc.Close() // Ensure connection is closed on fetch error
+		return nil, fmt.Errorf(
+			"failed to fetch tools from MCP server '%s': %w",
+			stripServerInfo(serverType, serverIdentifier),
+			err,
+		)
+	}
+
+	return &mcpConnectionDetails{
+		serverType: serverType,
+		connection: mc,
+		tools:      fetchedTools,
+	}, nil
+}
+
 // for reusing http client
 var _mcpHTTPClient *http.Client
 
@@ -89,6 +147,7 @@ func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (server
 	return "", "", nil, mcp.Tool{}, false
 }
 
+// mcp server type
 type mcpServerType string
 
 const (
