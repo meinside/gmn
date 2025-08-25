@@ -683,164 +683,185 @@ func doGeneration(
 												part.FunctionCall.Name,
 												part.FunctionCall.Args,
 											); err == nil {
-												if generated, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
-													// warn that there are tools ignored
-													if len(mcpConnsAndTools) > 0 && !recurseOnCallbackResults {
-														writer.warn(
-															"Not recursing, ignoring the result of '%s'.",
-															fn,
+												var generated []gt.Prompt
+												if res.StructuredContent != nil {
+													if raw, err := json.Marshal(res.StructuredContent); err == nil {
+														// generated = []gt.Prompt{gt.PromptFromBytes(raw)} // FIXME: http 500 errors occur
+														generated = []gt.Prompt{gt.PromptFromText(string(raw))}
+													} else {
+														// error
+														ch <- result{
+															exit: 1,
+															err: fmt.Errorf(
+																"failed to read tool call result: could not marshal structured content (%T): %w",
+																res.StructuredContent,
+																err,
+															),
+														}
+														return
+													}
+												} else {
+													if prompts, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+														generated = append(generated, prompts...)
+													} else {
+														// error
+														ch <- result{
+															exit: 1,
+															err: fmt.Errorf(
+																"failed to read tool call result: %s",
+																err,
+															),
+														}
+														return
+													}
+												}
+
+												// warn that there are tools ignored
+												if len(mcpConnsAndTools) > 0 && !recurseOnCallbackResults {
+													writer.warn(
+														"Not recursing, ignoring the result of '%s'.",
+														fn,
+													)
+												}
+
+												// print the result of execution,
+												for _, prompt := range generated {
+													if forcePrintCallbackResults ||
+														verboseLevel(vbs) >= verboseMinimum {
+														writer.printColored(
+															color.FgHiCyan,
+															"%s\n",
+															prompt.String(),
 														)
 													}
 
-													// print the result of execution,
-													for _, prompt := range generated {
-														if forcePrintCallbackResults ||
-															verboseLevel(vbs) >= verboseMinimum {
-															writer.printColored(
-																color.FgHiCyan,
-																"%s\n",
-																prompt.String(),
-															)
-														}
+													// and save files if needed
+													switch p := prompt.(type) {
+													case gt.FilePrompt, gt.BytesPrompt:
+														bytes := p.ToPart().InlineData.Data
+														mimeType := p.ToPart().InlineData.MIMEType
 
-														// and save files if needed
-														switch p := prompt.(type) {
-														case gt.FilePrompt, gt.BytesPrompt:
-															bytes := p.ToPart().InlineData.Data
-															mimeType := p.ToPart().InlineData.MIMEType
+														if strings.HasPrefix(mimeType, "image/") {
+															if saveImagesToFiles || saveImagesToDir != nil {
+																fpath := genFilepath(
+																	mimeType,
+																	"image",
+																	saveImagesToDir,
+																)
 
-															if strings.HasPrefix(mimeType, "image/") {
-																if saveImagesToFiles || saveImagesToDir != nil {
-																	fpath := genFilepath(
-																		mimeType,
-																		"image",
-																		saveImagesToDir,
-																	)
+																writer.verbose(
+																	verboseMedium,
+																	vbs,
+																	"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																)
 
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
-																	)
-
-																	if err := os.WriteFile(fpath, bytes, 0640); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("saving file failed: %s", err),
-																		}
-																		return
-																	} else {
-																		writer.print(
-																			verboseMinimum,
-																			"Saved image to file: %s",
-																			fpath,
-																		)
+																if err := os.WriteFile(fpath, bytes, 0640); err != nil {
+																	// error
+																	ch <- result{
+																		exit: 1,
+																		err:  fmt.Errorf("saving file failed: %s", err),
 																	}
+																	return
 																} else {
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"displaying image (%s;%d bytes) on terminal...",
-																		mimeType,
-																		len(bytes),
+																	writer.print(
+																		verboseMinimum,
+																		"Saved image to file: %s",
+																		fpath,
 																	)
+																}
+															} else {
+																writer.verbose(
+																	verboseMedium,
+																	vbs,
+																	"displaying image (%s;%d bytes) on terminal...",
+																	mimeType,
+																	len(bytes),
+																)
 
-																	// display on terminal
-																	if err := displayImageOnTerminal(
+																// display on terminal
+																if err := displayImageOnTerminal(
+																	bytes,
+																	mimeType,
+																); err != nil {
+																	// error
+																	ch <- result{
+																		exit: 1,
+																		err:  fmt.Errorf("image display failed: %s", err),
+																	}
+																	return
+																} else { // NOTE: make sure to insert a new line after an image
+																	writer.println()
+																}
+															}
+														} else if strings.HasPrefix(mimeType, "audio/") {
+															if saveSpeechToDir != nil {
+																// check codec and birtate
+																speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
+																if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+																	// convert,
+																	var ce error
+																	if bytes, ce = pcmToWav(
 																		bytes,
-																		mimeType,
-																	); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("image display failed: %s", err),
-																		}
-																		return
-																	} else { // NOTE: make sure to insert a new line after an image
-																		writer.println()
+																		bitRate,
+																	); ce == nil {
+																		mimeType = mimetype.Detect(bytes).String()
 																	}
 																}
-															} else if strings.HasPrefix(mimeType, "audio/") {
-																if saveSpeechToDir != nil {
-																	// check codec and birtate
-																	speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
-																	if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
-																		// convert,
-																		var ce error
-																		if bytes, ce = pcmToWav(
-																			bytes,
-																			bitRate,
-																		); ce == nil {
-																			mimeType = mimetype.Detect(bytes).String()
-																		}
+																fpath := genFilepath(
+																	mimeType,
+																	"audio",
+																	saveSpeechToDir,
+																)
+
+																writer.verbose(
+																	verboseMedium,
+																	vbs,
+																	"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																)
+
+																if err := os.WriteFile(
+																	fpath,
+																	bytes,
+																	0640,
+																); err != nil {
+																	// error
+																	ch <- result{
+																		exit: 1,
+																		err:  fmt.Errorf("saving file failed: %s", err),
 																	}
-																	fpath := genFilepath(
-																		mimeType,
-																		"audio",
-																		saveSpeechToDir,
-																	)
-
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
-																	)
-
-																	if err := os.WriteFile(
+																	return
+																} else {
+																	writer.print(
+																		verboseMinimum,
+																		"Saved speech to file: %s",
 																		fpath,
-																		bytes,
-																		0640,
-																	); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("saving file failed: %s", err),
-																		}
-																		return
-																	} else {
-																		writer.print(
-																			verboseMinimum,
-																			"Saved speech to file: %s",
-																			fpath,
-																		)
-																	}
+																	)
 																}
 															}
 														}
 													}
-
-													// flush model response
-													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-													// append function call result
-													parts := []*genai.Part{
-														{
-															Text: fmt.Sprintf(
-																`Result of function '%s':
-`,
-																fn,
-															),
-														},
-													}
-													for _, gen := range generated {
-														parts = append(parts, ptr(gen.ToPart()))
-													}
-													pastGenerations = append(pastGenerations, genai.Content{
-														Role:  string(gt.RoleUser),
-														Parts: parts,
-													})
-												} else {
-													// error
-													ch <- result{
-														exit: 1,
-														err: fmt.Errorf(
-															"failed to read tool call result: %s",
-															err,
-														),
-													}
-													return
 												}
+
+												// flush model response
+												pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+												// append function call result
+												parts := []*genai.Part{
+													{
+														Text: fmt.Sprintf(
+															`Result of function '%s':
+`,
+															fn,
+														),
+													},
+												}
+												for _, gen := range generated {
+													parts = append(parts, ptr(gen.ToPart()))
+												}
+												pastGenerations = append(pastGenerations, genai.Content{
+													Role:  string(gt.RoleUser),
+													Parts: parts,
+												})
 											} else {
 												// error
 												ch <- result{

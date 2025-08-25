@@ -251,7 +251,10 @@ func run(
 
 				// from local commands
 				for _, cmdline := range p.MCPTools.StdioCommands {
-					ctx, cancel := context.WithTimeout(context.TODO(), mcpDefaultDialTimeoutSeconds*time.Second)
+					ctx, cancel := context.WithTimeout(
+						context.TODO(),
+						mcpDefaultDialTimeoutSeconds*time.Second,
+					)
 					defer cancel()
 
 					connDetails, err := fetchAndRegisterMCPTools(
