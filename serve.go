@@ -14,7 +14,7 @@ import (
 	"syscall"
 
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/genai"
 
@@ -110,9 +110,8 @@ func runStdioServer(
 		},
 		func(
 			ctx context.Context,
-			mc *mcp.ServerSession,
-			params *mcp.CallToolParamsFor[map[string]any],
-		) (result *mcp.CallToolResultFor[any], err error) {
+			request *mcp.CallToolRequest,
+		) (result *mcp.CallToolResult, err error) {
 			p := p // copy launch params
 
 			var gtc *gt.Client
@@ -125,12 +124,14 @@ func runStdioServer(
 				if models, err = gtc.ListModels(ctx); err == nil {
 					var marshalled []byte
 					if marshalled, err = json.Marshal(models); err == nil {
-						return &mcp.CallToolResultFor[any]{
+						return &mcp.CallToolResult{
 							Content: []mcp.Content{
 								&mcp.TextContent{
 									Text: string(marshalled),
 								},
 							},
+							StructuredContent: json.RawMessage(marshalled), // structured (JSON)
+							IsError:           false,
 						}, nil
 					}
 				}
@@ -196,18 +197,27 @@ func runStdioServer(
 		},
 		func(
 			ctx context.Context,
-			mc *mcp.ServerSession,
-			params *mcp.CallToolParamsFor[map[string]any],
-		) (result *mcp.CallToolResultFor[any], err error) {
+			request *mcp.CallToolRequest,
+		) (result *mcp.CallToolResult, err error) {
 			p := p // copy launch params
+
+			// convert arguments
+			var args map[string]any
+			if raw, ok := request.Params.Arguments.(json.RawMessage); !ok {
+				return nil, fmt.Errorf("failed to convert arguments to json.RawMessage from %T", request.Params.Arguments)
+			} else {
+				if json.Unmarshal(raw, &args) != nil {
+					return nil, fmt.Errorf("failed to convert arguments to map[string]any: %w", err)
+				}
+			}
 
 			// get 'prompt',
 			var prompt *string
-			prompt, err = gt.FuncArg[string](params.Arguments, "prompt")
+			prompt, err = gt.FuncArg[string](args, "prompt")
 			if err == nil {
 				// get 'filepaths'
 				var filepaths []*string = nil
-				fps, _ := gt.FuncArg[[]any](params.Arguments, "filepaths")
+				fps, _ := gt.FuncArg[[]any](args, "filepaths")
 				if fps != nil {
 					for _, fp := range *fps {
 						if pth, ok := fp.(string); ok {
@@ -218,12 +228,12 @@ func runStdioServer(
 
 				// get 'modality',
 				var modality *string
-				modality, err = gt.FuncArg[string](params.Arguments, "modality")
+				modality, err = gt.FuncArg[string](args, "modality")
 				if err == nil {
 					var responseModalities []genai.Modality = nil
 
 					// get 'model',
-					model, _ := gt.FuncArg[string](params.Arguments, "model")
+					model, _ := gt.FuncArg[string](args, "model")
 					switch *modality {
 					case "text":
 						if model == nil {
@@ -287,7 +297,7 @@ func runStdioServer(
 					thinkingOn := ptr(false)
 					switch *modality {
 					case "text":
-						withThinking, _ := gt.FuncArg[bool](params.Arguments, "with_thinking")
+						withThinking, _ := gt.FuncArg[bool](args, "with_thinking")
 						if withThinking != nil {
 							thinkingOn = withThinking
 						}
@@ -297,7 +307,7 @@ func runStdioServer(
 					withGrounding := ptr(false)
 					switch *modality {
 					case "text":
-						grounding, _ := gt.FuncArg[bool](params.Arguments, "with_grounding")
+						grounding, _ := gt.FuncArg[bool](args, "with_grounding")
 						if grounding != nil {
 							withGrounding = grounding
 						}
@@ -307,7 +317,7 @@ func runStdioServer(
 					convertURL := ptr(false)
 					switch *modality {
 					case "text":
-						withURLConversion, _ := gt.FuncArg[bool](params.Arguments, "convert_url")
+						withURLConversion, _ := gt.FuncArg[bool](args, "convert_url")
 						if withURLConversion != nil {
 							convertURL = withURLConversion
 						}
@@ -477,8 +487,9 @@ func runStdioServer(
 									}
 								}
 							}
-							return &mcp.CallToolResultFor[any]{
+							return &mcp.CallToolResult{
 								Content: content,
+								IsError: false,
 							}, nil
 						}
 					}
@@ -502,7 +513,11 @@ func runStdioServer(
 	)
 
 	// connect,
-	if _, err = server.Connect(ctx, mcp.NewStdioTransport()); err != nil {
+	if _, err = server.Connect(
+		ctx,
+		&mcp.StdioTransport{},
+		&mcp.ServerSessionOptions{},
+	); err != nil {
 		if err == context.Canceled {
 			writer.verbose(
 				verboseNone,

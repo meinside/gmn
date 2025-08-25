@@ -66,6 +66,8 @@ github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
+github.com/google/jsonschema-go v0.2.0 h1:Uh19091iHC56//WOsAd1oRg6yy1P9BpSvpjOL6RcjLQ=
+github.com/google/jsonschema-go v0.2.0/go.mod h1:r5quNTdLOYEz95Ru18zA0ydNbBuYoo9tgaYcxEYhJVE=
 github.com/google/s2a-go v0.1.9 h1:LGD7gtMgezd8a/Xak7mEWL0PjoTQFvpRudN895yqKW0=
 github.com/google/s2a-go v0.1.9/go.mod h1:YA0Ei2ZQL3acow2O62kdp9UlnvMmU7kA6Eutn0dXayM=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
@@ -96,8 +98,8 @@ github.com/meinside/gemini-things-go v0.3.30 h1:0IdvaksMWyTyTsD84cqHsXdZGgtv0kHS
 github.com/meinside/gemini-things-go v0.3.30/go.mod h1:avkCoCU8f0b1KaZYBM9r/4a0bo/eV4+97s1uubUi1aA=
 github.com/meinside/version-go v0.0.3 h1:GXSwi6sTmgpnSR09jAAqDGWeX2Nq52fe5xpitgAhQfM=
 github.com/meinside/version-go v0.0.3/go.mod h1:mFvlwbro1E126u4rU727CcHNa8OPFyhq+KDYYNysFj4=
-github.com/modelcontextprotocol/go-sdk v0.2.0 h1:PESNYOmyM1c369tRkzXLY5hHrazj8x9CY1Xu0fLCryM=
-github.com/modelcontextprotocol/go-sdk v0.2.0/go.mod h1:0sL9zUKKs2FTTkeCCVnKqbLJTw5TScefPAzojjU459E=
+github.com/modelcontextprotocol/go-sdk v0.3.0 h1:/1XC6+PpdKfE4CuFJz8/goo0An31bu8n8G8d3BkeJoY=
+github.com/modelcontextprotocol/go-sdk v0.3.0/go.mod h1:71VUZVa8LL6WARvSgLJ7DMpDWSeomT4uBv8g97mGBvo=
 github.com/oracle/oci-go-sdk/v65 v65.99.0 h1:M/a+N0IFk+TUCqyuf0kbqp4RyAIF+H7FmOe+CEiVbhs=
 github.com/oracle/oci-go-sdk/v65 v65.99.0/go.mod h1:RGiXfpDDmRRlLtqlStTzeBjjdUNXyqm3KXKyLCm3A/Q=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

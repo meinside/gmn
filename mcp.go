@@ -24,13 +24,14 @@ const (
 	mcpClientName = `gmn/mcp-client`
 	mcpServerName = `gmn/mcp-server`
 
-	mcpDefaultTimeoutSeconds               = 120 // FIXME: ideally, should be 0 for keeping the connection
 	mcpDefaultDialTimeoutSeconds           = 10
 	mcpDefaultKeepAliveSeconds             = 60
 	mcpDefaultIdleTimeoutSeconds           = 180
 	mcpDefaultTLSHandshakeTimeoutSeconds   = 20
 	mcpDefaultResponseHeaderTimeoutSeconds = 60
 	mcpDefaultExpectContinueTimeoutSeconds = 15
+
+	mcpDefaultMaxRetries = 3
 )
 
 // mcpConnectionDetails holds the details of an MCP server connection and its tools.
@@ -177,12 +178,12 @@ func mcpConnect(
 		&mcp.ClientOptions{},
 	).Connect(
 		ctx,
-		mcp.NewStreamableClientTransport(
-			url,
-			&mcp.StreamableClientTransportOptions{
-				HTTPClient: mcpHTTPClient(),
-			},
-		),
+		&mcp.StreamableClientTransport{
+			Endpoint:   url,
+			HTTPClient: mcpHTTPClient(),
+			MaxRetries: mcpDefaultMaxRetries,
+		},
+		&mcp.ClientSessionOptions{},
 	); err == nil {
 		return connection, nil
 	}
@@ -218,7 +219,10 @@ func mcpRun(
 		&mcp.ClientOptions{},
 	).Connect(
 		ctx,
-		mcp.NewCommandTransport(exec.Command(command, args...)),
+		&mcp.CommandTransport{
+			Command: exec.Command(command, args...),
+		},
+		&mcp.ClientSessionOptions{},
 	); err == nil {
 		return connection, nil
 	}
