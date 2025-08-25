@@ -131,12 +131,37 @@ func runStdioServer(
 								},
 							},
 							StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-							IsError:           false,
+						}, nil
+					} else {
+						return &mcp.CallToolResult{
+							Content: []mcp.Content{
+								&mcp.TextContent{
+									Text: fmt.Sprintf("Failed to marshal fetched Google AI models: %s", err),
+								},
+							},
+							IsError: true,
 						}, nil
 					}
+				} else {
+					return &mcp.CallToolResult{
+						Content: []mcp.Content{
+							&mcp.TextContent{
+								Text: fmt.Sprintf("Failed to fetch Google AI models: %s", err),
+							},
+						},
+						IsError: true,
+					}, nil
 				}
+			} else {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{
+							Text: fmt.Sprintf("Failed to initialize Google AI client: %s", err),
+						},
+					},
+					IsError: true,
+				}, nil
 			}
-			return nil, fmt.Errorf("failed to list Google AI models: %w", err)
 		},
 	)
 	// generate text
@@ -204,10 +229,31 @@ func runStdioServer(
 			// convert arguments
 			var args map[string]any
 			if raw, ok := request.Params.Arguments.(json.RawMessage); !ok {
-				return nil, fmt.Errorf("failed to convert arguments to json.RawMessage from %T", request.Params.Arguments)
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{
+							Text: fmt.Sprintf(
+								"Failed to convert call tool result params arguments from `%T` to `json.RawMessage`.",
+								request.Params.Arguments,
+							),
+						},
+					},
+					IsError: true,
+				}, nil
 			} else {
 				if json.Unmarshal(raw, &args) != nil {
-					return nil, fmt.Errorf("failed to convert arguments to map[string]any: %w", err)
+					return &mcp.CallToolResult{
+						Content: []mcp.Content{
+							&mcp.TextContent{
+								Text: fmt.Sprintf(
+									"Failed to convert raw arguments to `%T`: %s",
+									args,
+									err,
+								),
+							},
+						},
+						IsError: true,
+					}, nil
 				}
 			}
 
@@ -395,7 +441,17 @@ func runStdioServer(
 								}
 							}()
 						} else {
-							return nil, fmt.Errorf("failed to open files: %w", err)
+							return &mcp.CallToolResult{
+								Content: []mcp.Content{
+									&mcp.TextContent{
+										Text: fmt.Sprintf(
+											"Failed to open files: %s",
+											err,
+										),
+									},
+								},
+								IsError: true,
+							}, nil
 						}
 
 						// generate,
@@ -489,7 +545,6 @@ func runStdioServer(
 							}
 							return &mcp.CallToolResult{
 								Content: content,
-								IsError: false,
 							}, nil
 						}
 					}
@@ -497,7 +552,17 @@ func runStdioServer(
 			} else {
 				err = fmt.Errorf("failed to get parameter 'prompt': %w", err)
 			}
-			return nil, fmt.Errorf("failed to generate: %w", err)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{
+						Text: fmt.Sprintf(
+							"Failed to generate: %s",
+							err,
+						),
+					},
+				},
+				IsError: true,
+			}, nil
 		},
 	)
 	// TODO: generate embeddings with text
