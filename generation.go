@@ -40,7 +40,7 @@ func doGeneration(
 	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
-	withThinking bool, thinkingBudget *int32,
+	withThinking bool, thinkingBudget *int32, showThinking bool,
 	withGrounding bool,
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
@@ -330,10 +330,12 @@ func doGeneration(
 							if withThinking {
 								if part.Thought {
 									if !thoughtBegan {
-										writer.printColored(
-											color.FgHiYellow,
-											"<thought>\n",
-										)
+										if showThinking {
+											writer.printColored(
+												color.FgHiYellow,
+												"<thought>\n",
+											)
+										}
 
 										thoughtBegan, thoughtEnded = true, false
 										isThinking = true
@@ -343,10 +345,12 @@ func doGeneration(
 										thoughtBegan = false
 
 										if !thoughtEnded {
-											writer.printColored(
-												color.FgHiYellow,
-												"</thought>\n",
-											)
+											if showThinking {
+												writer.printColored(
+													color.FgHiYellow,
+													"</thought>\n",
+												)
+											}
 
 											thoughtEnded = true
 											isThinking = false
@@ -357,11 +361,13 @@ func doGeneration(
 
 							if part.Text != "" {
 								if isThinking {
-									writer.printColored(
-										color.FgHiYellow,
-										"%s",
-										part.Text,
-									)
+									if showThinking {
+										writer.printColored(
+											color.FgHiYellow,
+											"%s",
+											part.Text,
+										)
+									}
 								} else {
 									writer.printColored(
 										color.FgHiWhite,
@@ -1021,7 +1027,7 @@ func doGeneration(
 				apiKey, model,
 				systemInstruction, temperature, topP, topK,
 				prompts, promptFiles, filepaths,
-				withThinking, thinkingBudget,
+				withThinking, thinkingBudget, showThinking,
 				withGrounding,
 				cachedContextName,
 				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
