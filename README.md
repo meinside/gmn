@@ -165,10 +165,10 @@ $ gmn -g -p "Who is Admiral Yi Sun-sin?"
 
 ### Generate with Thinking
 
-You can generate with thinking with models which support thinking:
+You can generate with thinking with `-t` or `--with-thinking` (only with models which support thinking):
 
 ```bash
-$ gmn -m "gemini-2.5-flash-preview-04-17-thinking" --with-thinking -p "explain the derivation process of the quadratic formula"
+$ gmn -m "gemini-2.5-pro" -t -p "explain the derivation process of the quadratic formula"
 ```
 
 ### Generate Other Media
@@ -607,7 +607,7 @@ With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed informati
 ```bash
 # for text generation with a plain text
 gmnp() {
-    gmn -p "$*"
+    gmn -g -t -p "$*"
 }
 # for image generation with a plain text
 gmni() { # for image generation
@@ -623,7 +623,7 @@ gmns() {
 }
 # for generation with grounding (google search)
 gmng() {
-    gmn --with-grounding -p "$*"
+    gmn -g -t -p "$*"
 }
 # for URL summarization
 gmnu() {
