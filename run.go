@@ -304,6 +304,7 @@ func run(
 					p.Generation.Filepaths,
 					p.Generation.ThinkingOn,
 					p.Generation.ThinkingBudget,
+					p.Generation.ShowThinking,
 					p.Generation.GroundingOn,
 					p.Caching.CachedContextName,
 					p.Tools.ShowCallbackResults,

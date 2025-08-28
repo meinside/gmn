@@ -29,8 +29,9 @@ type params struct {
 		Temperature       *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
 		TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
 		TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
-		ThinkingOn        bool      `long:"with-thinking" description:"Generate with thinking on"`
+		ThinkingOn        bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
 		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
+		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding"`
 
 		// for fetching contents
