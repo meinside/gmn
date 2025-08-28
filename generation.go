@@ -323,6 +323,19 @@ func doGeneration(
 				bufModelResponse := new(strings.Builder)
 
 				for _, cand := range it.Candidates {
+					// url context metadata
+					if cand.URLContextMetadata != nil {
+						for _, metadata := range cand.URLContextMetadata.URLMetadata {
+							writer.verbose(
+								verboseMedium,
+								vbs,
+								"[%s] %s",
+								metadata.URLRetrievalStatus,
+								metadata.RetrievedURL,
+							)
+						}
+					}
+
 					// content
 					if cand.Content != nil {
 						for _, part := range cand.Content.Parts {
