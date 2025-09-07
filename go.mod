@@ -11,16 +11,16 @@ require (
 	github.com/infisical/go-sdk v0.5.100
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.3.33
+	github.com/meinside/gemini-things-go v0.3.34
 	github.com/meinside/version-go v0.0.3
-	github.com/modelcontextprotocol/go-sdk v0.3.1
+	github.com/modelcontextprotocol/go-sdk v0.4.0
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	google.golang.org/genai v1.23.0
 	mvdan.cc/sh/v3 v3.12.0
 )
 
 require (
-	cloud.google.com/go v0.121.6 // indirect
+	cloud.google.com/go v0.122.0 // indirect
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.8.0 // indirect
@@ -64,12 +64,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	google.golang.org/api v0.248.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250826171959-ef028d996bc1 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250826171959-ef028d996bc1 // indirect
