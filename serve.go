@@ -228,33 +228,19 @@ func runStdioServer(
 
 			// convert arguments
 			var args map[string]any
-			if raw, ok := request.Params.Arguments.(json.RawMessage); !ok {
+			if json.Unmarshal(request.Params.Arguments, &args) != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
 						&mcp.TextContent{
 							Text: fmt.Sprintf(
-								"Failed to convert call tool result params arguments from `%T` to `json.RawMessage`.",
-								request.Params.Arguments,
+								"Failed to convert arguments to `%T`: %s",
+								args,
+								err,
 							),
 						},
 					},
 					IsError: true,
 				}, nil
-			} else {
-				if json.Unmarshal(raw, &args) != nil {
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: fmt.Sprintf(
-									"Failed to convert raw arguments to `%T`: %s",
-									args,
-									err,
-								),
-							},
-						},
-						IsError: true,
-					}, nil
-				}
 			}
 
 			// get 'prompt',
