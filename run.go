@@ -96,10 +96,17 @@ func run(
 			p.Generation.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		return 1, fmt.Errorf(
-			"failed to read configuration: %w",
-			err,
-		)
+		// check if environment variable for api key exists,
+		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
+			// use it,
+			p.Configuration.GoogleAIAPIKey = &envAPIKey
+		} else {
+			// or return an error
+			return 1, fmt.Errorf(
+				"failed to read configuration: %w",
+				err,
+			)
+		}
 	}
 
 	// override command arguments with values from configs
@@ -107,12 +114,18 @@ func run(
 		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
 	}
 
-	// set default values
+	// fallback to default values
 	if p.Generation.SystemInstruction == nil {
 		p.Generation.SystemInstruction = ptr(defaultSystemInstruction())
 	}
 	if p.Generation.UserAgent == nil {
 		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
+	}
+	if conf.TimeoutSeconds <= 0 {
+		conf.TimeoutSeconds = defaultTimeoutSeconds
+	}
+	if conf.ReplaceHTTPURLTimeoutSeconds <= 0 {
+		conf.ReplaceHTTPURLTimeoutSeconds = defaultFetchURLTimeoutSeconds
 	}
 
 	// check existence of essential parameters here

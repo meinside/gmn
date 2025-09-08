@@ -40,10 +40,17 @@ func serve(
 	// read and apply configs
 	var conf config
 	if conf, err = readConfig(resolveConfigFilepath(p.Configuration.ConfigFilepath)); err != nil {
-		return 1, fmt.Errorf(
-			"failed to read configuration: %w",
-			err,
-		)
+		// check if environment variable for api key exists,
+		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
+			// use it,
+			p.Configuration.GoogleAIAPIKey = &envAPIKey
+		} else {
+			// or return an error
+			return 1, fmt.Errorf(
+				"failed to read configuration: %w",
+				err,
+			)
+		}
 	}
 
 	// override command arguments with values from configs
@@ -57,7 +64,7 @@ func serve(
 	}
 
 	// check existence of essential parameters here
-	if conf.GoogleAIAPIKey == nil {
+	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil {
 		return 1, fmt.Errorf("google AI API Key is missing")
 	}
 

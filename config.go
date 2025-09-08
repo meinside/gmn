@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	envVarNameAPIKey = `GEMINI_API_KEY`
+
 	// default config file's name
 	defaultConfigFilename = `config.json`
 

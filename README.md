@@ -18,6 +18,8 @@ $ go install github.com/meinside/gmn@latest
 
 ## Configure
 
+### Using Config File
+
 Create `config.json` file in `$XDG_CONFIG_HOME/gmn/` or `$HOME/.config/gmn/`:
 
 ```bash
@@ -43,7 +45,7 @@ and replace things with your own values.
 
 You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample), and your Google AI API key [here](https://aistudio.google.com/app/apikey).
 
-### Using Infisical
+### Using Config File with Infisical
 
 You can use [Infisical](https://infisical.com/) for saving & retrieving your api key:
 
@@ -65,6 +67,14 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
   "google_ai_speech_generation_model": "gemini-2.5-flash-preview-tts",
   "google_ai_embeddings_model": "gemini-embedding-001",
 }
+```
+
+### Using Environment Variables
+
+Or, you can run with an environment variable named `GEMINI_API_KEY`:
+
+```bash
+$ GEMINI_API_KEY="ABCDEFGHIJK1234567890" gmn -p "hello"
 ```
 
 ## Run
