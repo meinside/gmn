@@ -246,7 +246,10 @@ func run(
 
 				// from streamable http urls
 				for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
-					ctx, cancel := context.WithTimeout(context.TODO(), mcpDefaultDialTimeoutSeconds*time.Second)
+					ctx, cancel := context.WithTimeout(
+						context.TODO(),
+						mcpDefaultDialTimeoutSeconds*time.Second,
+					)
 					defer cancel()
 
 					connDetails, err := fetchAndRegisterMCPTools(
