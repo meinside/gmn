@@ -60,9 +60,9 @@ func fetchAndRegisterMCPTools(
 	var err error
 	switch serverType {
 	case mcpServerStreamable:
-		mc, err = mcpConnect(ctx, serverIdentifier)
+		mc, err = mcpConnect(context.Background(), serverIdentifier)
 	case mcpServerStdio:
-		mc, err = mcpRun(ctx, serverIdentifier)
+		mc, err = mcpRun(context.Background(), serverIdentifier)
 	default:
 		return nil, fmt.Errorf("unsupported MCP server type: %v", serverType)
 	}
@@ -132,7 +132,7 @@ func keysFromTools(
 		}
 	}
 
-	return
+	return localToolKeys, mcpToolKeys
 }
 
 // get a matched server name and tool from given mcp tools and function name
@@ -240,7 +240,7 @@ func fetchMCPTools(
 		return listed.Tools, nil
 	}
 
-	return
+	return tools, err
 }
 
 // fetch function result from MCP server connection
@@ -259,7 +259,7 @@ func fetchMCPToolCallResult(
 		return res, nil
 	}
 
-	return
+	return res, err
 }
 
 // strip sensitive information from given server info
