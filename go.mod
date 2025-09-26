@@ -11,11 +11,11 @@ require (
 	github.com/infisical/go-sdk v0.5.100
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.3.39
+	github.com/meinside/gemini-things-go v0.3.40
 	github.com/meinside/version-go v0.0.3
 	github.com/modelcontextprotocol/go-sdk v0.7.0
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
-	google.golang.org/genai v1.25.0
+	google.golang.org/genai v1.26.0
 	mvdan.cc/sh/v3 v3.12.0
 )
 
@@ -70,7 +70,7 @@ require (
 	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
-	google.golang.org/api v0.249.0 // indirect
+	google.golang.org/api v0.250.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/grpc v1.75.1 // indirect
