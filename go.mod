@@ -11,11 +11,11 @@ require (
 	github.com/infisical/go-sdk v0.5.100
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.3.44
+	github.com/meinside/gemini-things-go v0.3.45
 	github.com/meinside/version-go v0.0.3
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
-	google.golang.org/genai v1.29.0
+	google.golang.org/genai v1.30.0
 	mvdan.cc/sh/v3 v3.12.0
 )
 
