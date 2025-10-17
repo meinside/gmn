@@ -266,7 +266,7 @@ func run(
 				}
 
 				// from local commands
-				for _, cmdline := range p.MCPTools.StdioCommands {
+				for _, cmdline := range p.MCPTools.STDIOCommands {
 					ctx, cancel := context.WithTimeout(
 						context.TODO(),
 						mcpDefaultDialTimeoutSeconds*time.Second,
@@ -284,6 +284,21 @@ func run(
 						return 1, err
 					}
 					allMCPConnections[cmdline] = *connDetails
+				}
+
+				// attach self as a MCP tool
+				if p.MCPTools.WithSelfAsSTDIOCommand {
+					ctx, cancel := context.WithTimeout(
+						context.TODO(),
+						mcpDefaultDialTimeoutSeconds*time.Second,
+					)
+					defer cancel()
+
+					if connDetails, err := selfAsMCPTool(ctx, conf, p, writer); err == nil {
+						allMCPConnections[mcpToolNameSelf] = *connDetails
+					} else {
+						return 1, fmt.Errorf("failed to run self as a local MCP tool: %w", err)
+					}
 				}
 
 				// check for duplicated function names after all tools are collected

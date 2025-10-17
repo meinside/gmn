@@ -24,6 +24,8 @@ const (
 	mcpClientName = `gmn/mcp-client`
 	mcpServerName = `gmn/mcp-server`
 
+	mcpToolNameSelf = `gmn/mcp-self`
+
 	mcpDefaultDialTimeoutSeconds           = 10
 	mcpDefaultKeepAliveSeconds             = 60
 	mcpDefaultIdleTimeoutSeconds           = 180
@@ -222,6 +224,40 @@ func mcpRun(
 		&mcp.CommandTransport{
 			Command: exec.Command(command, args...),
 		},
+		&mcp.ClientSessionOptions{},
+	); err == nil {
+		return connection, nil
+	}
+
+	return nil, err
+}
+
+// connect to local (in-memory) mcp server, start, initialize, and return the client
+func mcpRunInMemory(
+	ctx context.Context,
+	server *mcp.Server,
+) (connection *mcp.ClientSession, err error) {
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+
+	// run server,
+	if _, err = server.Connect(
+		ctx,
+		serverTransport,
+		&mcp.ServerSessionOptions{},
+	); err != nil {
+		return nil, fmt.Errorf("failed to connect to in-memory mcp server: %w", err)
+	}
+
+	// connect to server,
+	if connection, err = mcp.NewClient(
+		&mcp.Implementation{
+			Name:    mcpClientName,
+			Version: version.Build(version.OS | version.Architecture),
+		},
+		&mcp.ClientOptions{},
+	).Connect(
+		ctx,
+		clientTransport,
 		&mcp.ClientSessionOptions{},
 	); err == nil {
 		return connection, nil
