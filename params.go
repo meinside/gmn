@@ -74,10 +74,11 @@ type params struct {
 
 	// tools (MCP)
 	MCPTools struct {
-		StreamableHTTPURLs []string `long:"mcp-streamable-url" description:"Streamable HTTP URLs of MCP Tools (can be used multiple times)"`
-		StdioCommands      []string `long:"mcp-stdio-command" description:"Commands of local stdio MCP Tools (can be used multiple times)"`
+		StreamableHTTPURLs     []string `long:"mcp-streamable-url" description:"Streamable HTTP URLs of MCP Tools (can be used multiple times)"`
+		STDIOCommands          []string `long:"mcp-stdio-command" description:"Commands of local stdio MCP Tools (can be used multiple times)"`
+		WithSelfAsSTDIOCommand bool     `short:"T" long:"mcp-tool-self" description:"Will add itself as an internal MCP tool"`
 
-		RunSTDIOServer bool `short:"M" long:"mcp-server" description:"Run as a STDIO MCP server"`
+		RunAsStandaloneSTDIOServer bool `short:"M" long:"mcp-server-self" description:"Run as a standalone STDIO MCP server"`
 	} `group:"Tools (MCP)"`
 
 	// for embedding
@@ -113,7 +114,7 @@ func (p *params) taskRequested() bool {
 		p.Caching.ListCachedContexts ||
 		p.Caching.DeleteCachedContext != nil ||
 		p.ListModels ||
-		p.MCPTools.RunSTDIOServer ||
+		p.MCPTools.RunAsStandaloneSTDIOServer ||
 		p.ShowVersion
 }
 
@@ -152,7 +153,7 @@ func (p *params) multipleTaskRequested() bool {
 			promptCounted = true
 		}
 	}
-	if p.MCPTools.RunSTDIOServer { // run as a STDIO MCP server
+	if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a STDIO MCP server
 		num++
 		if hasPrompt && !promptCounted {
 			num++

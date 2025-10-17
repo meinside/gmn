@@ -817,7 +817,7 @@ func speechCodecAndBitRateFromMimeType(mimeType string) (
 			bitRate, _ = strconv.Atoi(split[5:])
 		}
 	}
-	return
+	return speechCodec, bitRate
 }
 
 // wav parameter constants

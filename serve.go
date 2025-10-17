@@ -86,14 +86,13 @@ func serve(
 	return 0, nil
 }
 
-// run MCP server through STDIO
-func runStdioServer(
-	ctx context.Context,
+// build a MCP server with itself
+func buildSelfServer(
 	conf config,
 	p params,
 	writer *outputWriter,
 	vbs []bool,
-) (err error) {
+) (*mcp.Server, []*mcp.Tool) {
 	// new server
 	server := mcp.NewServer(
 		&mcp.Implementation{
@@ -103,11 +102,17 @@ func runStdioServer(
 		&mcp.ServerOptions{},
 	)
 
+	type toolAndHandler struct {
+		tool    mcp.Tool
+		handler mcp.ToolHandler
+	}
+	toolsAndHandlers := make([]toolAndHandler, 0)
+
 	// add tools
 	//
 	// (list models)
-	server.AddTool(
-		&mcp.Tool{
+	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
+		tool: mcp.Tool{
 			Name:        `gmn_list_models`,
 			Description: `This function lists all available Google AI models.`,
 			InputSchema: &jsonschema.Schema{
@@ -115,7 +120,7 @@ func runStdioServer(
 				ReadOnly: true,
 			},
 		},
-		func(
+		handler: func(
 			ctx context.Context,
 			request *mcp.CallToolRequest,
 		) (result *mcp.CallToolResult, err error) {
@@ -170,10 +175,11 @@ func runStdioServer(
 				}, nil
 			}
 		},
-	)
+	})
+
 	// generate text
-	server.AddTool(
-		&mcp.Tool{
+	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
+		tool: mcp.Tool{
 			Name:        `gmn_generate`,
 			Description: `This function generates texts/images/speeches by processing the given 'prompt'.`,
 			InputSchema: &jsonschema.Schema{
@@ -227,7 +233,7 @@ func runStdioServer(
 				},
 			},
 		},
-		func(
+		handler: func(
 			ctx context.Context,
 			request *mcp.CallToolRequest,
 		) (result *mcp.CallToolResult, err error) {
@@ -286,9 +292,7 @@ func runStdioServer(
 						}
 					case "image":
 						if model == nil {
-							if p.Configuration.GoogleAIModel != nil {
-								model = p.Configuration.GoogleAIModel
-							} else if conf.GoogleAIImageGenerationModel != nil {
+							if conf.GoogleAIImageGenerationModel != nil {
 								model = conf.GoogleAIImageGenerationModel
 							} else {
 								model = ptr(string(defaultGoogleAIImageGenerationModel))
@@ -296,9 +300,7 @@ func runStdioServer(
 						}
 					case "audio":
 						if model == nil {
-							if p.Configuration.GoogleAIModel != nil {
-								model = p.Configuration.GoogleAIModel
-							} else if conf.GoogleAISpeechGenerationModel != nil {
+							if conf.GoogleAISpeechGenerationModel != nil {
 								model = conf.GoogleAISpeechGenerationModel
 							} else {
 								model = ptr(string(defaultGoogleAISpeechGenerationModel))
@@ -557,8 +559,30 @@ func runStdioServer(
 				IsError: true,
 			}, nil
 		},
-	)
+	})
+
 	// TODO: generate embeddings with text
+
+	// add tools to server
+	tools := []*mcp.Tool{}
+	for _, t := range toolsAndHandlers {
+		server.AddTool(&t.tool, t.handler)
+
+		tools = append(tools, &t.tool)
+	}
+
+	return server, tools
+}
+
+// run MCP server through STDIO
+func runStdioServer(
+	ctx context.Context,
+	conf config,
+	p params,
+	writer *outputWriter,
+	vbs []bool,
+) (err error) {
+	server, _ := buildSelfServer(conf, p, writer, vbs)
 
 	// trap signals
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -607,4 +631,31 @@ func runStdioServer(
 	)
 
 	return nil
+}
+
+// return self as a MCP tool for local use (in-memory)
+func selfAsMCPTool(
+	ctx context.Context,
+	conf config,
+	p params,
+	writer *outputWriter,
+) (connDetails *mcpConnectionDetails, err error) {
+	server, tools := buildSelfServer(conf, p, writer, p.Verbose)
+
+	writer.verbose(
+		verboseMinimum,
+		p.Verbose,
+		"connecting to MCP server (self)...",
+	)
+
+	var conn *mcp.ClientSession
+	if conn, err = mcpRunInMemory(ctx, server); err != nil {
+		return nil, fmt.Errorf("failed to run in-memory mcp server (self): %w", err)
+	}
+
+	return &mcpConnectionDetails{
+		serverType: mcpServerStdio,
+		connection: conn,
+		tools:      tools,
+	}, nil
 }
