@@ -411,7 +411,7 @@ func doGeneration(
 											"saving file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
 										)
 
-										if err := os.WriteFile(fpath, part.InlineData.Data, 0640); err != nil {
+										if err := os.WriteFile(fpath, part.InlineData.Data, 0o640); err != nil {
 											// error
 											ch <- result{
 												exit: 1,
@@ -478,7 +478,7 @@ func doGeneration(
 											if err := os.WriteFile(
 												fpath,
 												converted,
-												0640,
+												0o640,
 											); err != nil {
 												// error
 												ch <- result{
@@ -668,10 +668,9 @@ func doGeneration(
 												*tool.Annotations.DestructiveHint &&
 												!forceCallDestructiveTools {
 												okToRun = confirm(fmt.Sprintf(
-													"May I call tool '%s' from '%s' for function '%s'?",
-													part.FunctionCall.Name,
-													stripServerInfo(serverType, serverKey),
+													"May I call tool '%s' from '%s'?",
 													fn,
+													stripServerInfo(serverType, serverKey),
 												))
 											} else {
 												okToRun = true
@@ -774,7 +773,7 @@ func doGeneration(
 																	"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
 																)
 
-																if err := os.WriteFile(fpath, bytes, 0640); err != nil {
+																if err := os.WriteFile(fpath, bytes, 0o640); err != nil {
 																	// error
 																	ch <- result{
 																		exit: 1,
@@ -841,7 +840,7 @@ func doGeneration(
 																if err := os.WriteFile(
 																	fpath,
 																	bytes,
-																	0640,
+																	0o640,
 																); err != nil {
 																	// error
 																	ch <- result{
@@ -1185,5 +1184,5 @@ func checkCallbackPath(
 		}
 	}
 
-	return
+	return fnCallback, okToRun
 }
