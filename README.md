@@ -580,6 +580,8 @@ $ gmn -p "summarize this file: /home/ubuntu/document.md" \
 Or, run `gmn` with itself as an additional MCP tool, with `-T` or `--mcp-tool-self` parameter, like:
 
 ```bash
+$ gmn -p "tell me what function call tools are available" -T -r
+
 $ gmn -p "generate images of cute chihuahua puppies" \
     --mcp-tool-self \
     -r \

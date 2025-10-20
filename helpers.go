@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/BourgeoisBear/rasterm"
@@ -1041,4 +1043,121 @@ func unmarshalJSONFromBytes(data *string, target any) error {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 	return nil
+}
+
+type fileInfo struct {
+	Name         string      `json:"filename"`
+	AbsolutePath string      `json:"absolutePath"`
+	Size         int64       `json:"filesize"`
+	Mode         os.FileMode `json:"mode"`
+	Modified     time.Time   `json:"modified"`
+	IsDirectory  bool        `json:"isDirectory"`
+	Sys          string      `json:"sys"`
+}
+
+// fileInfoToStruct converts os.FileInfo to struct.
+func fileInfoToStruct(
+	info os.FileInfo,
+	absoluteFilepath string,
+) fileInfo {
+	return fileInfo{
+		Name:         info.Name(),
+		AbsolutePath: absoluteFilepath,
+		Size:         info.Size(),
+		Mode:         info.Mode(),
+		Modified:     info.ModTime(),
+		IsDirectory:  info.IsDir(),
+		Sys:          fmt.Sprintf("%#v", info.Sys()),
+	}
+}
+
+// fileInfoToJSON converts os.FileInfo to JSON string.
+func fileInfoToJSON(
+	info os.FileInfo,
+	absoluteFilepath string,
+) string {
+	result := fileInfoToStruct(info, absoluteFilepath)
+
+	if marshalled, err := json.Marshal(result); err == nil {
+		return string(marshalled)
+	} else {
+		return fmt.Sprintf("%+v", result)
+	}
+}
+
+type dirEntry struct {
+	Name        string      `json:"filename"`
+	IsDirectory bool        `json:"isDirectory"`
+	Mode        os.FileMode `json:"mode"`
+
+	Info *fileInfo `json:"info,omitempty"`
+}
+
+// dirEntryToStruct converts os.DirEntry to struct.
+func dirEntryToStruct(
+	entry os.DirEntry,
+	parentDirpath string,
+) dirEntry {
+	result := dirEntry{
+		Name:        entry.Name(),
+		IsDirectory: entry.IsDir(),
+		Mode:        entry.Type(),
+	}
+	if info, _ := entry.Info(); info != nil { // may be nil when entry was removed after listing dir entries
+		result.Info = ptr(fileInfoToStruct(info, filepath.Join(parentDirpath, entry.Name())))
+	}
+
+	return result
+}
+
+// dirEntriesToJSON converts os.DirEntry to JSON string.
+func dirEntriesToJSON(
+	entries []os.DirEntry,
+	parentDirpath string,
+) string {
+	result := []dirEntry{}
+	for _, entry := range entries {
+		result = append(result, dirEntryToStruct(entry, parentDirpath))
+	}
+
+	if marshalled, err := json.Marshal(result); err == nil {
+		return string(marshalled)
+	} else {
+		return fmt.Sprintf("%+v", result)
+	}
+}
+
+// runCommandWithContext runs the given command + args with context.
+func runCommandWithContext(
+	ctx context.Context,
+	command string,
+	args ...string,
+) (stdout, stderr string, exitCode int, err error) {
+	cmd := exec.CommandContext(ctx, command, args...)
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	err = cmd.Run()
+
+	stdout = stdoutBuf.String()
+	stderr = stderrBuf.String()
+	exitCode = 0
+
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+				exitCode = status.ExitStatus()
+			} else {
+				exitCode = 1
+				stderr += fmt.Sprintf("\n(Failed to get specific exit status, error: %v)\n", err)
+			}
+		} else {
+			exitCode = 1
+			stderr += fmt.Sprintf("\n(Command failed with non-ExitError: %v)\n", err)
+		}
+	}
+
+	return stdout, stderr, exitCode, err
 }
