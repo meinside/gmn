@@ -42,6 +42,7 @@ func doGeneration(
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	withThinking bool, thinkingBudget *int32, showThinking bool,
 	withGrounding bool,
+	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
 	cachedContextName *string,
 	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
 	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
@@ -227,10 +228,25 @@ func doGeneration(
 	}
 	// (grounding)
 	if withGrounding {
-		opts.Tools = []*genai.Tool{
-			{
-				GoogleSearch: &genai.GoogleSearch{},
-			},
+		opts.Tools = append(opts.Tools, &genai.Tool{
+			GoogleSearch: &genai.GoogleSearch{},
+		})
+	}
+	// (google maps)
+	if withGoogleMaps {
+		opts.Tools = append(opts.Tools, &genai.Tool{
+			GoogleMaps: &genai.GoogleMaps{},
+		})
+		if googleMapsLatitude != nil && googleMapsLongitude != nil {
+			if opts.ToolConfig == nil {
+				opts.ToolConfig = &genai.ToolConfig{}
+			}
+			opts.ToolConfig.RetrievalConfig = &genai.RetrievalConfig{
+				LatLng: &genai.LatLng{
+					Latitude:  googleMapsLatitude,
+					Longitude: googleMapsLongitude,
+				},
+			}
 		}
 	}
 	// (history)
@@ -1041,6 +1057,7 @@ func doGeneration(
 				prompts, promptFiles, filepaths,
 				withThinking, thinkingBudget, showThinking,
 				withGrounding,
+				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,
 				cachedContextName,
 				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
 				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,

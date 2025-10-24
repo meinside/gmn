@@ -337,6 +337,7 @@ func run(
 					p.Generation.ThinkingBudget,
 					p.Generation.ShowThinking,
 					p.Generation.GroundingOn,
+					p.Generation.WithGoogleMaps, p.Generation.GoogleMapsLatitude, p.Generation.GoogleMapsLongitude,
 					p.Caching.CachedContextName,
 					p.Tools.ShowCallbackResults,
 					p.Tools.RecurseOnCallbackResults,
