@@ -181,6 +181,18 @@ You can generate with thinking with `-t` or `--with-thinking` (only with models 
 $ gmn -m "gemini-2.5-pro" -t -p "explain the derivation process of the quadratic formula"
 ```
 
+### Generate with Google Maps
+
+You can generate with Google Maps with `--with-google-maps`:
+
+```bash
+$ gmn --with-google-maps \
+    -p "How long does it take from the White House to the HQ of UN on foot?"
+
+$ gmn --with-google-maps --google-maps-latitude=34.050481 --google-maps-longitude=-118.248526 \
+    -p "What are the best Korean restaurants within a 15-minute walk from here?"
+```
+
 ### Generate Other Media
 
 #### Images

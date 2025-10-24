@@ -32,7 +32,12 @@ type params struct {
 		ThinkingOn        bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
 		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
 		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
-		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding"`
+		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
+
+		// google maps
+		WithGoogleMaps      bool     `long:"with-google-maps" description:"Generate with Google Maps"`
+		GoogleMapsLatitude  *float64 `long:"google-maps-latitude" description:"Latitude for Google Maps query"`
+		GoogleMapsLongitude *float64 `long:"google-maps-longitude" description:"Longitude for Google Maps query"`
 
 		// for fetching contents
 		ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
