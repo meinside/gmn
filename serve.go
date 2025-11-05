@@ -142,7 +142,11 @@ func buildSelfServer(
 				var models []*genai.Model
 				if models, err = gtc.ListModels(ctx); err == nil {
 					var marshalled []byte
-					if marshalled, err = json.Marshal(models); err == nil {
+					if marshalled, err = json.Marshal(struct {
+						Models []*genai.Model `json:"models"`
+					}{
+						Models: models,
+					}); err == nil {
 						return &mcp.CallToolResult{
 							Content: []mcp.Content{
 								&mcp.TextContent{
