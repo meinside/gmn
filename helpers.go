@@ -1120,7 +1120,11 @@ func dirEntriesToJSON(
 		result = append(result, dirEntryToStruct(entry, parentDirpath))
 	}
 
-	if marshalled, err := json.Marshal(result); err == nil {
+	if marshalled, err := json.Marshal(struct {
+		Result []dirEntry `json:"result"`
+	}{
+		Result: result,
+	}); err == nil {
 		return string(marshalled)
 	} else {
 		return fmt.Sprintf("%+v", result)
