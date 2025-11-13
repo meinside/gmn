@@ -662,6 +662,14 @@ $ gmn --list-file-search-stores
 $ gmn --delete-file-search-store="$F_S_STORE"
 ```
 
+You can also list files in a file search store, and delete specific files from them:
+
+```bash
+$ gmn --list-files-in-file-search-store
+
+$ gmn --delete-file-in-file-search-store "fileSearchStores/filesearchstorename-0123456789/documents/filename-abcdefg1234"
+```
+
 ### Others
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.

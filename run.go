@@ -314,14 +314,9 @@ func run(
 
 				// generate with file search
 				if len(p.Generation.FileSearchStores) > 0 {
-					names := make([]string, len(p.Generation.FileSearchStores))
-					for i, store := range p.Generation.FileSearchStores {
-						names[i] = *store
-					}
-
 					tools = append(tools, genai.Tool{
 						FileSearch: &genai.FileSearch{
-							FileSearchStoreNames: names,
+							FileSearchStoreNames: p.Generation.FileSearchStores,
 						},
 					})
 				}
@@ -480,6 +475,7 @@ func run(
 						filepaths,
 						p.Embeddings.EmbeddingsChunkSize,
 						p.Embeddings.EmbeddingsOverlappedChunkSize,
+						p.InferMIMETypeFromFileExtension,
 						p.Verbose,
 					)
 
@@ -489,6 +485,24 @@ func run(
 			} else {
 				return 1, fmt.Errorf("no file was given for file search store: %s", *p.FileSearch.FileSearchStoreNameToUploadFiles)
 			}
+		} else if p.FileSearch.ListFilesInFileSearchStore != nil { // list files in file search store
+			return listFilesInFileSearchStore(
+				context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.FileSearch.ListFilesInFileSearchStore,
+				p.Verbose,
+			)
+		} else if p.FileSearch.DeleteFileInFileSearchStore != nil { // delete a file in a file search store
+			return deleteFileInFileSearchStore(
+				context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.FileSearch.DeleteFileInFileSearchStore,
+				p.Verbose,
+			)
 		} else { // otherwise, (should not reach here)
 			writer.print(
 				verboseMedium,
