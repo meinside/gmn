@@ -33,7 +33,7 @@ type params struct {
 		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
 		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
-		FileSearchStores  []*string `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
+		FileSearchStores  []string  `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
 
 		// google maps
 		WithGoogleMaps      bool     `long:"with-google-maps" description:"Generate with Google Maps"`
@@ -111,7 +111,13 @@ type params struct {
 		DeleteFileSearchStore *string `long:"delete-file-search-store" description:"Name of a file search store to delete"`
 
 		FileSearchStoreNameToUploadFiles *string `long:"upload-to-file-search-store" description:"Name of a file search store to upload files to"`
+
+		ListFilesInFileSearchStore  *string `long:"list-files-in-file-search-store" description:"Name of a file search store to list files in"`
+		DeleteFileInFileSearchStore *string `long:"delete-file-in-file-search-store" description:"Name of a file in file search store to delete"`
 	} `group:"File Search"`
+
+	// others
+	InferMIMETypeFromFileExtension bool `long:"infer-mime-type-from-file-ext" description:"Whether to infer the MIME type of files from the extensions (default: false, which means to infer from the file content)"`
 
 	// for logging and debugging
 	Verbose                []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
@@ -135,6 +141,8 @@ func (p *params) taskRequested() bool {
 		p.FileSearch.CreateFileSearchStore != nil ||
 		p.FileSearch.DeleteFileSearchStore != nil ||
 		p.FileSearch.FileSearchStoreNameToUploadFiles != nil ||
+		p.FileSearch.ListFilesInFileSearchStore != nil ||
+		p.FileSearch.DeleteFileInFileSearchStore != nil ||
 		p.ShowVersion
 }
 
@@ -202,6 +210,20 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if p.FileSearch.FileSearchStoreNameToUploadFiles != nil { // upload files to file search store
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.ListFilesInFileSearchStore != nil { // list files in file search store
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.DeleteFileInFileSearchStore != nil { // delete a file in file search store
 		num++
 		if hasPrompt && !promptCounted {
 			num++

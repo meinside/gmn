@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/gabriel-vasile/mimetype"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -110,7 +111,8 @@ func createFileSearchStore(
 	writer.verbose(
 		verboseMedium,
 		vbs,
-		"creating a file search store...",
+		"creating a file search store '%s'...",
+		displayName,
 	)
 
 	ctx, cancel := context.WithTimeout(
@@ -162,7 +164,8 @@ func deleteFileSearchStore(
 	writer.verbose(
 		verboseMedium,
 		vbs,
-		"deleting a file search store...",
+		"deleting a file search store '%s'...",
+		name,
 	)
 
 	ctx, cancel := context.WithTimeout(
@@ -215,12 +218,14 @@ func uploadFilesToFileSearchStore(
 	fileSearchStoreName string,
 	filepaths []string,
 	chunkSize, overlappedChunkSize *uint,
+	inferMIMETypeFromFileExtension bool,
 	vbs []bool,
 ) (exit int, e error) {
 	writer.verbose(
 		verboseMedium,
 		vbs,
-		"uploading files to file search store...",
+		"uploading files to file search store '%s'...",
+		fileSearchStoreName,
 	)
 
 	ctx, cancel := context.WithTimeout(
@@ -269,6 +274,16 @@ func uploadFilesToFileSearchStore(
 		if file, err := os.Open(path); err == nil {
 			defer func() { _ = file.Close() }()
 
+			var mimeType []string = nil
+			if inferMIMETypeFromFileExtension {
+				if inferMIMETypeFromFileExtension {
+					mime, _ := mimetype.DetectFile(path)
+					mimeType = []string{
+						mime.String(),
+					}
+				}
+			}
+
 			if _, err := gtc.UploadFileForSearch(
 				ctx,
 				fileSearchStoreName,
@@ -281,6 +296,7 @@ func uploadFilesToFileSearchStore(
 					},
 				},
 				chunkConfig,
+				mimeType...,
 			); err != nil {
 				return 1, fmt.Errorf(
 					"failed to upload file '%s' to file search store %s: %s",
@@ -313,5 +329,151 @@ func uploadFilesToFileSearchStore(
 		}
 	}
 
+	return 0, nil
+}
+
+// list files in a file search store
+func listFilesInFileSearchStore(
+	ctx context.Context,
+	writer *outputWriter,
+	timeoutSeconds int,
+	apiKey string,
+	fileSearchStoreName string,
+	vbs []bool,
+) (exit int, e error) {
+	writer.verbose(
+		verboseMedium,
+		vbs,
+		"listing files in file search store '%s'...",
+		fileSearchStoreName,
+	)
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
+
+	// gemini things client
+	gtc, err := gt.NewClient(apiKey)
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			writer.error(
+				"Failed to close client: %s",
+				err,
+			)
+		}
+	}()
+
+	// configure gemini things client
+	gtc.SetTimeoutSeconds(timeoutSeconds)
+
+	numFiles := 0
+	for file, err := range gtc.ListFilesInFileSearchStore(
+		ctx,
+		fileSearchStoreName,
+	) {
+		if err != nil {
+			return 1, err
+		}
+
+		writer.printColored(
+			color.FgHiGreen,
+			"%s",
+			file.Name,
+		)
+		writer.printColored(
+			color.FgHiWhite,
+			` %s`,
+			file.DisplayName,
+		)
+
+		writer.printColored(
+			color.FgWhite,
+			`
+  > created: %s
+  > updated: %s
+  > size: %d bytes (mimetype: %s)
+  > metadata: %s
+`,
+			file.CreateTime.Format(time.RFC3339),
+			file.UpdateTime.Format(time.RFC3339),
+			file.SizeBytes,
+			file.MIMEType,
+			prettify(file.CustomMetadata, true),
+		)
+
+		numFiles++
+	}
+
+	if numFiles <= 0 {
+		return 1, fmt.Errorf("no file in file search store '%s'", fileSearchStoreName)
+	}
+
+	// success
+	return 0, nil
+}
+
+// delete a file in a file search store
+func deleteFileInFileSearchStore(
+	ctx context.Context,
+	writer *outputWriter,
+	timeoutSeconds int,
+	apiKey string,
+	fileName string,
+	vbs []bool,
+) (exit int, e error) {
+	writer.verbose(
+		verboseMedium,
+		vbs,
+		"deleting a file '%s' in a file search store...",
+		fileName,
+	)
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
+
+	// gemini things client
+	gtc, err := gt.NewClient(apiKey)
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := gtc.Close(); err != nil {
+			writer.error(
+				"Failed to close client: %s",
+				err,
+			)
+		}
+	}()
+
+	// configure gemini things client
+	gtc.SetTimeoutSeconds(timeoutSeconds)
+
+	if err := gtc.DeleteFileInFileSearchStore(ctx, fileName); err != nil {
+		return 1, err
+	} else {
+		writer.printColored(
+			color.FgWhite,
+			"Deleted file '",
+		)
+		writer.printColored(
+			color.FgHiWhite,
+			"%s",
+			fileName,
+		)
+		writer.printColored(
+			color.FgWhite,
+			"' in file search store\n",
+		)
+	}
+
+	// success
 	return 0, nil
 }

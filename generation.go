@@ -971,6 +971,24 @@ func doGeneration(
 						}
 					}
 
+					// grounding metadata
+					if cand.GroundingMetadata != nil {
+						writer.print(
+							verboseMinimum,
+							"Ground metadata:\n%s",
+							prettify(cand.GroundingMetadata),
+						)
+					}
+
+					// citation metadata
+					if cand.CitationMetadata != nil {
+						writer.print(
+							verboseMinimum,
+							"Citation metadata:\n%s",
+							prettify(cand.CitationMetadata),
+						)
+					}
+
 					// finish reason
 					if cand.FinishReason != "" {
 						// flush model response
