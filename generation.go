@@ -338,6 +338,8 @@ func doGeneration(
 				// string buffer for model responses
 				bufModelResponse := new(strings.Builder)
 
+				retrievedContextTitles := map[string]struct{}{}
+
 				for _, cand := range it.Candidates {
 					// url context metadata
 					if cand.URLContextMetadata != nil {
@@ -973,20 +975,45 @@ func doGeneration(
 
 					// grounding metadata
 					if cand.GroundingMetadata != nil {
-						writer.print(
+						// NOTE: make sure to insert a new line before displaying grounding metadata
+						if verboseLevel(vbs) >= verboseMinimum {
+							writer.makeSureToEndWithNewLine()
+						}
+
+						writer.verbose(
 							verboseMinimum,
-							"Ground metadata:\n%s",
+							vbs,
+							"ground metadata:\n%s",
 							prettify(cand.GroundingMetadata),
 						)
+
+						// saved retrieved context titles
+						for _, retrieved := range cand.GroundingMetadata.GroundingChunks {
+							if retrieved.RetrievedContext != nil {
+								if retrieved.RetrievedContext.Title != "" {
+									retrievedContextTitles[retrieved.RetrievedContext.Title] = struct{}{}
+								} else if retrieved.RetrievedContext.URI != "" {
+									retrievedContextTitles[retrieved.RetrievedContext.URI] = struct{}{}
+								}
+							}
+						}
 					}
 
 					// citation metadata
 					if cand.CitationMetadata != nil {
-						writer.print(
+						// NOTE: make sure to insert a new line before displaying grounding metadata
+						if verboseLevel(vbs) >= verboseMinimum {
+							writer.makeSureToEndWithNewLine()
+						}
+
+						writer.verbose(
 							verboseMinimum,
-							"Citation metadata:\n%s",
+							vbs,
+							">>> citation metadata:\n%s",
 							prettify(cand.CitationMetadata),
 						)
+
+						// TODO: do the same thing as grounding metadata above
 					}
 
 					// finish reason
@@ -995,6 +1022,22 @@ func doGeneration(
 						pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
 						writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
+
+						// print retrieved context titles
+						if len(retrievedContextTitles) > 0 {
+							titles := []string{}
+							for title := range retrievedContextTitles {
+								titles = append(titles, title)
+							}
+
+							writer.printColored(
+								color.FgHiCyan,
+								"> Titles of retrieved contexts from file search store: %s\n",
+								prettify(titles),
+							)
+						}
+
+						// TODO: do the same thing as grounding metadata above
 
 						// print the number of tokens before printing the finish reason
 						if len(tokenUsages) > 0 {
