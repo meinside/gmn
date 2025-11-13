@@ -225,8 +225,9 @@ func run(
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForGeneralPurpose)
 				}
 
-				// function call (local)
 				var tools []genai.Tool
+
+				// function call (local)
 				if err := unmarshalJSONFromBytes(p.LocalTools.Tools, &tools); err != nil {
 					return 1, fmt.Errorf("failed to read tools: %w", err)
 				}
@@ -309,6 +310,20 @@ func run(
 						"duplicated function name in tools: '%s'",
 						value,
 					)
+				}
+
+				// generate with file search
+				if len(p.Generation.FileSearchStores) > 0 {
+					names := make([]string, len(p.Generation.FileSearchStores))
+					for i, store := range p.Generation.FileSearchStores {
+						names[i] = *store
+					}
+
+					tools = append(tools, genai.Tool{
+						FileSearch: &genai.FileSearch{
+							FileSearchStoreNames: names,
+						},
+					})
 				}
 
 				// check if prompt has any http url in it,
@@ -410,6 +425,70 @@ func run(
 				*p.Configuration.GoogleAIAPIKey,
 				p.Verbose,
 			)
+		} else if p.FileSearch.ListFileSearchStores { // list file search stores
+			return listFileSearchStores(
+				context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				*p.Configuration.GoogleAIAPIKey,
+				p.Verbose,
+			)
+		} else if p.FileSearch.CreateFileSearchStore != nil { // create file search store
+			return createFileSearchStore(
+				context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.FileSearch.CreateFileSearchStore,
+				p.Verbose,
+			)
+		} else if p.FileSearch.DeleteFileSearchStore != nil { // delete file search store
+			return deleteFileSearchStore(
+				context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				*p.Configuration.GoogleAIAPIKey,
+				*p.FileSearch.DeleteFileSearchStore,
+				p.Verbose,
+			)
+		} else if p.FileSearch.FileSearchStoreNameToUploadFiles != nil { // upload files to file search store
+			if len(p.Generation.Filepaths) > 0 {
+				if files, err := openFilesForPrompt(nil, p.Generation.Filepaths); err == nil {
+					// close files
+					defer func() {
+						for _, toClose := range files {
+							if err := toClose.Close(); err != nil {
+								writer.error(
+									"Failed to close file: %s",
+									err,
+								)
+							}
+						}
+					}()
+
+					filepaths := make([]string, len(files))
+					for i, file := range files {
+						filepaths[i] = file.filepath
+					}
+
+					return uploadFilesToFileSearchStore(
+						context.TODO(),
+						writer,
+						conf.TimeoutSeconds,
+						*p.Configuration.GoogleAIAPIKey,
+						*p.FileSearch.FileSearchStoreNameToUploadFiles,
+						filepaths,
+						p.Embeddings.EmbeddingsChunkSize,
+						p.Embeddings.EmbeddingsOverlappedChunkSize,
+						p.Verbose,
+					)
+
+				} else {
+					return 1, fmt.Errorf("failed to open files for file search: %s", err)
+				}
+			} else {
+				return 1, fmt.Errorf("no file was given for file search store: %s", *p.FileSearch.FileSearchStoreNameToUploadFiles)
+			}
 		} else { // otherwise, (should not reach here)
 			writer.print(
 				verboseMedium,

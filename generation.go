@@ -102,12 +102,12 @@ func doGeneration(
 	})
 
 	// read & close files
-	files, filesToClose, err := openFilesForPrompt(promptFiles, filepaths)
+	files, err := openFilesForPrompt(promptFiles, filepaths)
 	if err != nil {
 		return 1, err
 	}
 	defer func() {
-		for _, toClose := range filesToClose {
+		for _, toClose := range files {
 			if err := toClose.Close(); err != nil {
 				writer.error(
 					"Failed to close file: %s",
@@ -273,8 +273,8 @@ func doGeneration(
 	}
 	ch := make(chan result, 1)
 	go func() {
-		for filename, file := range files {
-			prompts = append(prompts, gt.PromptFromFile(filename, file))
+		for _, file := range files {
+			prompts = append(prompts, gt.PromptFromFile(file.filename, file.reader))
 		}
 
 		// for marking <thought></thought>

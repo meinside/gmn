@@ -633,6 +633,35 @@ If the provided content is too small for caching, it will fail with an error.
 
 It may also fail with some models on free-tier.
 
+### File Search (RAG)
+
+With the [file search tool](https://ai.google.dev/gemini-api/docs/file-search), you can do RAG with files:
+
+```bash
+# create a file search store,
+$ F_S_STORE="$(gmn --create-file-search-store="gmn-file-search-test")"
+
+# upload files to the file search store
+$ gmn --upload-to-file-search-store "$F_S_STORE" -f ./README.md
+# or with additional chunk config
+$ gmn --upload-to-file-search-store "$F_S_STORE" -f ./run.go \
+	 --embeddings-chunk-size=512 --embeddings-overlapped-chunk-size=64
+
+# generate with the file search store
+$ gmn --file-search-store "$F_S_STORE" \
+	-p "what is gmn, and why is it named like that?"
+```
+
+Created file search stores can be fetched and deleted with:
+
+```bash
+# list file search stores,
+$ gmn --list-file-search-stores
+
+# and delete a file search store with a name
+$ gmn --delete-file-search-store="$F_S_STORE"
+```
+
 ### Others
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.

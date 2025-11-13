@@ -432,15 +432,17 @@ If there was any newly-created file, make sure to report to the user about the f
 						}
 
 						// read bytes from url prompts and local files, and append them as prompts
-						if files, filesToClose, err := openFilesForPrompt(
+						if files, err := openFilesForPrompt(
 							promptFiles,
 							filepaths,
 						); err == nil {
-							for filename, file := range files {
-								prompts = append(prompts, gt.PromptFromFile(filename, file))
+							for _, file := range files {
+								prompts = append(prompts, gt.PromptFromFile(file.filename, file.reader))
 							}
+
+							// close files
 							defer func() {
-								for _, toClose := range filesToClose {
+								for _, toClose := range files {
 									if err := toClose.Close(); err != nil {
 										writer.error(
 											"Failed to close file: %s",
