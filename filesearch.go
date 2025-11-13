@@ -72,11 +72,15 @@ func listFileSearchStores(
 		writer.printColored(
 			color.FgWhite,
 			`
+  > created: %s
+  > updated: %s
   > active documents:  %d
   > pending documents: %d
   > failed documents:  %d
   > size: %d bytes
 `,
+			store.CreateTime.Format(time.RFC3339),
+			store.UpdateTime.Format(time.RFC3339),
 			store.ActiveDocumentsCount,
 			store.PendingDocumentsCount,
 			store.FailedDocumentsCount,
