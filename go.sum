@@ -100,8 +100,8 @@ github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHP
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/meinside/gemini-things-go v0.3.53 h1:tWyUnOMlWgTqPKeemujEbVhAMd3OGIH5rAfZqU4oTSc=
-github.com/meinside/gemini-things-go v0.3.53/go.mod h1:UqF8+Iuvn2a4ZsNUQwMrt0AmjF0sOvL7sbeyhdSOaRM=
+github.com/meinside/gemini-things-go v0.3.56 h1:lfoNfJGQ2pw7CY9igG2s9tPaG5sdQwsmCH3acBUNVYc=
+github.com/meinside/gemini-things-go v0.3.56/go.mod h1:UqF8+Iuvn2a4ZsNUQwMrt0AmjF0sOvL7sbeyhdSOaRM=
 github.com/meinside/version-go v0.0.3 h1:GXSwi6sTmgpnSR09jAAqDGWeX2Nq52fe5xpitgAhQfM=
 github.com/meinside/version-go v0.0.3/go.mod h1:mFvlwbro1E126u4rU727CcHNa8OPFyhq+KDYYNysFj4=
 github.com/modelcontextprotocol/go-sdk v1.1.0 h1:Qjayg53dnKC4UZ+792W21e4BpwEZBzwgRW6LrjLWSwA=
