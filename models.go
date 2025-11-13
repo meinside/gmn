@@ -66,11 +66,14 @@ func listModels(
 				model.DisplayName,
 			)
 
-			writer.printColored(color.FgWhite, `
+			writer.printColored(
+				color.FgWhite,
+				`
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s
-`, model.InputTokenLimit,
+`,
+				model.InputTokenLimit,
 				model.OutputTokenLimit,
 				strings.Join(model.SupportedActions, ", "),
 			)

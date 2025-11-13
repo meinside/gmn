@@ -33,6 +33,7 @@ type params struct {
 		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
 		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
+		FileSearchStores  []*string `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
 
 		// google maps
 		WithGoogleMaps      bool     `long:"with-google-maps" description:"Generate with Google Maps"`
@@ -102,6 +103,16 @@ type params struct {
 		DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name"`
 	} `group:"Caching"`
 
+	// for file search
+	FileSearch struct {
+		ListFileSearchStores bool `long:"list-file-search-stores" description:"List all file search stores"`
+
+		CreateFileSearchStore *string `long:"create-file-search-store" description:"Display name of a new file search store to create"`
+		DeleteFileSearchStore *string `long:"delete-file-search-store" description:"Name of a file search store to delete"`
+
+		FileSearchStoreNameToUploadFiles *string `long:"upload-to-file-search-store" description:"Name of a file search store to upload files to"`
+	} `group:"File Search"`
+
 	// for logging and debugging
 	Verbose                []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
 	ErrorOnUnsupportedType bool   `long:"error-on-unsupported-type" description:"Exit with error when unsupported type of stream is received"`
@@ -120,6 +131,10 @@ func (p *params) taskRequested() bool {
 		p.Caching.DeleteCachedContext != nil ||
 		p.ListModels ||
 		p.MCPTools.RunAsStandaloneSTDIOServer ||
+		p.FileSearch.ListFileSearchStores ||
+		p.FileSearch.CreateFileSearchStore != nil ||
+		p.FileSearch.DeleteFileSearchStore != nil ||
+		p.FileSearch.FileSearchStoreNameToUploadFiles != nil ||
 		p.ShowVersion
 }
 
@@ -159,6 +174,34 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a STDIO MCP server
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.ListFileSearchStores { // list file search stores
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.CreateFileSearchStore != nil { // create file search store
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.DeleteFileSearchStore != nil { // delete file search store
+		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.FileSearch.FileSearchStoreNameToUploadFiles != nil { // upload files to file search store
 		num++
 		if hasPrompt && !promptCounted {
 			num++

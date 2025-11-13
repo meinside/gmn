@@ -657,34 +657,60 @@ func uniqPtrs[T comparable](slice []*T) []*T {
 	return list
 }
 
-// open and return files for prompt (`filesToClose` should be closed manually)
+// struct for opened file
+type openedFile struct {
+	filepath string
+	reader   io.Reader
+	closer   *os.File
+
+	filename string
+}
+
+// Close closes this opened file.
+func (f *openedFile) Close() error {
+	if f.closer != nil {
+		return f.closer.Close()
+	}
+	return nil
+}
+
+// open and return files for prompt (`files` should be closed manually)
 func openFilesForPrompt(
 	promptFiles map[string][]byte,
 	filepaths []*string,
-) (files map[string]io.Reader, filesToClose []*os.File, err error) {
-	files = map[string]io.Reader{}
-	filesToClose = []*os.File{}
+) (files []openedFile, err error) {
+	files = []openedFile{}
 
-	i := 0
+	idx := 0
 	for url, file := range promptFiles {
-		files[fmt.Sprintf("%d_%s", i+1, url)] = bytes.NewReader(file)
-		i++
+		files = append(files, openedFile{
+			filepath: url,
+			reader:   bytes.NewReader(file),
+			filename: fmt.Sprintf("%d_%s", idx+1, url),
+			closer:   nil,
+		})
+		idx++
 	}
-	for i, fp := range slices.DeleteFunc(
+	for _, fp := range slices.DeleteFunc(
 		filepaths,
 		func(fp *string) bool { // skip nil
 			return fp == nil
 		},
 	) {
 		if opened, err := os.Open(*fp); err == nil {
-			files[fmt.Sprintf("%d_%s", i+1, filepath.Base(*fp))] = opened
-			filesToClose = append(filesToClose, opened)
+			files = append(files, openedFile{
+				filepath: *fp,
+				reader:   opened,
+				filename: fmt.Sprintf("%d_%s", idx+1, filepath.Base(*fp)),
+				closer:   opened,
+			})
 		} else {
-			return nil, nil, err
+			return nil, err
 		}
+		idx++
 	}
 
-	return files, filesToClose, nil
+	return files, nil
 }
 
 // print image to terminal which supports sixel
