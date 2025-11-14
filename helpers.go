@@ -30,6 +30,7 @@ import (
 
 	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/tailscale/hujson"
 	"google.golang.org/genai"
 	"mvdan.cc/sh/v3/syntax"
@@ -175,7 +176,10 @@ func filesInDir(
 }
 
 // expand given filepaths (expand directories with their sub files)
-func expandFilepaths(writer *outputWriter, p params) (expanded []*string, err error) {
+func expandFilepaths(
+	writer *outputWriter,
+	p params,
+) (expanded []*string, err error) {
 	filepaths := p.Generation.Filepaths
 	if filepaths == nil {
 		return nil, nil
@@ -217,23 +221,35 @@ func expandFilepaths(writer *outputWriter, p params) (expanded []*string, err er
 			continue
 		}
 
-		if matched, supported, err := gt.SupportedMimeTypePath(*fp); err == nil {
-			if supported {
-				filtered = append(filtered, fp)
+		// if file has an overridden mime type,
+		if override, exists := p.OverrideFileMIMEType[filepath.Ext(*fp)]; exists {
+			filtered = append(filtered, fp)
+
+			writer.print(
+				verboseMedium,
+				"Overriding mime type of file '%s': %s",
+				*fp,
+				override,
+			)
+		} else { // check mime type from file bytes
+			if matched, supported, err := gt.SupportedMimeTypePath(*fp); err == nil {
+				if supported {
+					filtered = append(filtered, fp)
+				} else {
+					writer.print(
+						verboseMedium,
+						"Ignoring file '%s', unsupported mime type: %s",
+						*fp,
+						matched,
+					)
+				}
 			} else {
-				writer.print(
-					verboseMedium,
-					"Ignoring file '%s', unsupported mime type: %s",
+				return nil, fmt.Errorf(
+					"failed to check mime type of '%s': %w",
 					*fp,
-					matched,
+					err,
 				)
 			}
-		} else {
-			return nil, fmt.Errorf(
-				"failed to check mime type of '%s': %w",
-				*fp,
-				err,
-			)
 		}
 	}
 
@@ -914,6 +930,26 @@ func pcmToWav(
 	}
 
 	return buf.Bytes(), nil
+}
+
+// read mime type from a `io.Reader` and return a new one for recycling it
+//
+// (copied from `gemini-things-go`)
+func readMimeAndRecycle(input io.Reader) (mimeType *mimetype.MIME, recycled io.Reader, err error) {
+	// header will store the bytes mimetype uses for detection.
+	header := bytes.NewBuffer(nil)
+
+	// After DetectReader, the data read from input is copied into header.
+	mtype, err := mimetype.DetectReader(io.TeeReader(input, header))
+	if err != nil {
+		return
+	}
+
+	// Concatenate back the header to the rest of the file.
+	// recycled now contains the complete, original data.
+	recycled = io.MultiReader(header, input)
+
+	return mtype, recycled, err
 }
 
 // run executable with given args and return its result

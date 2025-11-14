@@ -475,7 +475,7 @@ func run(
 						filepaths,
 						p.Embeddings.EmbeddingsChunkSize,
 						p.Embeddings.EmbeddingsOverlappedChunkSize,
-						p.InferMIMETypeFromFileExtension,
+						p.OverrideFileMIMEType,
 						p.Verbose,
 					)
 
@@ -483,7 +483,7 @@ func run(
 					return 1, fmt.Errorf("failed to open files for file search: %s", err)
 				}
 			} else {
-				return 1, fmt.Errorf("no file was given for file search store: %s", *p.FileSearch.FileSearchStoreNameToUploadFiles)
+				return 1, fmt.Errorf("no file was given for file search store '%s'", *p.FileSearch.FileSearchStoreNameToUploadFiles)
 			}
 		} else if p.FileSearch.ListFilesInFileSearchStore != nil { // list files in file search store
 			return listFilesInFileSearchStore(

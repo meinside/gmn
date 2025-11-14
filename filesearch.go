@@ -5,12 +5,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/gabriel-vasile/mimetype"
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -218,7 +219,7 @@ func uploadFilesToFileSearchStore(
 	fileSearchStoreName string,
 	filepaths []string,
 	chunkSize, overlappedChunkSize *uint,
-	inferMIMETypeFromFileExtension bool,
+	overrideMimeTypeForExt map[string]string,
 	vbs []bool,
 ) (exit int, e error) {
 	writer.verbose(
@@ -274,33 +275,58 @@ func uploadFilesToFileSearchStore(
 		if file, err := os.Open(path); err == nil {
 			defer func() { _ = file.Close() }()
 
-			var mimeType []string = nil
-			if inferMIMETypeFromFileExtension {
-				if inferMIMETypeFromFileExtension {
-					mime, _ := mimetype.DetectFile(path)
-					mimeType = []string{
-						mime.String(),
-					}
-				}
+			var fileReader io.Reader = file
+
+			// custom metadata for the uploaded file
+			metadata := []*genai.CustomMetadata{
+				{
+					Key:         "filepath",
+					StringValue: path,
+				},
+				{
+					Key:         "filename",
+					StringValue: filepath.Base(path),
+				},
 			}
 
+			// override mime type if needed
+			var mimeType []string = nil
+			var mimeTypeForMetadata string
+			if mime, exists := overrideMimeTypeForExt[filepath.Ext(path)]; exists {
+				mimeTypeForMetadata, _, _ = strings.Cut(mime, ";") // FIXME: drop trailing things like '; charset=utf-8'
+
+				mimeType = []string{mime}
+			} else {
+				if mime, recycled, err := readMimeAndRecycle(file); err == nil {
+					mimeTypeForMetadata, _, _ = strings.Cut(mime.String(), ";") // FIXME: drop trailing things like '; charset=utf-8'
+
+					fileReader = recycled
+				}
+			}
+			if len(mimeTypeForMetadata) > 0 {
+				metadata = append(
+					metadata,
+					&genai.CustomMetadata{
+						Key:         "mimeType",
+						StringValue: mimeTypeForMetadata,
+					},
+				)
+			}
+
+			// upload
 			if _, err := gtc.UploadFileForSearch(
 				ctx,
 				fileSearchStoreName,
-				file,
+				fileReader,
 				filepath.Base(path),
-				[]*genai.CustomMetadata{
-					{
-						Key:         "filename",
-						StringValue: path,
-					},
-				},
+				metadata,
 				chunkConfig,
 				mimeType...,
 			); err != nil {
 				return 1, fmt.Errorf(
-					"failed to upload file '%s' to file search store %s: %s",
+					"failed to upload file '%s' (%s) to file search store '%s': %s",
 					path,
+					mimeTypeForMetadata,
 					fileSearchStoreName,
 					gt.ErrToStr(err),
 				)

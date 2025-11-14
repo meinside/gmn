@@ -117,7 +117,7 @@ type params struct {
 	} `group:"File Search"`
 
 	// others
-	InferMIMETypeFromFileExtension bool `long:"infer-mime-type-from-file-ext" description:"Whether to infer the MIME type of files from the extensions (default: false, which means to infer from the file content)"`
+	OverrideFileMIMEType map[string]string `long:"override-file-mimetype" description:"Override MIME type for given file's extension (can be used multiple times, eg. '.apk:application/zip', '.md:text/markdown')"`
 
 	// for logging and debugging
 	Verbose                []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
