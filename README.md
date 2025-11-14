@@ -670,6 +670,16 @@ $ gmn --list-files-in-file-search-store
 $ gmn --delete-file-in-file-search-store "fileSearchStores/filesearchstorename-0123456789/documents/filename-abcdefg1234"
 ```
 
+In case of wrong detections of mime types, you can override the mime types of uploaded files with their extensions, like:
+
+```bash
+$ gmn --upload-to-file-search-store="$F_S_STORE" \
+    -f "~/files/some-hangul-document.hwp" \
+    -f "./README.md" \
+    --override-file-mimetype=".hwp:application/x-hwp" \
+    --override-file-mimetype=".md:text/markdown"
+```
+
 ### Others
 
 With verbose flags (`-v`, `-vv`, and `-vvv`) you can see more detailed information like token counts and request parameters.

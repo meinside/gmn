@@ -1032,7 +1032,7 @@ func doGeneration(
 
 							writer.printColored(
 								color.FgHiCyan,
-								"> Titles of retrieved contexts from file search store: %s\n",
+								"> Retrieved contexts from file search store: %s\n",
 								prettify(titles),
 							)
 						}
