@@ -212,6 +212,7 @@ func run(
 					prompts,
 					promptFiles,
 					p.Generation.Filepaths,
+					p.OverrideFileMIMEType,
 					p.Caching.CachedContextName,
 					p.Verbose,
 				)
@@ -343,6 +344,7 @@ func run(
 					prompts,
 					promptFiles,
 					p.Generation.Filepaths,
+					p.OverrideFileMIMEType,
 					p.Generation.ThinkingOn,
 					p.Generation.ThinkingBudget,
 					p.Generation.ShowThinking,
@@ -392,6 +394,7 @@ func run(
 				nil, // prompt not given
 				nil, // prompt not given
 				p.Generation.Filepaths,
+				p.OverrideFileMIMEType,
 				p.Caching.CachedContextName,
 				p.Verbose,
 			)

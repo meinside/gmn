@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ func doGeneration(
 	apiKey, model string,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
+	overrideMimeTypeForExt map[string]string,
 	withThinking bool, thinkingBudget *int32, showThinking bool,
 	withGrounding bool,
 	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
@@ -274,7 +276,13 @@ func doGeneration(
 	ch := make(chan result, 1)
 	go func() {
 		for _, file := range files {
-			prompts = append(prompts, gt.PromptFromFile(file.filename, file.reader))
+			var prompt gt.Prompt
+			if override, exists := overrideMimeTypeForExt[filepath.Ext(file.filepath)]; exists {
+				prompt = gt.PromptFromFile(file.filename, file.reader, override) // force MIME type
+			} else {
+				prompt = gt.PromptFromFile(file.filename, file.reader)
+			}
+			prompts = append(prompts, prompt)
 		}
 
 		// for marking <thought></thought>
@@ -1116,6 +1124,7 @@ func doGeneration(
 				apiKey, model,
 				systemInstruction, temperature, topP, topK,
 				prompts, promptFiles, filepaths,
+				overrideMimeTypeForExt,
 				withThinking, thinkingBudget, showThinking,
 				withGrounding,
 				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,

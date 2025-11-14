@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -22,6 +23,7 @@ func cacheContext(
 	apiKey, model string,
 	systemInstruction string,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
+	overrideMimeTypeForExt map[string]string,
 	cachedContextDisplayName *string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -78,7 +80,13 @@ func cacheContext(
 
 	// cache context and print the cached context's name
 	for _, file := range files {
-		prompts = append(prompts, gt.PromptFromFile(file.filename, file.reader))
+		var prompt gt.Prompt
+		if override, exists := overrideMimeTypeForExt[filepath.Ext(file.filepath)]; exists {
+			prompt = gt.PromptFromFile(file.filename, file.reader, override) // force MIME type
+		} else {
+			prompt = gt.PromptFromFile(file.filename, file.reader)
+		}
+		prompts = append(prompts, prompt)
 	}
 	if name, err := gtc.CacheContext(
 		ctx,

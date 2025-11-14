@@ -429,7 +429,7 @@ func listFilesInFileSearchStore(
 			file.UpdateTime.Format(time.RFC3339),
 			file.SizeBytes,
 			file.MIMEType,
-			prettify(file.CustomMetadata, true),
+			prettify(customMetadataToMap(file.CustomMetadata), true),
 		)
 
 		numFiles++
