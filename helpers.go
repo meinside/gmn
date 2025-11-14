@@ -654,6 +654,21 @@ func supportedTextContentType(contentType string) bool {
 	}(contentType)
 }
 
+// convert given custom metadata to a map
+func customMetadataToMap(metadata []*genai.CustomMetadata) map[string]string {
+	m := map[string]string{}
+	for _, meta := range metadata {
+		if meta.StringValue != "" {
+			m[meta.Key] = meta.StringValue
+		} else if meta.NumericValue != nil {
+			m[meta.Key] = fmt.Sprintf("%v", *meta.NumericValue)
+		} else if meta.StringListValue != nil {
+			m[meta.Key] = prettify(meta.StringListValue.Values, true)
+		}
+	}
+	return m
+}
+
 // get pointer of given value
 func ptr[T any](v T) *T {
 	val := v
