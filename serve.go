@@ -466,97 +466,102 @@ If there was any newly-created file, make sure to report to the user about the f
 						}
 
 						// generate,
-						var res *genai.GenerateContentResponse
-						if res, err = gtc.Generate(
-							ctx,
-							prompts,
-							&gt.GenerationOptions{
-								Tools:              tools,
-								ThinkingOn:         *thinkingOn,
-								ResponseModalities: responseModalities,
-							},
-						); err == nil {
-							content := []mcp.Content{}
-							for _, candidate := range res.Candidates {
-								if candidate.Content.Role != string(gt.RoleModel) {
-									continue
-								}
-								for i, part := range candidate.Content.Parts {
-									if len(part.Text) > 0 {
-										writer.verbose(
-											verboseMaximum,
-											p.Verbose,
-											"text[%d]: '%s'", i, part.Text,
-										)
-
-										content = append(content, &mcp.TextContent{
-											Text: part.Text,
-										})
-									} else if part.InlineData != nil {
-										bytes := part.InlineData.Data
-										mimeType := part.InlineData.MIMEType
-
-										writer.verbose(
-											verboseMaximum,
-											p.Verbose,
-											"data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
-										)
-
-										if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
-											content = append(
-												content,
-												&mcp.TextContent{
-													Text: fmt.Sprintf(
-														"Here is the generated image file (%d bytes, %s):",
-														len(bytes),
-														mimeType,
-													),
-												},
-												&mcp.ImageContent{
-													Data:     bytes,
-													MIMEType: mimeType,
-												},
-											)
-										} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") {
-											// if it is in PCM, convert it to WAV
-											speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
-											if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
-												// convert,
-												if converted, err := pcmToWav(
-													part.InlineData.Data,
-													bitRate,
-												); err == nil {
-													bytes = converted
-													mimeType = mimetype.Detect(converted).String()
-												}
-											}
-
-											content = append(
-												content,
-												&mcp.TextContent{
-													Text: fmt.Sprintf(
-														"Here is the generated audio file (%d bytes, %s):",
-														len(bytes),
-														mimeType,
-													),
-												},
-												&mcp.AudioContent{
-													Data:     bytes,
-													MIMEType: mimeType,
-												},
-											)
-										} else {
-											writer.err(
+						var contentsForGeneration []*genai.Content
+						if contentsForGeneration, err = gtc.PromptsToContents(ctx, prompts, nil); err == nil {
+							var res *genai.GenerateContentResponse
+							if res, err = gtc.Generate(
+								ctx,
+								contentsForGeneration,
+								&gt.GenerationOptions{
+									Tools:              tools,
+									ThinkingOn:         *thinkingOn,
+									ResponseModalities: responseModalities,
+								},
+							); err == nil {
+								content := []mcp.Content{}
+								for _, candidate := range res.Candidates {
+									if candidate.Content.Role != string(gt.RoleModel) {
+										continue
+									}
+									for i, part := range candidate.Content.Parts {
+										if len(part.Text) > 0 {
+											writer.verbose(
 												verboseMaximum,
-												"unknown inline data type: %s", part.InlineData.MIMEType,
+												p.Verbose,
+												"text[%d]: '%s'", i, part.Text,
 											)
+
+											content = append(content, &mcp.TextContent{
+												Text: part.Text,
+											})
+										} else if part.InlineData != nil {
+											bytes := part.InlineData.Data
+											mimeType := part.InlineData.MIMEType
+
+											writer.verbose(
+												verboseMaximum,
+												p.Verbose,
+												"data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
+											)
+
+											if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
+												content = append(
+													content,
+													&mcp.TextContent{
+														Text: fmt.Sprintf(
+															"Here is the generated image file (%d bytes, %s):",
+															len(bytes),
+															mimeType,
+														),
+													},
+													&mcp.ImageContent{
+														Data:     bytes,
+														MIMEType: mimeType,
+													},
+												)
+											} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") {
+												// if it is in PCM, convert it to WAV
+												speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
+												if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+													// convert,
+													if converted, err := pcmToWav(
+														part.InlineData.Data,
+														bitRate,
+													); err == nil {
+														bytes = converted
+														mimeType = mimetype.Detect(converted).String()
+													}
+												}
+
+												content = append(
+													content,
+													&mcp.TextContent{
+														Text: fmt.Sprintf(
+															"Here is the generated audio file (%d bytes, %s):",
+															len(bytes),
+															mimeType,
+														),
+													},
+													&mcp.AudioContent{
+														Data:     bytes,
+														MIMEType: mimeType,
+													},
+												)
+											} else {
+												writer.err(
+													verboseMaximum,
+													"unknown inline data type: %s", part.InlineData.MIMEType,
+												)
+											}
 										}
 									}
 								}
+								return &mcp.CallToolResult{
+									Content: content,
+								}, nil
 							}
-							return &mcp.CallToolResult{
-								Content: content,
-							}, nil
+						} else {
+							err = fmt.Errorf("failed to convert prompts for generation: %w", err)
 						}
 					}
 				}
