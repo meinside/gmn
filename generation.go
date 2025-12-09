@@ -67,12 +67,6 @@ func doGeneration(
 		"generating...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(
 		apiKey,
@@ -98,7 +92,6 @@ func doGeneration(
 	)
 
 	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
 	})
@@ -287,10 +280,26 @@ func doGeneration(
 		thoughtBegan, thoughtEnded := false, false
 		isThinking := false
 
-		if contentsForGeneration, err := gtc.PromptsToContents(ctx, prompts, pastGenerations); err == nil {
+		ctxContents, cancelContents := context.WithTimeout(
+			ctx,
+			time.Duration(timeoutSeconds)*time.Second,
+		)
+		defer cancelContents()
+
+		if contentsForGeneration, err := gtc.PromptsToContents(
+			ctxContents,
+			prompts,
+			pastGenerations,
+		); err == nil {
+			ctxGenerate, cancelGenerate := context.WithTimeout(
+				ctx,
+				time.Duration(timeoutSeconds)*time.Second,
+			)
+			defer cancelGenerate()
+
 			// iterate generated stream
 			for it, err := range gtc.GenerateStreamIterated(
-				ctx,
+				ctxGenerate,
 				contentsForGeneration,
 				opts,
 			) {

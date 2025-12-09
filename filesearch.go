@@ -31,12 +31,6 @@ func listFileSearchStores(
 		"listing file search stores...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -51,8 +45,11 @@ func listFileSearchStores(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	numStores := 0
 	for store, err := range gtc.ListFileSearchStores(ctx) {
@@ -116,12 +113,6 @@ func createFileSearchStore(
 		displayName,
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -136,8 +127,11 @@ func createFileSearchStore(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	if created, err := gtc.CreateFileSearchStore(ctx, displayName); err != nil {
 		return 1, err
@@ -169,12 +163,6 @@ func deleteFileSearchStore(
 		name,
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -189,8 +177,11 @@ func deleteFileSearchStore(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	if err := gtc.DeleteFileSearchStore(ctx, name); err != nil {
 		return 1, err
@@ -229,12 +220,6 @@ func uploadFilesToFileSearchStore(
 		fileSearchStoreName,
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -248,9 +233,6 @@ func uploadFilesToFileSearchStore(
 			)
 		}
 	}()
-
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
 
 	// chunk config
 	var chunkConfig *genai.ChunkingConfig = nil
@@ -313,6 +295,12 @@ func uploadFilesToFileSearchStore(
 				)
 			}
 
+			ctx, cancel := context.WithTimeout(
+				ctx,
+				time.Duration(timeoutSeconds)*time.Second,
+			)
+			defer cancel()
+
 			// upload
 			if _, err := gtc.UploadFileForSearch(
 				ctx,
@@ -374,12 +362,6 @@ func listFilesInFileSearchStore(
 		fileSearchStoreName,
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -394,8 +376,11 @@ func listFilesInFileSearchStore(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	numFiles := 0
 	for file, err := range gtc.ListFilesInFileSearchStore(
@@ -459,12 +444,6 @@ func deleteFileInFileSearchStore(
 		fileName,
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -479,10 +458,16 @@ func deleteFileInFileSearchStore(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
-	if err := gtc.DeleteFileInFileSearchStore(ctx, fileName); err != nil {
+	if err := gtc.DeleteFileInFileSearchStore(
+		ctx,
+		fileName,
+	); err != nil {
 		return 1, err
 	} else {
 		writer.printColored(

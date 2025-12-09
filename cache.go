@@ -33,12 +33,6 @@ func cacheContext(
 		"caching context...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(
 		apiKey,
@@ -57,7 +51,6 @@ func cacheContext(
 	}()
 
 	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
 	gtc.SetSystemInstructionFunc(func() string {
 		return systemInstruction
 	})
@@ -88,6 +81,13 @@ func cacheContext(
 		}
 		prompts = append(prompts, prompt)
 	}
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
+
 	if name, err := gtc.CacheContext(
 		ctx,
 		&systemInstruction,
@@ -123,12 +123,6 @@ func listCachedContexts(
 		"listing cached contexts...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -143,8 +137,11 @@ func listCachedContexts(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	if listed, err := gtc.ListAllCachedContexts(ctx); err == nil {
 		if len(listed) > 0 {
@@ -197,12 +194,6 @@ func deleteCachedContext(
 		"deleting cached context...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -217,8 +208,11 @@ func deleteCachedContext(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	if err := gtc.DeleteCachedContext(ctx, cachedContextName); err != nil {
 		return 1, err

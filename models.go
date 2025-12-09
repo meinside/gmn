@@ -28,12 +28,6 @@ func listModels(
 		"listing models...",
 	)
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(apiKey)
 	if err != nil {
@@ -48,8 +42,11 @@ func listModels(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
 
 	if models, err := gtc.ListModels(ctx); err != nil {
 		return 1, err
