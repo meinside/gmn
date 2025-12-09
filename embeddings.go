@@ -60,12 +60,6 @@ func doEmbeddingsGeneration(
 		)
 	}
 
-	ctx, cancel := context.WithTimeout(
-		ctx,
-		time.Duration(timeoutSeconds)*time.Second,
-	)
-	defer cancel()
-
 	// gemini things client
 	gtc, err := gt.NewClient(
 		apiKey,
@@ -80,16 +74,12 @@ func doEmbeddingsGeneration(
 		}
 	}()
 
-	// configure gemini things client
-	gtc.SetTimeoutSeconds(timeoutSeconds)
-
 	// embeddings task type
 	var selectedTaskType gt.EmbeddingTaskType
 	if taskType != nil {
 		selectedTaskType = gt.EmbeddingTaskType(*taskType)
 	}
 
-	// iterate chunks and generate embeddings
 	type embedding struct {
 		Text    string    `json:"text"`
 		Vectors []float32 `json:"vectors"`
@@ -104,6 +94,14 @@ func doEmbeddingsGeneration(
 		TaskType: selectedTaskType,
 		Chunks:   []embedding{},
 	}
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		time.Duration(timeoutSeconds)*time.Second,
+	)
+	defer cancel()
+
+	// iterate chunks and generate embeddings
 	for i, text := range chunks.Chunks {
 		if vectors, err := gtc.GenerateEmbeddings(
 			ctx,

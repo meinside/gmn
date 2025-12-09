@@ -134,11 +134,7 @@ func buildSelfServer(
 			p := p // copy launch params
 
 			var gtc *gt.Client
-			gtc, err = gt.NewClient(
-				*p.Configuration.GoogleAIAPIKey,
-				gt.WithTimeoutSeconds(mcpFunctionTimeoutSeconds),
-			)
-			if err == nil {
+			if gtc, err = gt.NewClient(*p.Configuration.GoogleAIAPIKey); err == nil {
 				var models []*genai.Model
 				if models, err = gtc.ListModels(ctx); err == nil {
 					var marshalled []byte
@@ -382,7 +378,6 @@ If there was any newly-created file, make sure to report to the user about the f
 					var gtc *gt.Client
 					gtc, err = gt.NewClient(
 						*p.Configuration.GoogleAIAPIKey,
-						gt.WithTimeoutSeconds(mcpFunctionTimeoutSeconds),
 						gt.WithModel(*model),
 					)
 					if err == nil {
@@ -465,12 +460,22 @@ If there was any newly-created file, make sure to report to the user about the f
 							}, nil
 						}
 
+						ctxContents, cancelContents := context.WithTimeout(ctx, mcpFunctionTimeoutSeconds*time.Second)
+						defer cancelContents()
+
 						// generate,
 						var contentsForGeneration []*genai.Content
-						if contentsForGeneration, err = gtc.PromptsToContents(ctx, prompts, nil); err == nil {
+						if contentsForGeneration, err = gtc.PromptsToContents(
+							ctxContents,
+							prompts,
+							nil,
+						); err == nil {
+							ctxGenerate, cancelGenerate := context.WithTimeout(ctx, mcpFunctionTimeoutSeconds*time.Second)
+							defer cancelGenerate()
+
 							var res *genai.GenerateContentResponse
 							if res, err = gtc.Generate(
-								ctx,
+								ctxGenerate,
 								contentsForGeneration,
 								&gt.GenerationOptions{
 									Tools:              tools,

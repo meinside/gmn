@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	infisical "github.com/infisical/go-sdk"
 	"github.com/infisical/go-sdk/packages/models"
@@ -20,7 +21,8 @@ const (
 	envVarNameAPIKey = `GEMINI_API_KEY`
 
 	// default config file's name
-	defaultConfigFilename = `config.json`
+	defaultConfigFilename       = `config.json`
+	defaultConfigTimeoutSeconds = 10
 
 	// default model names
 	defaultGoogleAIModel                 = `gemini-2.5-flash`
@@ -97,8 +99,11 @@ func readConfig(configFilepath string) (conf config, err error) {
 				}
 
 				if conf.GoogleAIAPIKey == nil && conf.Infisical != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), defaultConfigTimeoutSeconds*time.Second)
+					defer cancel()
+
 					// read token and api key from infisical
-					conf, err = fetchConfFromInfisical(conf)
+					conf, err = fetchConfFromInfisical(ctx, conf)
 					if err != nil {
 						return config{}, fmt.Errorf("failed to fetch config from Infisical: %w", err)
 					}
@@ -125,10 +130,13 @@ func resolveConfigFilepath(configFilepath *string) string {
 }
 
 // fetch config values from infisical
-func fetchConfFromInfisical(conf config) (config, error) {
+func fetchConfFromInfisical(
+	ctx context.Context,
+	conf config,
+) (config, error) {
 	// read token and api key from infisical
 	client := infisical.NewInfisicalClient(
-		context.TODO(),
+		ctx,
 		infisical.Config{
 			SiteUrl: "https://app.infisical.com",
 		},
