@@ -15,6 +15,12 @@
     "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
   },
   */
+  /*
+  // or, read google credentials file from filepath:
+  "google_credentials_filepath": "/path/to/credentials.json",
+  "google_project_id": "my-google-project-1",
+  "location": "us-west-1",
+  */
 
   // configurations for google ai model
   //

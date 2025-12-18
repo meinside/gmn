@@ -49,13 +49,22 @@ Respond to user messages according to the following principles:
 	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
 	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
 	defaultFetchUserAgent         = `gmn/fetcher`
+	defaultLocation               = `global`
 )
 
 // config struct
 type config struct {
+	// (1) gemini api key in plain text
 	GoogleAIAPIKey *string `json:"google_ai_api_key,omitempty"`
 
+	// (2) or, gemini api key in infisical
 	Infisical *infisicalSetting `json:"infisical,omitempty"`
+
+	// (3) or, google credentials file path
+	GoogleCredentialsFilepath *string `json:"google_credentials_filepath,omitempty"`
+	googleCredentialsBytes    []byte  // <= read from `GoogleCredentialsFilepath`
+	GoogleProjectID           *string `json:"google_project_id,omitempty"`
+	Location                  *string `json:"location,omitempty"`
 
 	GoogleAIModel                 *string `json:"google_ai_model,omitempty"`
 	GoogleAIImageGenerationModel  *string `json:"google_ai_image_generation_model,omitempty"`
@@ -106,6 +115,14 @@ func readConfig(configFilepath string) (conf config, err error) {
 					conf, err = fetchConfFromInfisical(ctx, conf)
 					if err != nil {
 						return config{}, fmt.Errorf("failed to fetch config from Infisical: %w", err)
+					}
+				} else if conf.GoogleCredentialsFilepath != nil {
+					if conf.Location == nil {
+						conf.Location = ptr(defaultLocation)
+					}
+
+					if conf.googleCredentialsBytes, err = os.ReadFile(*conf.GoogleCredentialsFilepath); err != nil {
+						return config{}, fmt.Errorf("failed to read google credentials from %s: %w", *conf.GoogleCredentialsFilepath, err)
 					}
 				}
 			}

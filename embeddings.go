@@ -28,7 +28,7 @@ func doEmbeddingsGeneration(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey, model string,
+	gtc *gt.Client,
 	prompt string,
 	taskType *string,
 	chunkSize, overlappedChunkSize *uint,
@@ -59,20 +59,6 @@ func doEmbeddingsGeneration(
 			err,
 		)
 	}
-
-	// gemini things client
-	gtc, err := gt.NewClient(
-		apiKey,
-		gt.WithModel(model),
-	)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error("Failed to close client: %s", err)
-		}
-	}()
 
 	// embeddings task type
 	var selectedTaskType gt.EmbeddingTaskType

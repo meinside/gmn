@@ -154,11 +154,25 @@ func run(
 			// model
 			p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForEmbeddings)
 
+			// gemini things client
+			gtc, err := gtClient(
+				p.Configuration.GoogleAIAPIKey,
+				conf,
+				gt.WithModel(*p.Configuration.GoogleAIModel),
+			)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error("Failed to close client: %s", err)
+				}
+			}()
+
 			return doEmbeddingsGeneration(context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
-				*p.Configuration.GoogleAIModel,
+				gtc,
 				*p.Generation.Prompt,
 				p.Embeddings.EmbeddingsTaskType,
 				p.Embeddings.EmbeddingsChunkSize,
@@ -203,11 +217,28 @@ func run(
 				// model
 				p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForGeneralPurpose)
 
+				// gemini things client
+				gtc, err := gtClient(
+					p.Configuration.GoogleAIAPIKey,
+					conf,
+					gt.WithModel(*p.Configuration.GoogleAIModel),
+				)
+				if err != nil {
+					return 1, err
+				}
+				defer func() {
+					if err := gtc.Close(); err != nil {
+						writer.error(
+							"Failed to close client: %s",
+							err,
+						)
+					}
+				}()
+
 				return cacheContext(context.TODO(),
 					writer,
 					conf.TimeoutSeconds,
-					*p.Configuration.GoogleAIAPIKey,
-					*p.Configuration.GoogleAIModel,
+					gtc,
 					*p.Generation.SystemInstruction,
 					prompts,
 					promptFiles,
@@ -331,12 +362,26 @@ func run(
 					}
 				}
 
+				// gemini things client
+				gtc, err := gtClient(
+					p.Configuration.GoogleAIAPIKey,
+					conf,
+					gt.WithModel(*p.Configuration.GoogleAIModel),
+				)
+				if err != nil {
+					return 1, err
+				}
+				defer func() {
+					if err := gtc.Close(); err != nil {
+						writer.error("Failed to close client: %s", err)
+					}
+				}()
+
 				return doGeneration(
 					context.TODO(),
 					writer,
 					conf.TimeoutSeconds,
-					*p.Configuration.GoogleAIAPIKey,
-					*p.Configuration.GoogleAIModel,
+					gtc,
 					*p.Generation.SystemInstruction,
 					p.Generation.Temperature,
 					p.Generation.TopP,
@@ -384,12 +429,26 @@ func run(
 		)
 
 		if p.Caching.CacheContext { // cache context
+			// gemini things client
+			gtc, err := gtClient(
+				p.Configuration.GoogleAIAPIKey,
+				conf,
+				gt.WithModel(*p.Configuration.GoogleAIModel),
+			)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error("Failed to close client: %s", err)
+				}
+			}()
+
 			return cacheContext(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
-				*p.Configuration.GoogleAIModel,
+				gtc,
 				*p.Generation.SystemInstruction,
 				nil, // prompt not given
 				nil, // prompt not given
@@ -399,53 +458,134 @@ func run(
 				p.Verbose,
 			)
 		} else if p.Caching.ListCachedContexts { // list cached contexts
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return listCachedContexts(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				p.Verbose,
 			)
 		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return deleteCachedContext(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				*p.Caching.DeleteCachedContext,
 				p.Verbose,
 			)
 		} else if p.ListModels { // list models
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return listModels(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				p.Verbose,
 			)
 		} else if p.FileSearch.ListFileSearchStores { // list file search stores
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error("Failed to close client: %s", err)
+				}
+			}()
+
 			return listFileSearchStores(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				p.Verbose,
 			)
 		} else if p.FileSearch.CreateFileSearchStore != nil { // create file search store
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return createFileSearchStore(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				*p.FileSearch.CreateFileSearchStore,
 				p.Verbose,
 			)
 		} else if p.FileSearch.DeleteFileSearchStore != nil { // delete file search store
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return deleteFileSearchStore(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				*p.FileSearch.DeleteFileSearchStore,
 				p.Verbose,
 			)
@@ -469,11 +609,25 @@ func run(
 						filepaths[i] = file.filepath
 					}
 
+					// gemini things client
+					gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+					if err != nil {
+						return 1, err
+					}
+					defer func() {
+						if err := gtc.Close(); err != nil {
+							writer.error(
+								"Failed to close client: %s",
+								err,
+							)
+						}
+					}()
+
 					return uploadFilesToFileSearchStore(
 						context.TODO(),
 						writer,
 						conf.TimeoutSeconds,
-						*p.Configuration.GoogleAIAPIKey,
+						gtc,
 						*p.FileSearch.FileSearchStoreNameToUploadFiles,
 						filepaths,
 						p.Embeddings.EmbeddingsChunkSize,
@@ -489,20 +643,48 @@ func run(
 				return 1, fmt.Errorf("no file was given for file search store '%s'", *p.FileSearch.FileSearchStoreNameToUploadFiles)
 			}
 		} else if p.FileSearch.ListFilesInFileSearchStore != nil { // list files in file search store
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return listFilesInFileSearchStore(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				*p.FileSearch.ListFilesInFileSearchStore,
 				p.Verbose,
 			)
 		} else if p.FileSearch.DeleteFileInFileSearchStore != nil { // delete a file in a file search store
+			// gemini things client
+			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			if err != nil {
+				return 1, err
+			}
+			defer func() {
+				if err := gtc.Close(); err != nil {
+					writer.error(
+						"Failed to close client: %s",
+						err,
+					)
+				}
+			}()
+
 			return deleteFileInFileSearchStore(
 				context.TODO(),
 				writer,
 				conf.TimeoutSeconds,
-				*p.Configuration.GoogleAIAPIKey,
+				gtc,
 				*p.FileSearch.DeleteFileInFileSearchStore,
 				p.Verbose,
 			)
