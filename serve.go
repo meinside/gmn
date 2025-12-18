@@ -134,7 +134,10 @@ func buildSelfServer(
 			p := p // copy launch params
 
 			var gtc *gt.Client
-			if gtc, err = gt.NewClient(*p.Configuration.GoogleAIAPIKey); err == nil {
+			if gtc, err = gtClient(
+				p.Configuration.GoogleAIAPIKey,
+				conf,
+			); err == nil {
 				var models []*genai.Model
 				if models, err = gtc.ListModels(ctx); err == nil {
 					var marshalled []byte
@@ -376,8 +379,9 @@ If there was any newly-created file, make sure to report to the user about the f
 
 					// create a client,
 					var gtc *gt.Client
-					gtc, err = gt.NewClient(
-						*p.Configuration.GoogleAIAPIKey,
+					gtc, err = gtClient(
+						p.Configuration.GoogleAIAPIKey,
+						conf,
 						gt.WithModel(*model),
 					)
 					if err == nil {

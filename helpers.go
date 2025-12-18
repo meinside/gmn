@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/auth/credentials"
 	"github.com/BourgeoisBear/rasterm"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gabriel-vasile/mimetype"
@@ -1241,4 +1242,38 @@ func runCommandWithContext(
 	}
 
 	return stdout, stderr, exitCode, err
+}
+
+// helper function for creating a gemini-things client
+// with gemini api key, or google credentials file
+func gtClient(
+	googleAIAPIKey *string,
+	conf config,
+	options ...gt.ClientOption,
+) (gtc *gt.Client, err error) {
+	err = fmt.Errorf("gemini api key or google credentials not found")
+
+	if googleAIAPIKey != nil {
+		return gt.NewClient(
+			*googleAIAPIKey,
+			options...,
+		)
+	} else if conf.googleCredentialsBytes != nil && conf.GoogleProjectID != nil {
+		if credentials, err := credentials.NewCredentialsFromJSON(
+			credentials.ServiceAccount,
+			conf.googleCredentialsBytes,
+			&credentials.DetectOptions{
+				Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
+			},
+		); err == nil {
+			return gt.NewVertextClient(
+				*conf.GoogleProjectID,
+				*conf.Location,
+				credentials,
+				options...,
+			)
+		}
+	}
+
+	return nil, fmt.Errorf("failed to create gemini-things client: %w", err)
 }

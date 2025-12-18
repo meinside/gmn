@@ -22,7 +22,7 @@ func listFileSearchStores(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	vbs []bool,
 ) (exit int, e error) {
 	writer.verbose(
@@ -30,20 +30,6 @@ func listFileSearchStores(
 		vbs,
 		"listing file search stores...",
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -102,7 +88,7 @@ func createFileSearchStore(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	displayName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -112,20 +98,6 @@ func createFileSearchStore(
 		"creating a file search store '%s'...",
 		displayName,
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -152,7 +124,7 @@ func deleteFileSearchStore(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	name string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -162,20 +134,6 @@ func deleteFileSearchStore(
 		"deleting a file search store '%s'...",
 		name,
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -206,7 +164,7 @@ func uploadFilesToFileSearchStore(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	fileSearchStoreName string,
 	filepaths []string,
 	chunkSize, overlappedChunkSize *uint,
@@ -219,20 +177,6 @@ func uploadFilesToFileSearchStore(
 		"uploading files to file search store '%s'...",
 		fileSearchStoreName,
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	// chunk config
 	var chunkConfig *genai.ChunkingConfig = nil
@@ -351,7 +295,7 @@ func listFilesInFileSearchStore(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	fileSearchStoreName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -361,20 +305,6 @@ func listFilesInFileSearchStore(
 		"listing files in file search store '%s'...",
 		fileSearchStoreName,
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -433,7 +363,7 @@ func deleteFileInFileSearchStore(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	fileName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -443,20 +373,6 @@ func deleteFileInFileSearchStore(
 		"deleting a file '%s' in a file search store...",
 		fileName,
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,

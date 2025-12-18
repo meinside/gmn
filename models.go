@@ -19,7 +19,7 @@ func listModels(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	vbs []bool,
 ) (exit int, e error) {
 	writer.verbose(
@@ -27,20 +27,6 @@ func listModels(
 		vbs,
 		"listing models...",
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,

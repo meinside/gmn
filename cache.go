@@ -20,7 +20,7 @@ func cacheContext(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey, model string,
+	gtc *gt.Client,
 	systemInstruction string,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
@@ -32,23 +32,6 @@ func cacheContext(
 		vbs,
 		"caching context...",
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(
-		apiKey,
-		gt.WithModel(model),
-	)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	// configure gemini things client
 	gtc.SetSystemInstructionFunc(func() string {
@@ -114,7 +97,7 @@ func listCachedContexts(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	vbs []bool,
 ) (exit int, e error) {
 	writer.verbose(
@@ -122,20 +105,6 @@ func listCachedContexts(
 		vbs,
 		"listing cached contexts...",
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,
@@ -184,7 +153,7 @@ func deleteCachedContext(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey string,
+	gtc *gt.Client,
 	cachedContextName string,
 	vbs []bool,
 ) (exit int, e error) {
@@ -193,20 +162,6 @@ func deleteCachedContext(
 		vbs,
 		"deleting cached context...",
 	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(apiKey)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
 
 	ctx, cancel := context.WithTimeout(
 		ctx,

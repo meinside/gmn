@@ -38,7 +38,7 @@ func doGeneration(
 	ctx context.Context,
 	writer *outputWriter,
 	timeoutSeconds int,
-	apiKey, model string,
+	gtc *gt.Client,
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
@@ -65,30 +65,6 @@ func doGeneration(
 		verboseMedium,
 		vbs,
 		"generating...",
-	)
-
-	// gemini things client
-	gtc, err := gt.NewClient(
-		apiKey,
-		gt.WithModel(model),
-	)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := gtc.Close(); err != nil {
-			writer.error(
-				"Failed to close client: %s",
-				err,
-			)
-		}
-	}()
-
-	writer.verbose(
-		verboseMaximum,
-		vbs,
-		"with model: %s",
-		model,
 	)
 
 	// configure gemini things client
@@ -1215,7 +1191,7 @@ func doGeneration(
 				ctx,
 				writer,
 				timeoutSeconds,
-				apiKey, model,
+				gtc,
 				systemInstruction, temperature, topP, topK,
 				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
 				overrideMimeTypeForExt,
