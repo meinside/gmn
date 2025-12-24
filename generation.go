@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/fatih/color"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -42,7 +44,7 @@ func doGeneration(
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
-	withThinking bool, thinkingBudget *int32, showThinking bool, thoughtSignature []byte,
+	withThinking bool, thinkingLevel *string, showThinking bool, thoughtSignature []byte,
 	withGrounding bool,
 	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
 	cachedContextName *string,
@@ -51,16 +53,12 @@ func doGeneration(
 	mcpConnsAndTools mcpConnectionsAndTools,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
+	generateVideos bool, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
 	pastGenerations []genai.Content,
 	ignoreUnsupportedType bool,
 	vbs []bool,
 ) (exit int, e error) {
-	// check params here
-	if generateImages && generateSpeech {
-		return 1, fmt.Errorf("cannot generate images and speech at the same time")
-	}
-
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -89,7 +87,7 @@ func doGeneration(
 	}()
 
 	// generation options
-	opts := gt.NewGenerationOptions()
+	opts := genai.GenerateContentConfig{}
 	// (cached context)
 	if cachedContextName != nil {
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)
@@ -99,23 +97,21 @@ func doGeneration(
 	if temperature != nil {
 		generationTemperature = *temperature
 	}
+	opts.Temperature = ptr(generationTemperature)
 	// (topP)
 	generationTopP := defaultGenerationTopP
 	if topP != nil {
 		generationTopP = *topP
 	}
+	opts.TopP = ptr(generationTopP)
 	// (topK)
 	generationTopK := defaultGenerationTopK
 	if topK != nil {
 		generationTopK = *topK
 	}
-	opts.Config = &genai.GenerationConfig{
-		Temperature: ptr(generationTemperature),
-		TopP:        ptr(generationTopP),
-		TopK:        ptr(float32(generationTopK)),
-	}
-	opts.Tools = []*genai.Tool{}
+	opts.TopK = ptr(float32(generationTopK))
 	// (tools and tool config)
+	opts.Tools = []*genai.Tool{}
 	for _, tool := range tools {
 		opts.Tools = append(opts.Tools, &tool)
 	}
@@ -142,21 +138,25 @@ func doGeneration(
 	}
 	// (JSON output)
 	if outputAsJSON {
-		opts.Config.ResponseMIMEType = "application/json"
+		opts.ResponseMIMEType = "application/json"
 	}
 	// (images generation)
 	if generateImages {
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []genai.Modality{
-			genai.ModalityText,
-			genai.ModalityImage,
+		opts.ResponseModalities = []string{
+			string(genai.ModalityText),
+			string(genai.ModalityImage),
 		}
+	} else if generateVideos {
+		gtc.SetSystemInstructionFunc(nil)
+
+		opts.ResponseModalities = []string{string(genai.MediaModalityVideo)}
 	} else if generateSpeech { // (speech generation)
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []genai.Modality{
-			genai.ModalityAudio,
+		opts.ResponseModalities = []string{
+			string(genai.ModalityAudio),
 		}
 
 		opts.SpeechConfig = &genai.SpeechConfig{}
@@ -193,9 +193,24 @@ func doGeneration(
 		}
 	}
 	// (thinking)
-	opts.ThinkingOn = withThinking
-	if thinkingBudget != nil {
-		opts.ThinkingBudget = *thinkingBudget
+	opts.ThinkingConfig = &genai.ThinkingConfig{
+		IncludeThoughts: withThinking,
+	}
+	if thinkingLevel != nil {
+		var level genai.ThinkingLevel
+		switch *thinkingLevel {
+		case "low":
+			level = genai.ThinkingLevelLow
+		case "medium":
+			level = genai.ThinkingLevelMedium
+		case "high":
+			level = genai.ThinkingLevelHigh
+		case "minimal":
+			level = genai.ThinkingLevelMinimal
+		default:
+			level = genai.ThinkingLevelUnspecified
+		}
+		opts.ThinkingConfig.ThinkingLevel = level
 	}
 	// (grounding)
 	if withGrounding {
@@ -273,693 +288,502 @@ func doGeneration(
 			)
 			defer cancelGenerate()
 
-			// iterate generated stream
-			for it, err := range gtc.GenerateStreamIterated(
-				ctxGenerate,
-				contentsForGeneration,
-				opts,
-			) {
-				if err == nil {
-					// save token usages
-					tokenUsages := []string{}
-					if it.UsageMetadata != nil {
-						if it.UsageMetadata.PromptTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"prompt: %d",
-								it.UsageMetadata.PromptTokenCount,
-							))
+			if generateVideos {
+				var prompt *string
+				var image *genai.Image
+				var video *genai.Video
+				prompt, image, video = promptImageOrVideoFromPrompts(writer, prompts)
+
+				if res, err := gtc.GenerateVideos(
+					ctxGenerate,
+					prompt,
+					image,
+					video,
+					&genai.GenerateVideosConfig{
+						NumberOfVideos:   numVideos,
+						DurationSeconds:  ptr(videoDurationSeconds),
+						FPS:              ptr(videoFPS),
+						EnhancePrompt:    true,
+						Resolution:       "1080p",
+						PersonGeneration: "allow_adult",
+					},
+				); err == nil {
+					for _, video := range res.GeneratedVideos {
+						var data []byte
+						var mimeType string
+						if len(video.Video.VideoBytes) > 0 {
+							data = video.Video.VideoBytes
+							// mimeType = mimetype.Detect(data).String()
+							mimeType = video.Video.MIMEType
+						} else if len(video.Video.URI) > 0 {
+							var ferr error
+							if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
+								var reader *storage.Reader
+								if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
+									defer func() { _ = reader.Close() }()
+
+									if data, ferr = io.ReadAll(reader); ferr == nil {
+										mimeType = video.Video.MIMEType
+									}
+								}
+							} else {
+								ferr = fmt.Errorf("bucket object was nil")
+							}
+
+							if ferr != nil {
+								// error
+								ch <- result{
+									exit: 1,
+									err: fmt.Errorf(
+										"failed to get generated videos: %w",
+										ferr,
+									),
+								}
+								return
+							}
+						} else {
+							// error
+							ch <- result{
+								exit: 1,
+								err: fmt.Errorf(
+									"failed to generate videos: no returned bytes",
+								),
+							}
+							return
 						}
-						if it.UsageMetadata.CandidatesTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"candidates: %d",
-								it.UsageMetadata.CandidatesTokenCount,
-							))
-						}
-						if it.UsageMetadata.CachedContentTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"cached: %d",
-								it.UsageMetadata.CachedContentTokenCount,
-							))
-						}
-						if it.UsageMetadata.ToolUsePromptTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"tool use: %d",
-								it.UsageMetadata.ToolUsePromptTokenCount,
-							))
-						}
-						if it.UsageMetadata.ThoughtsTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"thoughts: %d",
-								it.UsageMetadata.ThoughtsTokenCount,
-							))
-						}
-						if it.UsageMetadata.TotalTokenCount != 0 {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"total: %d",
-								it.UsageMetadata.TotalTokenCount,
-							))
-						}
-						if it.UsageMetadata.TrafficType != "" && it.UsageMetadata.TrafficType != genai.TrafficTypeUnspecified {
-							tokenUsages = append(tokenUsages, fmt.Sprintf(
-								"traffic type: %s",
-								it.UsageMetadata.TrafficType,
-							))
+
+						fpath := genFilepath(
+							mimeType,
+							"video",
+							saveVideosToDir,
+						)
+
+						writer.verbose(
+							verboseMedium,
+							vbs,
+							"saving video file (%s;%d bytes) to: %s...", mimeType, len(data), fpath,
+						)
+
+						if err := os.WriteFile(fpath, data, 0o640); err != nil {
+							// error
+							ch <- result{
+								exit: 1,
+								err:  fmt.Errorf("saving video file failed: %s", err),
+							}
+							return
+						} else {
+							writer.print(
+								verboseMinimum,
+								"Saved video to file: %s",
+								fpath,
+							)
 						}
 					}
 
-					// append prompts to past generations
-					for _, content := range contentsForGeneration {
-						pastGenerations = append(pastGenerations, *content)
+					// success
+					ch <- result{
+						exit: 0,
+						err:  nil,
 					}
-
-					// string buffer for model responses
-					bufModelResponse := new(strings.Builder)
-
-					retrievedContextTitles := map[string]struct{}{}
-
-					for _, cand := range it.Candidates {
-						// url context metadata
-						if cand.URLContextMetadata != nil {
-							for _, metadata := range cand.URLContextMetadata.URLMetadata {
-								writer.verbose(
-									verboseMedium,
-									vbs,
-									"[%s] %s",
-									metadata.URLRetrievalStatus,
-									metadata.RetrievedURL,
-								)
+				} else {
+					// error
+					ch <- result{
+						exit: 1,
+						err: fmt.Errorf(
+							"failed to generate videos: %w",
+							err,
+						),
+					}
+					return
+				}
+			} else {
+				// iterate generated stream
+				for it, err := range gtc.GenerateStreamIterated(
+					ctxGenerate,
+					contentsForGeneration,
+					&opts,
+				) {
+					if err == nil {
+						// save token usages
+						tokenUsages := []string{}
+						if it.UsageMetadata != nil {
+							if it.UsageMetadata.PromptTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"prompt: %d",
+									it.UsageMetadata.PromptTokenCount,
+								))
+							}
+							if it.UsageMetadata.CandidatesTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"candidates: %d",
+									it.UsageMetadata.CandidatesTokenCount,
+								))
+							}
+							if it.UsageMetadata.CachedContentTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"cached: %d",
+									it.UsageMetadata.CachedContentTokenCount,
+								))
+							}
+							if it.UsageMetadata.ToolUsePromptTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"tool use: %d",
+									it.UsageMetadata.ToolUsePromptTokenCount,
+								))
+							}
+							if it.UsageMetadata.ThoughtsTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"thoughts: %d",
+									it.UsageMetadata.ThoughtsTokenCount,
+								))
+							}
+							if it.UsageMetadata.TotalTokenCount != 0 {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"total: %d",
+									it.UsageMetadata.TotalTokenCount,
+								))
+							}
+							if it.UsageMetadata.TrafficType != "" && it.UsageMetadata.TrafficType != genai.TrafficTypeUnspecified {
+								tokenUsages = append(tokenUsages, fmt.Sprintf(
+									"traffic type: %s",
+									it.UsageMetadata.TrafficType,
+								))
 							}
 						}
 
-						// content
-						if cand.Content != nil {
-							for _, part := range cand.Content.Parts {
-								// marking begin/end of thoughts
-								if withThinking {
-									if part.Thought {
-										if !thoughtBegan {
-											if showThinking {
-												writer.printColored(
-													color.FgHiYellow,
-													"<thought>\n",
-												)
-											}
+						// append prompts to past generations
+						for _, content := range contentsForGeneration {
+							pastGenerations = append(pastGenerations, *content)
+						}
 
-											thoughtBegan, thoughtEnded = true, false
-											isThinking = true
-										}
-									} else {
-										if thoughtBegan {
-											thoughtBegan = false
+						// string buffer for model responses
+						bufModelResponse := new(strings.Builder)
 
-											if !thoughtEnded {
+						retrievedContextTitles := map[string]struct{}{}
+
+						for _, cand := range it.Candidates {
+							// url context metadata
+							if cand.URLContextMetadata != nil {
+								for _, metadata := range cand.URLContextMetadata.URLMetadata {
+									writer.verbose(
+										verboseMedium,
+										vbs,
+										"[%s] %s",
+										metadata.URLRetrievalStatus,
+										metadata.RetrievedURL,
+									)
+								}
+							}
+
+							// content
+							if cand.Content != nil {
+								for _, part := range cand.Content.Parts {
+									// marking begin/end of thoughts
+									if withThinking {
+										if part.Thought {
+											if !thoughtBegan {
 												if showThinking {
 													writer.printColored(
 														color.FgHiYellow,
-														"</thought>\n",
+														"<thought>\n",
 													)
 												}
 
-												thoughtEnded = true
-												isThinking = false
+												thoughtBegan, thoughtEnded = true, false
+												isThinking = true
+											}
+										} else {
+											if thoughtBegan {
+												thoughtBegan = false
+
+												if !thoughtEnded {
+													if showThinking {
+														writer.printColored(
+															color.FgHiYellow,
+															"</thought>\n",
+														)
+													}
+
+													thoughtEnded = true
+													isThinking = false
+												}
 											}
 										}
 									}
-								}
 
-								if part.Text != "" {
-									if isThinking {
-										if showThinking {
-											writer.printColored(
-												color.FgHiYellow,
-												"%s",
-												part.Text,
-											)
-										}
-									} else {
-										writer.printColored(
-											color.FgHiWhite,
-											"%s",
-											part.Text,
-										)
-
-										// NOTE: ignore thoughts from model
-										bufModelResponse.WriteString(part.Text)
-									}
-								} else if part.InlineData != nil {
-									// flush model response
-									pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-									writer.makeSureToEndWithNewLine()
-
-									if strings.HasPrefix(part.InlineData.MIMEType, "image/") { // (images)
-										if saveImagesToFiles || saveImagesToDir != nil {
-											fpath := genFilepath(
-												part.InlineData.MIMEType,
-												"image",
-												saveImagesToDir,
-											)
-
-											writer.verbose(
-												verboseMedium,
-												vbs,
-												"saving file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
-											)
-
-											if err := os.WriteFile(fpath, part.InlineData.Data, 0o640); err != nil {
-												// error
-												ch <- result{
-													exit: 1,
-													err:  fmt.Errorf("saving file failed: %s", err),
-												}
-												return
-											} else {
-												writer.print(
-													verboseMinimum,
-													"Saved image to file: %s",
-													fpath,
+									if part.Text != "" {
+										if isThinking {
+											if showThinking {
+												writer.printColored(
+													color.FgHiYellow,
+													"%s",
+													part.Text,
 												)
 											}
 										} else {
-											writer.verbose(
-												verboseMedium,
-												vbs,
-												"displaying image (%s;%d bytes) on terminal...",
-												part.InlineData.MIMEType,
-												len(part.InlineData.Data),
+											writer.printColored(
+												color.FgHiWhite,
+												"%s",
+												part.Text,
 											)
 
-											// display on terminal
-											if err := displayImageOnTerminal(
-												part.InlineData.Data,
-												part.InlineData.MIMEType,
-											); err != nil {
-												// error
-												ch <- result{
-													exit: 1,
-													err:  fmt.Errorf("image display failed: %s", err),
-												}
-												return
-											} else { // NOTE: make sure to insert a new line after an image
-												writer.println()
-											}
+											// NOTE: ignore thoughts from model
+											bufModelResponse.WriteString(part.Text)
 										}
-									} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
-										// check codec and birtate
-										speechCodec, bitRate := speechCodecAndBitRateFromMimeType(part.InlineData.MIMEType)
-										if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
-											// convert,
-											if converted, err := pcmToWav(
-												part.InlineData.Data,
-												bitRate,
-											); err == nil {
-												// and save file
-												mimeType := mimetype.Detect(converted).String()
+									} else if part.InlineData != nil {
+										// flush model response
+										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+										writer.makeSureToEndWithNewLine()
+
+										if strings.HasPrefix(part.InlineData.MIMEType, "image/") { // (images)
+											if saveImagesToFiles || saveImagesToDir != nil {
 												fpath := genFilepath(
-													mimeType,
-													"audio",
-													saveSpeechToDir,
+													part.InlineData.MIMEType,
+													"image",
+													saveImagesToDir,
 												)
 
 												writer.verbose(
 													verboseMedium,
 													vbs,
-													"saving file (%s;%d bytes) to: %s...",
-													mimeType,
-													len(converted),
-													fpath,
+													"saving image file (%s;%d bytes) to: %s...", part.InlineData.MIMEType, len(part.InlineData.Data), fpath,
 												)
 
-												if err := os.WriteFile(
-													fpath,
-													converted,
-													0o640,
-												); err != nil {
+												if err := os.WriteFile(fpath, part.InlineData.Data, 0o640); err != nil {
 													// error
 													ch <- result{
 														exit: 1,
-														err:  fmt.Errorf("saving file failed: %s", err),
+														err:  fmt.Errorf("saving image file failed: %s", err),
 													}
 													return
 												} else {
 													writer.print(
 														verboseMinimum,
-														"Saved speech to file: %s",
+														"Saved image to file: %s",
 														fpath,
 													)
 												}
 											} else {
-												// error
-												ch <- result{
-													exit: 1,
-													err: fmt.Errorf(
-														"failed to convert speech from %s to wav: %w",
-														speechCodec,
-														err,
-													),
-												}
-												return
-											}
-										} else {
-											// error
-											ch <- result{
-												exit: 1,
-												err: fmt.Errorf(
-													"unsupported speech with codec: %s and bitrate: %d",
-													speechCodec,
-													bitRate,
-												),
-											}
-											return
-										}
-									} else { // TODO: NOTE: add more types here
-										writer.error(
-											"Unsupported mime type of inline data: %s",
-											part.InlineData.MIMEType,
-										)
-									}
-								} else if part.FunctionCall != nil {
-									if part.ThoughtSignature != nil {
-										thoughtSignature = part.ThoughtSignature
-									}
-
-									// flush model response
-									pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-									// append function call to past generations
-									pastGenerations = append(pastGenerations, genai.Content{
-										Role: string(gt.RoleModel),
-										Parts: []*genai.Part{
-											{
-												FunctionCall: &genai.FunctionCall{
-													Name: part.FunctionCall.Name,
-													Args: part.FunctionCall.Args,
-												},
-												ThoughtSignature: thoughtSignature,
-											},
-										},
-									})
-
-									// string representation of function and its arguments
-									fn := fmt.Sprintf(
-										`%s(%s)`,
-										part.FunctionCall.Name,
-										prettify(part.FunctionCall.Args, true),
-									)
-
-									// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
-									duplicated := 0
-									for _, past := range pastGenerations {
-										for _, part := range past.Parts {
-											if strings.Contains(part.Text, fn) {
-												duplicated++
-											}
-										}
-									}
-									if duplicated > maxCallbackLoopCount {
-										// error
-										ch <- result{
-											exit: 1,
-											err: fmt.Errorf(
-												"possible infinite loop of function call detected (permitted max count: %d): '%s'",
-												maxCallbackLoopCount,
-												fn,
-											),
-										}
-										return
-									}
-
-									// NOTE: if tool callbackPath exists for this function call, execute it with the args
-									if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
-										fnCallback, okToRun := checkCallbackPath(
-											callbackPath,
-											toolCallbacksConfirm,
-											forceCallDestructiveTools,
-											part.FunctionCall,
-											writer,
-											vbs,
-										)
-
-										if okToRun {
-											writer.verbose(
-												verboseMedium,
-												vbs,
-												"executing callback...",
-											)
-
-											if res, err := fnCallback(); err != nil {
-												// error
-												ch <- result{
-													exit: 1,
-													err: fmt.Errorf(
-														"tool callback failed: %s",
-														err,
-													),
-												}
-												return
-											} else {
-												// warn that there are tool callbacks ignored
-												if len(toolCallbacks) > 0 && !recurseOnCallbackResults {
-													writer.warn(
-														"Not recursing, ignoring the result of '%s'.",
-														fn,
-													)
-												}
-
-												// print the result of execution
-												if forcePrintCallbackResults ||
-													verboseLevel(vbs) >= verboseMinimum {
-													writer.printColored(
-														color.FgHiCyan,
-														"%s\n",
-														res,
-													)
-												}
-
-												// flush model response
-												pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-												// append function response to past generations
-												pastGenerations = append(pastGenerations, genai.Content{
-													Role: string(gt.RoleUser),
-													Parts: []*genai.Part{
-														{
-															FunctionResponse: &genai.FunctionResponse{
-																Name: part.FunctionCall.Name,
-																Response: map[string]any{
-																	"output": res,
-																},
-															},
-															ThoughtSignature: thoughtSignature,
-														},
-													},
-												})
-											}
-										} else {
-											writer.printColored(
-												color.FgHiYellow,
-												"Skipped execution of callback '%s' for function '%s'.\n",
-												callbackPath,
-												fn,
-											)
-
-											// flush model response
-											pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-											// append function response (not called) to past generations
-											pastGenerations = append(pastGenerations, genai.Content{
-												Role: string(gt.RoleUser),
-												Parts: []*genai.Part{
-													{
-														FunctionResponse: &genai.FunctionResponse{
-															Name: part.FunctionCall.Name,
-															Response: map[string]any{
-																"error": fmt.Sprintf(
-																	`User chose not to call function '%s'.`,
-																	fn,
-																),
-															},
-														},
-														ThoughtSignature: thoughtSignature,
-													},
-												},
-											})
-										}
-									} else if mcpToGeminiTools != nil {
-										// if there is a matching tool,
-										if slices.ContainsFunc(mcpToGeminiTools, func(tool *genai.FunctionDeclaration) bool {
-											return tool.Name == part.FunctionCall.Name
-										}) {
-											okToRun := false
-
-											var serverKey string
-											var serverType mcpServerType
-											var mc *mcp.ClientSession
-											var tool mcp.Tool
-											var toolExists bool
-											if serverKey, serverType, mc, tool, toolExists = mcpToolFrom(
-												mcpConnsAndTools,
-												part.FunctionCall.Name,
-											); toolExists {
-												// check if matched tool requires confirmation
-												if tool.Annotations != nil &&
-													tool.Annotations.DestructiveHint != nil &&
-													*tool.Annotations.DestructiveHint &&
-													!forceCallDestructiveTools {
-													okToRun = confirm(fmt.Sprintf(
-														"May I call tool '%s' from '%s'?",
-														fn,
-														stripServerInfo(serverType, serverKey),
-													))
-												} else {
-													okToRun = true
-												}
-											} else {
-												// no matching tool with given server & function name
-												writer.warn(
-													"No matching tool '%s' from '%s'; given function call was: %s",
-													part.FunctionCall.Name,
-													stripServerInfo(serverType, serverKey),
-													prettify(part.FunctionCall),
-												)
-
-												// append function response (no matching tool) to past generations
-												pastGenerations = append(pastGenerations, genai.Content{
-													Role: string(gt.RoleUser),
-													Parts: []*genai.Part{
-														{
-															FunctionResponse: &genai.FunctionResponse{
-																Name: part.FunctionCall.Name,
-																Response: map[string]any{
-																	"error": fmt.Sprintf(
-																		"No matching tool '%s' from '%s'; given function call was: %s",
-																		part.FunctionCall.Name,
-																		stripServerInfo(serverType, serverKey),
-																		prettify(part.FunctionCall),
-																	),
-																},
-															},
-															ThoughtSignature: thoughtSignature,
-														},
-													},
-												})
-											}
-
-											if okToRun {
 												writer.verbose(
 													verboseMedium,
 													vbs,
-													"calling tool '%s' from '%s'...",
-													part.FunctionCall.Name,
-													stripServerInfo(serverType, serverKey),
+													"displaying image (%s;%d bytes) on terminal...",
+													part.InlineData.MIMEType,
+													len(part.InlineData.Data),
 												)
 
-												// call tool,
-												if res, err := fetchMCPToolCallResult(
-													ctx,
-													mc,
-													part.FunctionCall.Name,
-													part.FunctionCall.Args,
-												); err == nil {
-													var generated []gt.Prompt
-													if res.StructuredContent != nil {
-														if raw, err := json.Marshal(res.StructuredContent); err == nil {
-															// generated = []gt.Prompt{gt.PromptFromBytes(raw)} // FIXME: http 500 errors occur
-															generated = []gt.Prompt{gt.PromptFromText(string(raw))}
-														} else {
-															// error
-															ch <- result{
-																exit: 1,
-																err: fmt.Errorf(
-																	"failed to read tool call result: could not marshal structured content (%T): %w",
-																	res.StructuredContent,
-																	err,
-																),
-															}
-															return
-														}
-													} else {
-														if prompts, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
-															generated = append(generated, prompts...)
-														} else {
-															// error
-															ch <- result{
-																exit: 1,
-																err: fmt.Errorf(
-																	"failed to read tool call result: %s",
-																	err,
-																),
-															}
-															return
-														}
+												// display on terminal
+												if err := displayImageOnTerminal(
+													part.InlineData.Data,
+													part.InlineData.MIMEType,
+												); err != nil {
+													// error
+													ch <- result{
+														exit: 1,
+														err:  fmt.Errorf("image display failed: %s", err),
 													}
+													return
+												} else { // NOTE: make sure to insert a new line after an image
+													writer.println()
+												}
+											}
+										} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
+											// check codec and birtate
+											speechCodec, bitRate := speechCodecAndBitRateFromMimeType(part.InlineData.MIMEType)
+											if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+												// convert,
+												if converted, err := pcmToWav(
+													part.InlineData.Data,
+													bitRate,
+												); err == nil {
+													// and save file
+													mimeType := mimetype.Detect(converted).String()
+													fpath := genFilepath(
+														mimeType,
+														"audio",
+														saveSpeechToDir,
+													)
 
-													// warn that there are tools ignored
-													if len(mcpConnsAndTools) > 0 && !recurseOnCallbackResults {
-														writer.warn(
-															"Not recursing, ignoring the result of '%s'.",
-															fn,
+													writer.verbose(
+														verboseMedium,
+														vbs,
+														"saving speech file (%s;%d bytes) to: %s...",
+														mimeType,
+														len(converted),
+														fpath,
+													)
+
+													if err := os.WriteFile(
+														fpath,
+														converted,
+														0o640,
+													); err != nil {
+														// error
+														ch <- result{
+															exit: 1,
+															err:  fmt.Errorf("saving speech file failed: %s", err),
+														}
+														return
+													} else {
+														writer.print(
+															verboseMinimum,
+															"Saved speech to file: %s",
+															fpath,
 														)
 													}
-
-													// print the result of execution,
-													for _, prompt := range generated {
-														if forcePrintCallbackResults ||
-															verboseLevel(vbs) >= verboseMinimum {
-															writer.printColored(
-																color.FgHiCyan,
-																"%s\n",
-																prompt.String(),
-															)
-														}
-
-														// and save files if needed
-														switch p := prompt.(type) {
-														case gt.FilePrompt, gt.BytesPrompt:
-															bytes := p.ToPart().InlineData.Data
-															mimeType := p.ToPart().InlineData.MIMEType
-
-															if strings.HasPrefix(mimeType, "image/") {
-																if saveImagesToFiles || saveImagesToDir != nil {
-																	fpath := genFilepath(
-																		mimeType,
-																		"image",
-																		saveImagesToDir,
-																	)
-
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
-																	)
-
-																	if err := os.WriteFile(fpath, bytes, 0o640); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("saving file failed: %s", err),
-																		}
-																		return
-																	} else {
-																		writer.print(
-																			verboseMinimum,
-																			"Saved image to file: %s",
-																			fpath,
-																		)
-																	}
-																} else {
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"displaying image (%s;%d bytes) on terminal...",
-																		mimeType,
-																		len(bytes),
-																	)
-
-																	// display on terminal
-																	if err := displayImageOnTerminal(
-																		bytes,
-																		mimeType,
-																	); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("image display failed: %s", err),
-																		}
-																		return
-																	} else { // NOTE: make sure to insert a new line after an image
-																		writer.println()
-																	}
-																}
-															} else if strings.HasPrefix(mimeType, "audio/") {
-																if saveSpeechToDir != nil {
-																	// check codec and birtate
-																	speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
-																	if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
-																		// convert,
-																		var ce error
-																		if bytes, ce = pcmToWav(
-																			bytes,
-																			bitRate,
-																		); ce == nil {
-																			mimeType = mimetype.Detect(bytes).String()
-																		}
-																	}
-																	fpath := genFilepath(
-																		mimeType,
-																		"audio",
-																		saveSpeechToDir,
-																	)
-
-																	writer.verbose(
-																		verboseMedium,
-																		vbs,
-																		"saving file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
-																	)
-
-																	if err := os.WriteFile(
-																		fpath,
-																		bytes,
-																		0o640,
-																	); err != nil {
-																		// error
-																		ch <- result{
-																			exit: 1,
-																			err:  fmt.Errorf("saving file failed: %s", err),
-																		}
-																		return
-																	} else {
-																		writer.print(
-																			verboseMinimum,
-																			"Saved speech to file: %s",
-																			fpath,
-																		)
-																	}
-																}
-															}
-														}
-													}
-
-													// flush model response
-													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-													// append function response to past generations
-													output := []genai.Part{}
-													for _, gen := range generated {
-														output = append(output, gen.ToPart())
-													}
-													parts := []*genai.Part{
-														{
-															FunctionResponse: &genai.FunctionResponse{
-																Name: part.FunctionCall.Name,
-																Response: map[string]any{
-																	"output": output,
-																},
-															},
-															ThoughtSignature: thoughtSignature,
-														},
-													}
-													pastGenerations = append(pastGenerations, genai.Content{
-														Role:  string(gt.RoleUser),
-														Parts: parts,
-													})
 												} else {
 													// error
 													ch <- result{
 														exit: 1,
 														err: fmt.Errorf(
-															"tool call failed: %s",
+															"failed to convert speech from %s to wav: %w",
+															speechCodec,
 															err,
 														),
 													}
 													return
 												}
 											} else {
+												// error
+												ch <- result{
+													exit: 1,
+													err: fmt.Errorf(
+														"unsupported speech with codec: %s and bitrate: %d",
+														speechCodec,
+														bitRate,
+													),
+												}
+												return
+											}
+										} else { // TODO: NOTE: add more types here
+											writer.error(
+												"Unsupported mime type of inline data: %s",
+												part.InlineData.MIMEType,
+											)
+										}
+									} else if part.FunctionCall != nil {
+										if part.ThoughtSignature != nil {
+											thoughtSignature = part.ThoughtSignature
+										}
+
+										// flush model response
+										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+										// append function call to past generations
+										pastGenerations = append(pastGenerations, genai.Content{
+											Role: string(gt.RoleModel),
+											Parts: []*genai.Part{
+												{
+													FunctionCall: &genai.FunctionCall{
+														Name: part.FunctionCall.Name,
+														Args: part.FunctionCall.Args,
+													},
+													ThoughtSignature: thoughtSignature,
+												},
+											},
+										})
+
+										// string representation of function and its arguments
+										fn := fmt.Sprintf(
+											`%s(%s)`,
+											part.FunctionCall.Name,
+											prettify(part.FunctionCall.Args, true),
+										)
+
+										// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
+										duplicated := 0
+										for _, past := range pastGenerations {
+											for _, part := range past.Parts {
+												if strings.Contains(part.Text, fn) {
+													duplicated++
+												}
+											}
+										}
+										if duplicated > maxCallbackLoopCount {
+											// error
+											ch <- result{
+												exit: 1,
+												err: fmt.Errorf(
+													"possible infinite loop of function call detected (permitted max count: %d): '%s'",
+													maxCallbackLoopCount,
+													fn,
+												),
+											}
+											return
+										}
+
+										// NOTE: if tool callbackPath exists for this function call, execute it with the args
+										if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
+											fnCallback, okToRun := checkCallbackPath(
+												callbackPath,
+												toolCallbacksConfirm,
+												forceCallDestructiveTools,
+												part.FunctionCall,
+												writer,
+												vbs,
+											)
+
+											if okToRun {
+												writer.verbose(
+													verboseMedium,
+													vbs,
+													"executing callback...",
+												)
+
+												if res, err := fnCallback(); err != nil {
+													// error
+													ch <- result{
+														exit: 1,
+														err: fmt.Errorf(
+															"tool callback failed: %s",
+															err,
+														),
+													}
+													return
+												} else {
+													// warn that there are tool callbacks ignored
+													if len(toolCallbacks) > 0 && !recurseOnCallbackResults {
+														writer.warn(
+															"Not recursing, ignoring the result of '%s'.",
+															fn,
+														)
+													}
+
+													// print the result of execution
+													if forcePrintCallbackResults ||
+														verboseLevel(vbs) >= verboseMinimum {
+														writer.printColored(
+															color.FgHiCyan,
+															"%s\n",
+															res,
+														)
+													}
+
+													// flush model response
+													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+													// append function response to past generations
+													pastGenerations = append(pastGenerations, genai.Content{
+														Role: string(gt.RoleUser),
+														Parts: []*genai.Part{
+															{
+																FunctionResponse: &genai.FunctionResponse{
+																	Name: part.FunctionCall.Name,
+																	Response: map[string]any{
+																		"output": res,
+																	},
+																},
+																ThoughtSignature: thoughtSignature,
+															},
+														},
+													})
+												}
+											} else {
 												writer.printColored(
 													color.FgHiYellow,
-													"Skipped execution of tool '%s' from '%s' for function '%s'.\n",
-													part.FunctionCall.Name,
-													stripServerInfo(serverType, serverKey),
+													"Skipped execution of callback '%s' for function '%s'.\n",
+													callbackPath,
 													fn,
 												)
 
@@ -985,184 +809,485 @@ func doGeneration(
 													},
 												})
 											}
+										} else if mcpToGeminiTools != nil {
+											// if there is a matching tool,
+											if slices.ContainsFunc(mcpToGeminiTools, func(tool *genai.FunctionDeclaration) bool {
+												return tool.Name == part.FunctionCall.Name
+											}) {
+												okToRun := false
+
+												var serverKey string
+												var serverType mcpServerType
+												var mc *mcp.ClientSession
+												var tool mcp.Tool
+												var toolExists bool
+												if serverKey, serverType, mc, tool, toolExists = mcpToolFrom(
+													mcpConnsAndTools,
+													part.FunctionCall.Name,
+												); toolExists {
+													// check if matched tool requires confirmation
+													if tool.Annotations != nil &&
+														tool.Annotations.DestructiveHint != nil &&
+														*tool.Annotations.DestructiveHint &&
+														!forceCallDestructiveTools {
+														okToRun = confirm(fmt.Sprintf(
+															"May I call tool '%s' from '%s'?",
+															fn,
+															stripServerInfo(serverType, serverKey),
+														))
+													} else {
+														okToRun = true
+													}
+												} else {
+													// no matching tool with given server & function name
+													writer.warn(
+														"No matching tool '%s' from '%s'; given function call was: %s",
+														part.FunctionCall.Name,
+														stripServerInfo(serverType, serverKey),
+														prettify(part.FunctionCall),
+													)
+
+													// append function response (no matching tool) to past generations
+													pastGenerations = append(pastGenerations, genai.Content{
+														Role: string(gt.RoleUser),
+														Parts: []*genai.Part{
+															{
+																FunctionResponse: &genai.FunctionResponse{
+																	Name: part.FunctionCall.Name,
+																	Response: map[string]any{
+																		"error": fmt.Sprintf(
+																			"No matching tool '%s' from '%s'; given function call was: %s",
+																			part.FunctionCall.Name,
+																			stripServerInfo(serverType, serverKey),
+																			prettify(part.FunctionCall),
+																		),
+																	},
+																},
+																ThoughtSignature: thoughtSignature,
+															},
+														},
+													})
+												}
+
+												if okToRun {
+													writer.verbose(
+														verboseMedium,
+														vbs,
+														"calling tool '%s' from '%s'...",
+														part.FunctionCall.Name,
+														stripServerInfo(serverType, serverKey),
+													)
+
+													// call tool,
+													if res, err := fetchMCPToolCallResult(
+														ctx,
+														mc,
+														part.FunctionCall.Name,
+														part.FunctionCall.Args,
+													); err == nil {
+														var generated []gt.Prompt
+														if res.StructuredContent != nil {
+															if raw, err := json.Marshal(res.StructuredContent); err == nil {
+																// generated = []gt.Prompt{gt.PromptFromBytes(raw)} // FIXME: http 500 errors occur
+																generated = []gt.Prompt{gt.PromptFromText(string(raw))}
+															} else {
+																// error
+																ch <- result{
+																	exit: 1,
+																	err: fmt.Errorf(
+																		"failed to read tool call result: could not marshal structured content (%T): %w",
+																		res.StructuredContent,
+																		err,
+																	),
+																}
+																return
+															}
+														} else {
+															if prompts, err := gt.MCPCallToolResultToGeminiPrompts(res); err == nil {
+																generated = append(generated, prompts...)
+															} else {
+																// error
+																ch <- result{
+																	exit: 1,
+																	err: fmt.Errorf(
+																		"failed to read tool call result: %s",
+																		err,
+																	),
+																}
+																return
+															}
+														}
+
+														// warn that there are tools ignored
+														if len(mcpConnsAndTools) > 0 && !recurseOnCallbackResults {
+															writer.warn(
+																"Not recursing, ignoring the result of '%s'.",
+																fn,
+															)
+														}
+
+														// print the result of execution,
+														for _, prompt := range generated {
+															if forcePrintCallbackResults ||
+																verboseLevel(vbs) >= verboseMinimum {
+																writer.printColored(
+																	color.FgHiCyan,
+																	"%s\n",
+																	prompt.String(),
+																)
+															}
+
+															// and save files if needed
+															switch p := prompt.(type) {
+															case gt.FilePrompt, gt.BytesPrompt:
+																bytes := p.ToPart().InlineData.Data
+																mimeType := p.ToPart().InlineData.MIMEType
+
+																if strings.HasPrefix(mimeType, "image/") {
+																	if saveImagesToFiles || saveImagesToDir != nil {
+																		fpath := genFilepath(
+																			mimeType,
+																			"image",
+																			saveImagesToDir,
+																		)
+
+																		writer.verbose(
+																			verboseMedium,
+																			vbs,
+																			"saving image file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																		)
+
+																		if err := os.WriteFile(fpath, bytes, 0o640); err != nil {
+																			// error
+																			ch <- result{
+																				exit: 1,
+																				err:  fmt.Errorf("saving image file failed: %s", err),
+																			}
+																			return
+																		} else {
+																			writer.print(
+																				verboseMinimum,
+																				"Saved image to file: %s",
+																				fpath,
+																			)
+																		}
+																	} else {
+																		writer.verbose(
+																			verboseMedium,
+																			vbs,
+																			"displaying image (%s;%d bytes) on terminal...",
+																			mimeType,
+																			len(bytes),
+																		)
+
+																		// display on terminal
+																		if err := displayImageOnTerminal(
+																			bytes,
+																			mimeType,
+																		); err != nil {
+																			// error
+																			ch <- result{
+																				exit: 1,
+																				err:  fmt.Errorf("image display failed: %s", err),
+																			}
+																			return
+																		} else { // NOTE: make sure to insert a new line after an image
+																			writer.println()
+																		}
+																	}
+																} else if strings.HasPrefix(mimeType, "audio/") {
+																	if saveSpeechToDir != nil {
+																		// check codec and birtate
+																		speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
+																		if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+																			// convert,
+																			var ce error
+																			if bytes, ce = pcmToWav(
+																				bytes,
+																				bitRate,
+																			); ce == nil {
+																				mimeType = mimetype.Detect(bytes).String()
+																			}
+																		}
+																		fpath := genFilepath(
+																			mimeType,
+																			"audio",
+																			saveSpeechToDir,
+																		)
+
+																		writer.verbose(
+																			verboseMedium,
+																			vbs,
+																			"saving speech file (%s;%d bytes) to: %s...", mimeType, len(bytes), fpath,
+																		)
+
+																		if err := os.WriteFile(
+																			fpath,
+																			bytes,
+																			0o640,
+																		); err != nil {
+																			// error
+																			ch <- result{
+																				exit: 1,
+																				err:  fmt.Errorf("saving speech file failed: %s", err),
+																			}
+																			return
+																		} else {
+																			writer.print(
+																				verboseMinimum,
+																				"Saved speech to file: %s",
+																				fpath,
+																			)
+																		}
+																	}
+																}
+															}
+														}
+
+														// flush model response
+														pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+														// append function response to past generations
+														output := []genai.Part{}
+														for _, gen := range generated {
+															output = append(output, gen.ToPart())
+														}
+														parts := []*genai.Part{
+															{
+																FunctionResponse: &genai.FunctionResponse{
+																	Name: part.FunctionCall.Name,
+																	Response: map[string]any{
+																		"output": output,
+																	},
+																},
+																ThoughtSignature: thoughtSignature,
+															},
+														}
+														pastGenerations = append(pastGenerations, genai.Content{
+															Role:  string(gt.RoleUser),
+															Parts: parts,
+														})
+													} else {
+														// error
+														ch <- result{
+															exit: 1,
+															err: fmt.Errorf(
+																"tool call failed: %s",
+																err,
+															),
+														}
+														return
+													}
+												} else {
+													writer.printColored(
+														color.FgHiYellow,
+														"Skipped execution of tool '%s' from '%s' for function '%s'.\n",
+														part.FunctionCall.Name,
+														stripServerInfo(serverType, serverKey),
+														fn,
+													)
+
+													// flush model response
+													pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+													// append function response (not called) to past generations
+													pastGenerations = append(pastGenerations, genai.Content{
+														Role: string(gt.RoleUser),
+														Parts: []*genai.Part{
+															{
+																FunctionResponse: &genai.FunctionResponse{
+																	Name: part.FunctionCall.Name,
+																	Response: map[string]any{
+																		"error": fmt.Sprintf(
+																			`User chose not to call function '%s'.`,
+																			fn,
+																		),
+																	},
+																},
+																ThoughtSignature: thoughtSignature,
+															},
+														},
+													})
+												}
+											} else {
+												// no matching tool, just print the function call data
+												writer.print(
+													verboseMinimum,
+													"No matching tool; given function call was: %s",
+													prettify(part.FunctionCall),
+												)
+
+												// append function response (no matching tool) to past generations
+												pastGenerations = append(pastGenerations, genai.Content{
+													Role: string(gt.RoleUser),
+													Parts: []*genai.Part{
+														{
+															FunctionResponse: &genai.FunctionResponse{
+																Name: part.FunctionCall.Name,
+																Response: map[string]any{
+																	"error": fmt.Sprintf(
+																		"No matching tool; given function call was: %s",
+																		prettify(part.FunctionCall),
+																	),
+																},
+															},
+															ThoughtSignature: thoughtSignature,
+														},
+													},
+												})
+											}
 										} else {
-											// no matching tool, just print the function call data
+											// just print the function call data
 											writer.print(
 												verboseMinimum,
-												"No matching tool; given function call was: %s",
+												"Generated function call: %s",
 												prettify(part.FunctionCall),
 											)
 
-											// append function response (no matching tool) to past generations
-											pastGenerations = append(pastGenerations, genai.Content{
-												Role: string(gt.RoleUser),
-												Parts: []*genai.Part{
-													{
-														FunctionResponse: &genai.FunctionResponse{
-															Name: part.FunctionCall.Name,
-															Response: map[string]any{
-																"error": fmt.Sprintf(
-																	"No matching tool; given function call was: %s",
-																	prettify(part.FunctionCall),
-																),
-															},
-														},
-														ThoughtSignature: thoughtSignature,
-													},
-												},
-											})
+											// NOTE: not to recurse infinitely
+											if recurseOnCallbackResults {
+												writer.warn(
+													"Will skip further execution of function '%s' for avoiding infinite recursion.",
+													fn,
+												)
+												recurseOnCallbackResults = false
+											}
 										}
 									} else {
-										// just print the function call data
-										writer.print(
-											verboseMinimum,
-											"Generated function call: %s",
-											prettify(part.FunctionCall),
-										)
+										// flush model response
+										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-										// NOTE: not to recurse infinitely
-										if recurseOnCallbackResults {
-											writer.warn(
-												"Will skip further execution of function '%s' for avoiding infinite recursion.",
-												fn,
+										if !ignoreUnsupportedType {
+											writer.error(
+												"Unsupported type of content part: %s",
+												prettify(part),
 											)
-											recurseOnCallbackResults = false
 										}
 									}
-								} else {
-									// flush model response
-									pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-									if !ignoreUnsupportedType {
-										writer.error(
-											"Unsupported type of content part: %s",
-											prettify(part),
-										)
-									}
 								}
 							}
-						}
 
-						// grounding metadata
-						if cand.GroundingMetadata != nil {
-							// NOTE: make sure to insert a new line before displaying grounding metadata
-							if verboseLevel(vbs) >= verboseMinimum {
-								writer.makeSureToEndWithNewLine()
-							}
-
-							writer.verbose(
-								verboseMinimum,
-								vbs,
-								"ground metadata:\n%s",
-								prettify(cand.GroundingMetadata),
-							)
-
-							// saved retrieved context titles
-							for _, retrieved := range cand.GroundingMetadata.GroundingChunks {
-								if retrieved.RetrievedContext != nil {
-									if retrieved.RetrievedContext.Title != "" {
-										retrievedContextTitles[retrieved.RetrievedContext.Title] = struct{}{}
-									} else if retrieved.RetrievedContext.URI != "" {
-										retrievedContextTitles[retrieved.RetrievedContext.URI] = struct{}{}
-									}
-								}
-							}
-						}
-
-						// citation metadata
-						if cand.CitationMetadata != nil {
-							// NOTE: make sure to insert a new line before displaying grounding metadata
-							if verboseLevel(vbs) >= verboseMinimum {
-								writer.makeSureToEndWithNewLine()
-							}
-
-							writer.verbose(
-								verboseMinimum,
-								vbs,
-								">>> citation metadata:\n%s",
-								prettify(cand.CitationMetadata),
-							)
-
-							// TODO: do the same thing as grounding metadata above
-						}
-
-						// finish reason
-						if cand.FinishReason != "" {
-							// flush model response
-							pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-
-							writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
-
-							// print retrieved context titles
-							if len(retrievedContextTitles) > 0 {
-								titles := []string{}
-								for title := range retrievedContextTitles {
-									titles = append(titles, title)
+							// grounding metadata
+							if cand.GroundingMetadata != nil {
+								// NOTE: make sure to insert a new line before displaying grounding metadata
+								if verboseLevel(vbs) >= verboseMinimum {
+									writer.makeSureToEndWithNewLine()
 								}
 
-								writer.printColored(
-									color.FgHiCyan,
-									"> Retrieved contexts from file search store: %s\n",
-									prettify(titles),
-								)
-							}
-
-							// TODO: do the same thing as grounding metadata above
-
-							// print the number of tokens before printing the finish reason
-							if len(tokenUsages) > 0 {
 								writer.verbose(
 									verboseMinimum,
 									vbs,
-									"tokens %s",
-									strings.Join(tokenUsages, ", "),
+									"ground metadata:\n%s",
+									prettify(cand.GroundingMetadata),
 								)
-							}
 
-							// print the finish reason
-							writer.verbose(
-								verboseMinimum,
-								vbs,
-								"finishing with reason: %s",
-								cand.FinishReason,
-							)
-
-							if cand.FinishReason == genai.FinishReasonStop {
-								// success
-								ch <- result{
-									exit: 0,
-									err:  nil,
-								}
-							} else {
-								// success
-								ch <- result{
-									exit: 1,
-									err:  fmt.Errorf("finished with non-stop reason: %s", cand.FinishReason),
+								// saved retrieved context titles
+								for _, retrieved := range cand.GroundingMetadata.GroundingChunks {
+									if retrieved.RetrievedContext != nil {
+										if retrieved.RetrievedContext.Title != "" {
+											retrievedContextTitles[retrieved.RetrievedContext.Title] = struct{}{}
+										} else if retrieved.RetrievedContext.URI != "" {
+											retrievedContextTitles[retrieved.RetrievedContext.URI] = struct{}{}
+										}
+									}
 								}
 							}
-							return
+
+							// citation metadata
+							if cand.CitationMetadata != nil {
+								// NOTE: make sure to insert a new line before displaying grounding metadata
+								if verboseLevel(vbs) >= verboseMinimum {
+									writer.makeSureToEndWithNewLine()
+								}
+
+								writer.verbose(
+									verboseMinimum,
+									vbs,
+									">>> citation metadata:\n%s",
+									prettify(cand.CitationMetadata),
+								)
+
+								// TODO: do the same thing as grounding metadata above
+							}
+
+							// finish reason
+							if cand.FinishReason != "" {
+								// flush model response
+								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+
+								writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
+
+								// print retrieved context titles
+								if len(retrievedContextTitles) > 0 {
+									titles := []string{}
+									for title := range retrievedContextTitles {
+										titles = append(titles, title)
+									}
+
+									writer.printColored(
+										color.FgHiCyan,
+										"> Retrieved contexts from file search store: %s\n",
+										prettify(titles),
+									)
+								}
+
+								// TODO: do the same thing as grounding metadata above
+
+								// print the number of tokens before printing the finish reason
+								if len(tokenUsages) > 0 {
+									writer.verbose(
+										verboseMinimum,
+										vbs,
+										"tokens %s",
+										strings.Join(tokenUsages, ", "),
+									)
+								}
+
+								// print the finish reason
+								writer.verbose(
+									verboseMinimum,
+									vbs,
+									"finishing with reason: %s",
+									cand.FinishReason,
+								)
+
+								if cand.FinishReason == genai.FinishReasonStop {
+									// success
+									ch <- result{
+										exit: 0,
+										err:  nil,
+									}
+								} else {
+									// error
+									ch <- result{
+										exit: 1,
+										err:  fmt.Errorf("finished with non-stop reason: %s", cand.FinishReason),
+									}
+								}
+								return
+							}
 						}
-					}
 
-					// flush model response
-					pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
-				} else {
-					// error
-					ch <- result{
-						exit: 1,
-						err: fmt.Errorf(
-							"stream iteration failed: %s",
-							gt.ErrToStr(err),
-						),
+						// flush model response
+						pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
+					} else {
+						// error
+						ch <- result{
+							exit: 1,
+							err: fmt.Errorf(
+								"stream iteration failed: %s",
+								gt.ErrToStr(err),
+							),
+						}
+						return
 					}
-					return
 				}
-			}
 
-			// finish anyway
-			ch <- result{
-				exit: 0,
-				err:  nil,
+				// finish anyway
+				ch <- result{
+					exit: 0,
+					err:  nil,
+				}
 			}
 		} else {
 			// error
@@ -1203,7 +1328,7 @@ func doGeneration(
 				systemInstruction, temperature, topP, topK,
 				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
 				overrideMimeTypeForExt,
-				withThinking, thinkingBudget, showThinking, thoughtSignature,
+				withThinking, thinkingLevel, showThinking, thoughtSignature,
 				withGrounding,
 				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,
 				cachedContextName,
@@ -1212,6 +1337,7 @@ func doGeneration(
 				mcpConnsAndTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
+				generateVideos, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
 				pastGenerations,
 				ignoreUnsupportedType,

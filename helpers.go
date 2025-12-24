@@ -967,6 +967,27 @@ func readMimeAndRecycle(input io.Reader) (mimeType *mimetype.MIME, recycled io.R
 	return mtype, recycled, err
 }
 
+// read bytes and  mime type from a `io.Reader` and return a new one for recycling it
+//
+// (altered `readMimeAndRecycle` above)
+func readAndRecycle(input io.Reader) (mimeType *mimetype.MIME, file []byte, recycled io.Reader, err error) {
+	// header will store the bytes mimetype uses for detection.
+	header := bytes.NewBuffer(nil)
+
+	file, err = io.ReadAll(io.TeeReader(input, header))
+	if err != nil {
+		return
+	}
+
+	mtype := mimetype.Detect(file)
+
+	// Concatenate back the header to the rest of the file.
+	// recycled now contains the complete, original data.
+	recycled = io.MultiReader(header, input)
+
+	return mtype, file, recycled, err
+}
+
 // run executable with given args and return its result
 func runExecutable(
 	execPath string,
@@ -1270,4 +1291,136 @@ func gtClient(
 	}
 
 	return nil, fmt.Errorf("failed to create gemini-things client: %w", err)
+}
+
+// helper function for returning the first text, image, and video from given prompts
+func promptImageOrVideoFromPrompts(writer *outputWriter, prompts []gt.Prompt) (prompt *string, image *genai.Image, video *genai.Video) {
+	for i, p := range prompts {
+		switch p := p.(type) { // FIXME: currently ignoring forced mime types
+		case gt.TextPrompt:
+			if prompt == nil {
+				prompt = &p.Text
+			}
+		case gt.FilePrompt:
+			if p.Data != nil {
+				if strings.HasPrefix(p.Data.MIMEType, "image/") {
+					if image == nil {
+						image = &genai.Image{
+							GCSURI:   p.Data.FileURI,
+							MIMEType: p.Data.MIMEType,
+						}
+					} else {
+						writer.warn(
+							"Ignoring image at prompts[%d], because only 1 image is allowed.",
+							i,
+						)
+					}
+				} else if strings.HasPrefix(p.Data.MIMEType, "video/") {
+					if video == nil {
+						video = &genai.Video{
+							URI:      p.Data.FileURI,
+							MIMEType: p.Data.MIMEType,
+						}
+					} else {
+						writer.warn(
+							"Ignoring video at prompts[%d], because only 1 video is allowed.",
+							i,
+						)
+					}
+				}
+			} else {
+				if mime, bytes, recycled, err := readAndRecycle(p.Reader); err == nil {
+					mimeType := mime.String()
+
+					p.Reader = recycled
+					prompts[i] = p
+
+					if strings.HasPrefix(mimeType, "image/") {
+						if image == nil {
+							image = &genai.Image{
+								ImageBytes: bytes,
+								MIMEType:   mimeType,
+							}
+						} else {
+							writer.warn(
+								"Ignoring image at prompts[%d], because only 1 image is allowed.",
+								i,
+							)
+						}
+					} else if strings.HasPrefix(mimeType, "video/") {
+						if video == nil {
+							video = &genai.Video{
+								VideoBytes: bytes,
+								MIMEType:   mimeType,
+							}
+						} else {
+							writer.warn(
+								"Ignoring video at prompts[%d], because only 1 video is allowed.",
+							)
+						}
+					}
+				} else {
+					writer.warn(
+						"Failed to read file at prompts[%d]: %s",
+						i,
+						err,
+					)
+				}
+			}
+		case gt.URIPrompt:
+			if strings.HasPrefix(p.MIMEType, "image/") {
+				if image == nil {
+					image = &genai.Image{
+						GCSURI:   p.URI,
+						MIMEType: p.MIMEType,
+					}
+				} else {
+					writer.warn(
+						"Ignoring image at prompts[%d], because only 1 image is allowed.",
+						i,
+					)
+				}
+			} else if strings.HasPrefix(p.MIMEType, "video/") {
+				if video == nil {
+					video = &genai.Video{
+						URI:      p.URI,
+						MIMEType: p.MIMEType,
+					}
+				} else {
+					writer.warn(
+						"Ignoring video at prompts[%d], because only 1 video is allowed.",
+						i,
+					)
+				}
+			}
+		case gt.BytesPrompt:
+			if strings.HasPrefix(p.MIMEType, "image/") {
+				if image == nil {
+					image = &genai.Image{
+						ImageBytes: p.Bytes,
+						MIMEType:   p.MIMEType,
+					}
+				} else {
+					writer.warn(
+						"Ignoring image at prompts[%d], because only 1 image is allowed.",
+						i,
+					)
+				}
+			} else if strings.HasPrefix(p.MIMEType, "video/") {
+				if video == nil {
+					video = &genai.Video{
+						VideoBytes: p.Bytes,
+						MIMEType:   p.MIMEType,
+					}
+				} else {
+					writer.warn(
+						"Ignoring video at prompts[%d], because only 1 video is allowed.",
+						i,
+					)
+				}
+			}
+		}
+	}
+
+	return prompt, image, video
 }

@@ -18,6 +18,7 @@
   /*
   // or, read google credentials file from filepath:
   "google_credentials_filepath": "/path/to/credentials.json",
+  "gcs_bucket_name_for_file_uploads": "some-google-cloud-storage-bucket-name",
   "location": "us-west-1",
   */
 

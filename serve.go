@@ -283,7 +283,7 @@ If there was any newly-created file, make sure to report to the user about the f
 				var modality *string
 				modality, err = gt.FuncArg[string](args, "modality")
 				if err == nil {
-					var responseModalities []genai.Modality = nil
+					var responseModalities []string = nil
 
 					// get 'model',
 					model, _ := gt.FuncArg[string](args, "model")
@@ -332,13 +332,13 @@ If there was any newly-created file, make sure to report to the user about the f
 					// get appropriate response modalities,
 					switch *modality {
 					case "image":
-						responseModalities = []genai.Modality{
-							genai.ModalityText,
-							genai.ModalityImage,
+						responseModalities = []string{
+							string(genai.ModalityText),
+							string(genai.ModalityImage),
 						}
 					case "audio":
-						responseModalities = []genai.Modality{
-							genai.ModalityAudio,
+						responseModalities = []string{
+							string(genai.ModalityAudio),
 						}
 					}
 
@@ -475,9 +475,11 @@ If there was any newly-created file, make sure to report to the user about the f
 							if res, err = gtc.Generate(
 								ctxGenerate,
 								contentsForGeneration,
-								&gt.GenerationOptions{
-									Tools:              tools,
-									ThinkingOn:         *thinkingOn,
+								&genai.GenerateContentConfig{
+									Tools: tools,
+									ThinkingConfig: &genai.ThinkingConfig{
+										IncludeThoughts: *thinkingOn,
+									},
 									ResponseModalities: responseModalities,
 								},
 							); err == nil {

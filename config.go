@@ -27,9 +27,10 @@ const (
 	defaultConfigTimeoutSeconds = 10
 
 	// default model names
-	defaultGoogleAIModel                 = `gemini-2.5-flash`
-	defaultGoogleAIImageGenerationModel  = `gemini-2.0-flash-preview-image-generation`
-	defaultGoogleAISpeechGenerationModel = `gemini-2.5-flash-preview-tts`
+	defaultGoogleAIModel                 = `gemini-3-pro-preview`
+	defaultGoogleAIImageGenerationModel  = `gemini-3-pro-image-preview`
+	defaultGoogleAIVideoGenerationModel  = `veo-3.1-generate-preview`
+	defaultGoogleAISpeechGenerationModel = `gemini-2.5-pro-preview-tts`
 	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-001`
 
 	// default system instruction
@@ -47,11 +48,17 @@ Respond to user messages according to the following principles:
 - Try not to call the same tool with the same arguments repeatedly if the result of tool call was not erroneous.
 `
 
+	// default values for generation
+	defaultNumGeneratedVideos             = 1
+	defaultGeneratedVideosDurationSeconds = 8
+	defaultGeneratedVideosFPS             = 24
+
 	// other default parameters
-	defaultTimeoutSeconds         = 5 * 60 // 5 minutes
-	defaultFetchURLTimeoutSeconds = 10     // 10 seconds
-	defaultFetchUserAgent         = `gmn/fetcher`
-	defaultLocation               = `global`
+	defaultTimeoutSeconds           = 5 * 60 // 5 minutes
+	defaultFetchURLTimeoutSeconds   = 10     // 10 seconds
+	defaultFetchUserAgent           = `gmn/fetcher`
+	defaultLocation                 = `global`
+	defaultBucketNameForFileUploads = `gmn-file-uploads`
 )
 
 // config struct
@@ -63,11 +70,13 @@ type config struct {
 	Infisical *infisicalSetting `json:"infisical,omitempty"`
 
 	// (3) or, google credentials file path
-	GoogleCredentialsFilepath *string `json:"google_credentials_filepath,omitempty"`
-	Location                  *string `json:"location,omitempty"`
+	GoogleCredentialsFilepath                  *string `json:"google_credentials_filepath,omitempty"`
+	Location                                   *string `json:"location,omitempty"`
+	GoogleCloudStorageBucketNameForFileUploads *string `json:"gcs_bucket_name_for_file_uploads,omitempty"`
 
 	GoogleAIModel                 *string `json:"google_ai_model,omitempty"`
 	GoogleAIImageGenerationModel  *string `json:"google_ai_image_generation_model,omitempty"`
+	GoogleAIVideoGenerationModel  *string `json:"google_ai_video_generation_model,omitempty"`
 	GoogleAISpeechGenerationModel *string `json:"google_ai_speech_generation_model,omitempty"`
 	GoogleAIEmbeddingsModel       *string `json:"google_ai_embeddings_model,omitempty"`
 	SystemInstruction             *string `json:"system_instruction,omitempty"`
@@ -120,6 +129,9 @@ func readConfig(configFilepath string) (conf config, err error) {
 
 				if conf.Location == nil {
 					conf.Location = ptr(defaultLocation)
+				}
+				if conf.GoogleCloudStorageBucketNameForFileUploads == nil {
+					conf.GoogleCloudStorageBucketNameForFileUploads = ptr(string(defaultBucketNameForFileUploads))
 				}
 			}
 		}

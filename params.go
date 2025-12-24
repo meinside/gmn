@@ -33,8 +33,8 @@ type params struct {
 		TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
 		TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
 		ThinkingOn        bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
-		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
-		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
+		ThinkingLevel     *string   `long:"thinking-level" description:"Level for thinking ('low', 'medium', 'high', or 'minimal')"`
+		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process between <thought></thought> tags"`
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
 		FileSearchStores  []string  `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
 
@@ -55,6 +55,13 @@ type params struct {
 		GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
 		SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
 		SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+
+		// for video generation
+		GenerateVideos                 bool    `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+		SaveVideosToDir                *string `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
+		NumGeneratedVideos             int32   `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
+		GeneratedVideosDurationSeconds int32   `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
+		GeneratedVideosFPS             int32   `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
 
 		// for speech generation
 		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
@@ -152,7 +159,7 @@ func (p *params) taskRequested() bool {
 // check if multiple tasks are requested
 //
 // FIXME: TODO: need to be fixed whenever a new task is added
-func (p *params) multipleTaskRequested() bool {
+func (p *params) multipleTasksRequested() bool {
 	hasPrompt := p.hasPrompt()
 	promptCounted := false
 	num := 0
@@ -241,6 +248,25 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if hasPrompt && !promptCounted { // no other tasks requested, but prompt is given
+		num++
+	}
+
+	return num > 1
+}
+
+// check if multiple media types are requested
+//
+// FIXME: TODO: need to be fixed whenever a new media type is added
+func (p *params) multipleMediaTypesRequested() bool {
+	num := 0
+
+	if p.Generation.GenerateImages { // generate images
+		num++
+	}
+	if p.Generation.GenerateSpeech { // generate speeches
+		num++
+	}
+	if p.Generation.GenerateVideos { // generate videos
 		num++
 	}
 

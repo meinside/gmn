@@ -23,6 +23,7 @@ type modelPurpose string
 const (
 	modelForEmbeddings       modelPurpose = "embeddings"
 	modelForImageGeneration  modelPurpose = "image_generation"
+	modelForVideoGeneration  modelPurpose = "video_generation"
 	modelForSpeechGeneration modelPurpose = "speech_generation"
 	modelForGeneralPurpose   modelPurpose = ""
 )
@@ -48,6 +49,11 @@ func resolveGoogleAIModel(
 			return conf.GoogleAIImageGenerationModel
 		}
 		return ptr(defaultGoogleAIImageGenerationModel)
+	case modelForVideoGeneration:
+		if conf.GoogleAIVideoGenerationModel != nil {
+			return conf.GoogleAIVideoGenerationModel
+		}
+		return ptr(defaultGoogleAIVideoGenerationModel)
 	case modelForSpeechGeneration:
 		if conf.GoogleAISpeechGenerationModel != nil {
 			return conf.GoogleAISpeechGenerationModel
@@ -135,6 +141,15 @@ func run(
 	}
 	if p.Generation.UserAgent == nil {
 		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
+	}
+	if p.Generation.NumGeneratedVideos == 0 {
+		p.Generation.NumGeneratedVideos = defaultNumGeneratedVideos
+	}
+	if p.Generation.GeneratedVideosDurationSeconds == 0 {
+		p.Generation.GeneratedVideosDurationSeconds = defaultGeneratedVideosDurationSeconds
+	}
+	if p.Generation.GeneratedVideosFPS == 0 {
+		p.Generation.GeneratedVideosFPS = defaultGeneratedVideosFPS
 	}
 	if conf.TimeoutSeconds <= 0 {
 		conf.TimeoutSeconds = defaultTimeoutSeconds
@@ -259,6 +274,8 @@ func run(
 				// model
 				if p.Generation.GenerateImages {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForImageGeneration)
+				} else if p.Generation.GenerateVideos {
+					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForVideoGeneration)
 				} else if p.Generation.GenerateSpeech {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForSpeechGeneration)
 				} else {
@@ -363,7 +380,7 @@ func run(
 
 				// check if prompt has any http url in it,
 				if !p.Generation.KeepURLsAsIs {
-					if urlsInPrompt(p) && !p.Generation.GenerateImages && !p.Generation.GenerateSpeech {
+					if urlsInPrompt(p) && !p.Generation.GenerateImages && !p.Generation.GenerateVideos && !p.Generation.GenerateSpeech {
 						tools = append(tools, genai.Tool{
 							URLContext: &genai.URLContext{},
 						})
@@ -383,6 +400,11 @@ func run(
 						writer.error("Failed to close client: %s", err)
 					}
 				}()
+				if len(p.Verbose) > 3 {
+					writer.warn("Full verbose mode: %d > 3", len(p.Verbose))
+
+					gtc.Verbose = true
+				}
 
 				return doGeneration(
 					context.TODO(),
@@ -397,7 +419,7 @@ func run(
 					promptFiles,
 					p.Generation.Filepaths,
 					p.OverrideFileMIMEType,
-					p.Generation.ThinkingOn, p.Generation.ThinkingBudget, p.Generation.ShowThinking, nil,
+					p.Generation.ThinkingOn, p.Generation.ThinkingLevel, p.Generation.ShowThinking, nil,
 					p.Generation.GroundingOn,
 					p.Generation.WithGoogleMaps, p.Generation.GoogleMapsLatitude, p.Generation.GoogleMapsLongitude,
 					p.Caching.CachedContextName,
@@ -411,14 +433,9 @@ func run(
 					p.LocalTools.ToolCallbacksConfirm,
 					allMCPConnections,
 					p.Generation.OutputAsJSON,
-					p.Generation.GenerateImages,
-					p.Generation.SaveImagesToFiles,
-					p.Generation.SaveImagesToDir,
-					p.Generation.GenerateSpeech,
-					p.Generation.SpeechLanguage,
-					p.Generation.SpeechVoice,
-					p.Generation.SpeechVoices,
-					p.Generation.SaveSpeechToDir,
+					p.Generation.GenerateImages, p.Generation.SaveImagesToFiles, p.Generation.SaveImagesToDir,
+					p.Generation.GenerateVideos, p.Generation.SaveVideosToDir, p.Generation.NumGeneratedVideos, p.Generation.GeneratedVideosDurationSeconds, p.Generation.GeneratedVideosFPS,
+					p.Generation.GenerateSpeech, p.Generation.SpeechLanguage, p.Generation.SpeechVoice, p.Generation.SpeechVoices, p.Generation.SaveSpeechToDir,
 					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,

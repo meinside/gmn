@@ -31,13 +31,24 @@ func main() {
 	)
 	if remaining, err := parser.Parse(); err == nil {
 		// check if multiple tasks were requested at a time
-		if p.multipleTaskRequested() {
+		if p.multipleTasksRequested() {
 			writer.print(
 				verboseMaximum,
 				"Input error: multiple tasks were requested at a time.",
 			)
 
 			os.Exit(writer.printHelpBeforeExit(1, parser))
+		}
+
+		// check if multiple media types were requested at a time
+		if p.multipleMediaTypesRequested() {
+			writer.print(
+				verboseMaximum,
+				"Input error: multiple media types were requested at a time.",
+			)
+
+			os.Exit(writer.printHelpBeforeExit(1, parser))
+
 		}
 
 		// check if there was any parameter without flag
