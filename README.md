@@ -243,7 +243,9 @@ TODO
 
 #### Video
 
-TODO
+```bash
+$ gmn --with-video -p "generate a video of a kitten playing with a butterfly"
+```
 
 ### Generate with Local Tools (Function/Tool Calls)
 

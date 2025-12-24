@@ -56,6 +56,13 @@ type params struct {
 		SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
 		SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
 
+		// for video generation
+		GenerateVideos                 bool    `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+		SaveVideosToDir                *string `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
+		NumGeneratedVideos             int32   `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
+		GeneratedVideosDurationSeconds int32   `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
+		GeneratedVideosFPS             int32   `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
+
 		// for speech generation
 		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
 		SpeechLanguage  *string           `long:"speech-language" description:"Language for speech generation in BCP-47 code (eg. 'en-US')"`
@@ -152,7 +159,7 @@ func (p *params) taskRequested() bool {
 // check if multiple tasks are requested
 //
 // FIXME: TODO: need to be fixed whenever a new task is added
-func (p *params) multipleTaskRequested() bool {
+func (p *params) multipleTasksRequested() bool {
 	hasPrompt := p.hasPrompt()
 	promptCounted := false
 	num := 0
@@ -241,6 +248,25 @@ func (p *params) multipleTaskRequested() bool {
 		}
 	}
 	if hasPrompt && !promptCounted { // no other tasks requested, but prompt is given
+		num++
+	}
+
+	return num > 1
+}
+
+// check if multiple media types are requested
+//
+// FIXME: TODO: need to be fixed whenever a new media type is added
+func (p *params) multipleMediaTypesRequested() bool {
+	num := 0
+
+	if p.Generation.GenerateImages { // generate images
+		num++
+	}
+	if p.Generation.GenerateSpeech { // generate speeches
+		num++
+	}
+	if p.Generation.GenerateVideos { // generate videos
 		num++
 	}
 
