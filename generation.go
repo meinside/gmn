@@ -42,7 +42,7 @@ func doGeneration(
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
-	withThinking bool, thinkingBudget *int32, showThinking bool, thoughtSignature []byte,
+	withThinking bool, thinkingLevel *string, showThinking bool, thoughtSignature []byte,
 	withGrounding bool,
 	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
 	cachedContextName *string,
@@ -89,7 +89,7 @@ func doGeneration(
 	}()
 
 	// generation options
-	opts := gt.NewGenerationOptions()
+	opts := genai.GenerateContentConfig{}
 	// (cached context)
 	if cachedContextName != nil {
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)
@@ -99,23 +99,21 @@ func doGeneration(
 	if temperature != nil {
 		generationTemperature = *temperature
 	}
+	opts.Temperature = ptr(generationTemperature)
 	// (topP)
 	generationTopP := defaultGenerationTopP
 	if topP != nil {
 		generationTopP = *topP
 	}
+	opts.TopP = ptr(generationTopP)
 	// (topK)
 	generationTopK := defaultGenerationTopK
 	if topK != nil {
 		generationTopK = *topK
 	}
-	opts.Config = &genai.GenerationConfig{
-		Temperature: ptr(generationTemperature),
-		TopP:        ptr(generationTopP),
-		TopK:        ptr(float32(generationTopK)),
-	}
-	opts.Tools = []*genai.Tool{}
+	opts.TopK = ptr(float32(generationTopK))
 	// (tools and tool config)
+	opts.Tools = []*genai.Tool{}
 	for _, tool := range tools {
 		opts.Tools = append(opts.Tools, &tool)
 	}
@@ -142,21 +140,21 @@ func doGeneration(
 	}
 	// (JSON output)
 	if outputAsJSON {
-		opts.Config.ResponseMIMEType = "application/json"
+		opts.ResponseMIMEType = "application/json"
 	}
 	// (images generation)
 	if generateImages {
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []genai.Modality{
-			genai.ModalityText,
-			genai.ModalityImage,
+		opts.ResponseModalities = []string{
+			string(genai.ModalityText),
+			string(genai.ModalityImage),
 		}
 	} else if generateSpeech { // (speech generation)
 		gtc.SetSystemInstructionFunc(nil)
 
-		opts.ResponseModalities = []genai.Modality{
-			genai.ModalityAudio,
+		opts.ResponseModalities = []string{
+			string(genai.ModalityAudio),
 		}
 
 		opts.SpeechConfig = &genai.SpeechConfig{}
@@ -193,9 +191,24 @@ func doGeneration(
 		}
 	}
 	// (thinking)
-	opts.ThinkingOn = withThinking
-	if thinkingBudget != nil {
-		opts.ThinkingBudget = *thinkingBudget
+	opts.ThinkingConfig = &genai.ThinkingConfig{
+		IncludeThoughts: withThinking,
+	}
+	if thinkingLevel != nil {
+		var level genai.ThinkingLevel
+		switch *thinkingLevel {
+		case "low":
+			level = genai.ThinkingLevelLow
+		case "medium":
+			level = genai.ThinkingLevelMedium
+		case "high":
+			level = genai.ThinkingLevelHigh
+		case "minimal":
+			level = genai.ThinkingLevelMinimal
+		default:
+			level = genai.ThinkingLevelUnspecified
+		}
+		opts.ThinkingConfig.ThinkingLevel = level
 	}
 	// (grounding)
 	if withGrounding {
@@ -277,7 +290,7 @@ func doGeneration(
 			for it, err := range gtc.GenerateStreamIterated(
 				ctxGenerate,
 				contentsForGeneration,
-				opts,
+				&opts,
 			) {
 				if err == nil {
 					// save token usages
@@ -1203,7 +1216,7 @@ func doGeneration(
 				systemInstruction, temperature, topP, topK,
 				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
 				overrideMimeTypeForExt,
-				withThinking, thinkingBudget, showThinking, thoughtSignature,
+				withThinking, thinkingLevel, showThinking, thoughtSignature,
 				withGrounding,
 				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,
 				cachedContextName,

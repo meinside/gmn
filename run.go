@@ -397,7 +397,7 @@ func run(
 					promptFiles,
 					p.Generation.Filepaths,
 					p.OverrideFileMIMEType,
-					p.Generation.ThinkingOn, p.Generation.ThinkingBudget, p.Generation.ShowThinking, nil,
+					p.Generation.ThinkingOn, p.Generation.ThinkingLevel, p.Generation.ShowThinking, nil,
 					p.Generation.GroundingOn,
 					p.Generation.WithGoogleMaps, p.Generation.GoogleMapsLatitude, p.Generation.GoogleMapsLongitude,
 					p.Caching.CachedContextName,

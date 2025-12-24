@@ -33,8 +33,8 @@ type params struct {
 		TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
 		TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
 		ThinkingOn        bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
-		ThinkingBudget    *int32    `long:"thinking-budget" description:"Budget for thinking (default: 1024)"`
-		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process"`
+		ThinkingLevel     *string   `long:"thinking-level" description:"Level for thinking ('low', 'medium', 'high', or 'minimal')"`
+		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process between <thought></thought> tags"`
 		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
 		FileSearchStores  []string  `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
 

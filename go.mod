@@ -3,7 +3,6 @@ module github.com/meinside/gmn
 go 1.25.0
 
 require (
-	cloud.google.com/go/auth v0.18.0
 	github.com/BourgeoisBear/rasterm v1.1.2
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/fatih/color v1.18.0
@@ -12,7 +11,7 @@ require (
 	github.com/infisical/go-sdk v0.6.3
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.4.10
+	github.com/meinside/gemini-things-go v0.5.0
 	github.com/meinside/version-go v0.0.3
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
@@ -23,6 +22,7 @@ require (
 require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go v0.123.0 // indirect
+	cloud.google.com/go/auth v0.18.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.3 // indirect
