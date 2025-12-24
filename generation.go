@@ -42,7 +42,7 @@ func doGeneration(
 	systemInstruction string, temperature, topP *float32, topK *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
-	withThinking bool, thinkingBudget *int32, showThinking bool,
+	withThinking bool, thinkingBudget *int32, showThinking bool, thoughtSignature []byte,
 	withGrounding bool,
 	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
 	cachedContextName *string,
@@ -539,23 +539,25 @@ func doGeneration(
 										)
 									}
 								} else if part.FunctionCall != nil {
+									if part.ThoughtSignature != nil {
+										thoughtSignature = part.ThoughtSignature
+									}
+
 									// flush model response
 									pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
 									// append function call to past generations
-									fnCallPart := &genai.Part{
-										FunctionCall: &genai.FunctionCall{
-											Name: part.FunctionCall.Name,
-											Args: part.FunctionCall.Args,
-										},
-									}
-									if len(part.ThoughtSignature) > 0 {
-										fnCallPart.ThoughtSignature = part.ThoughtSignature
-									}
-									// TODO: set dummy thought signature here (https://ai.google.dev/gemini-api/docs/gemini-3)
 									pastGenerations = append(pastGenerations, genai.Content{
-										Role:  string(gt.RoleModel),
-										Parts: []*genai.Part{fnCallPart},
+										Role: string(gt.RoleModel),
+										Parts: []*genai.Part{
+											{
+												FunctionCall: &genai.FunctionCall{
+													Name: part.FunctionCall.Name,
+													Args: part.FunctionCall.Args,
+												},
+												ThoughtSignature: thoughtSignature,
+											},
+										},
 									})
 
 									// string representation of function and its arguments
@@ -648,6 +650,7 @@ func doGeneration(
 																	"output": res,
 																},
 															},
+															ThoughtSignature: thoughtSignature,
 														},
 													},
 												})
@@ -677,6 +680,7 @@ func doGeneration(
 																),
 															},
 														},
+														ThoughtSignature: thoughtSignature,
 													},
 												},
 											})
@@ -735,6 +739,7 @@ func doGeneration(
 																	),
 																},
 															},
+															ThoughtSignature: thoughtSignature,
 														},
 													},
 												})
@@ -931,6 +936,7 @@ func doGeneration(
 																	"output": output,
 																},
 															},
+															ThoughtSignature: thoughtSignature,
 														},
 													}
 													pastGenerations = append(pastGenerations, genai.Content{
@@ -974,6 +980,7 @@ func doGeneration(
 																	),
 																},
 															},
+															ThoughtSignature: thoughtSignature,
 														},
 													},
 												})
@@ -1000,6 +1007,7 @@ func doGeneration(
 																),
 															},
 														},
+														ThoughtSignature: thoughtSignature,
 													},
 												},
 											})
@@ -1195,7 +1203,7 @@ func doGeneration(
 				systemInstruction, temperature, topP, topK,
 				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
 				overrideMimeTypeForExt,
-				withThinking, thinkingBudget, showThinking,
+				withThinking, thinkingBudget, showThinking, thoughtSignature,
 				withGrounding,
 				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,
 				cachedContextName,

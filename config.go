@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	envVarNameAPIKey = `GEMINI_API_KEY`
+	// environment variable names
+	envVarNameAPIKey              = `GEMINI_API_KEY`
+	envVarNameCredentialsFilepath = `CREDENTIALS_FILEPATH`
 
 	// default config file's name
 	defaultConfigFilename       = `config.json`
@@ -62,8 +64,6 @@ type config struct {
 
 	// (3) or, google credentials file path
 	GoogleCredentialsFilepath *string `json:"google_credentials_filepath,omitempty"`
-	googleCredentialsBytes    []byte  // <= read from `GoogleCredentialsFilepath`
-	GoogleProjectID           *string `json:"google_project_id,omitempty"`
 	Location                  *string `json:"location,omitempty"`
 
 	GoogleAIModel                 *string `json:"google_ai_model,omitempty"`
@@ -116,14 +116,10 @@ func readConfig(configFilepath string) (conf config, err error) {
 					if err != nil {
 						return config{}, fmt.Errorf("failed to fetch config from Infisical: %w", err)
 					}
-				} else if conf.GoogleCredentialsFilepath != nil {
-					if conf.Location == nil {
-						conf.Location = ptr(defaultLocation)
-					}
+				}
 
-					if conf.googleCredentialsBytes, err = os.ReadFile(*conf.GoogleCredentialsFilepath); err != nil {
-						return config{}, fmt.Errorf("failed to read google credentials from %s: %w", *conf.GoogleCredentialsFilepath, err)
-					}
+				if conf.Location == nil {
+					conf.Location = ptr(defaultLocation)
 				}
 			}
 		}

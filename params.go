@@ -16,9 +16,12 @@ type params struct {
 		// configuration file's path
 		ConfigFilepath *string `short:"c" long:"config" description:"Config file's path (default: $XDG_CONFIG_HOME/gmn/config.json)"`
 
+		// values for credentials
+		GoogleAIAPIKey      *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
+		CredentialsFilepath *string `short:"K" long:"credentials-filepath" description:"Google credentials filepath (can be ommitted if set in config)"`
+
 		// for model configuration
-		GoogleAIAPIKey *string `short:"k" long:"api-key" description:"Google AI API Key (can be ommitted if set in config)"`
-		GoogleAIModel  *string `short:"m" long:"model" description:"Model for generation (can be omitted)"`
+		GoogleAIModel *string `short:"m" long:"model" description:"Model for generation (can be omitted)"`
 	} `group:"Configuration"`
 
 	Generation struct {
