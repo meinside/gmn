@@ -131,13 +131,8 @@ func buildSelfServer(
 			ctx context.Context,
 			request *mcp.CallToolRequest,
 		) (result *mcp.CallToolResult, err error) {
-			p := p // copy launch params
-
 			var gtc *gt.Client
-			if gtc, err = gtClient(
-				p.Configuration.GoogleAIAPIKey,
-				conf,
-			); err == nil {
+			if gtc, err = gtClient(conf); err == nil {
 				var models []*genai.Model
 				if models, err = gtc.ListModels(ctx); err == nil {
 					var marshalled []byte
@@ -380,7 +375,6 @@ If there was any newly-created file, make sure to report to the user about the f
 					// create a client,
 					var gtc *gt.Client
 					gtc, err = gtClient(
-						p.Configuration.GoogleAIAPIKey,
 						conf,
 						gt.WithModel(*model),
 					)
@@ -423,7 +417,7 @@ If there was any newly-created file, make sure to report to the user about the f
 								if customURL.isLink() {
 									promptFiles[customURL.url()] = data
 								} else if customURL.isYoutube() {
-									prompts = append(prompts, gt.PromptFromURI(customURL.url()))
+									prompts = append(prompts, gt.PromptFromURI(customURL.url(), "video/mp4"))
 								}
 							}
 						} else { // (just use the original prompt)

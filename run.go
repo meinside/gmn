@@ -96,10 +96,13 @@ func run(
 			p.Generation.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
-		// check if environment variable for api key exists,
+		// check if environment variable for api key or credentials file exists,
 		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
 			// use it,
 			p.Configuration.GoogleAIAPIKey = &envAPIKey
+		} else if envCredentialsFilepath, exists := os.LookupEnv(envVarNameCredentialsFilepath); exists {
+			// use it,
+			p.Configuration.CredentialsFilepath = &envCredentialsFilepath
 		} else {
 			// or return an error
 			return 1, fmt.Errorf(
@@ -112,6 +115,18 @@ func run(
 	// override command arguments with values from configs
 	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
 		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
+	}
+	if conf.GoogleCredentialsFilepath != nil && p.Configuration.CredentialsFilepath == nil {
+		p.Configuration.CredentialsFilepath = conf.GoogleCredentialsFilepath
+	}
+	if p.Configuration.GoogleAIAPIKey != nil && p.Configuration.CredentialsFilepath != nil {
+		return 1, fmt.Errorf("google AI API Key and credentials file cannot be specified at the same time")
+	}
+
+	// check existence of essential parameters here
+	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil &&
+		conf.GoogleCredentialsFilepath == nil && p.Configuration.CredentialsFilepath == nil {
+		return 1, fmt.Errorf("both google AI API key and credentials filepath is missing")
 	}
 
 	// fallback to default values
@@ -126,11 +141,6 @@ func run(
 	}
 	if conf.ReplaceHTTPURLTimeoutSeconds <= 0 {
 		conf.ReplaceHTTPURLTimeoutSeconds = defaultFetchURLTimeoutSeconds
-	}
-
-	// check existence of essential parameters here
-	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil {
-		return 1, fmt.Errorf("google AI API Key is missing")
 	}
 
 	// expand filepaths (recurse directories)
@@ -156,7 +166,6 @@ func run(
 
 			// gemini things client
 			gtc, err := gtClient(
-				p.Configuration.GoogleAIAPIKey,
 				conf,
 				gt.WithModel(*p.Configuration.GoogleAIModel),
 			)
@@ -197,7 +206,7 @@ func run(
 					if customURL.isLink() {
 						promptFiles[customURL.url()] = data
 					} else if customURL.isYoutube() {
-						prompts = append(prompts, gt.PromptFromURI(customURL.url()))
+						prompts = append(prompts, gt.PromptFromURI(customURL.url(), "video/mp4"))
 					}
 				}
 
@@ -219,7 +228,6 @@ func run(
 
 				// gemini things client
 				gtc, err := gtClient(
-					p.Configuration.GoogleAIAPIKey,
 					conf,
 					gt.WithModel(*p.Configuration.GoogleAIModel),
 				)
@@ -364,7 +372,6 @@ func run(
 
 				// gemini things client
 				gtc, err := gtClient(
-					p.Configuration.GoogleAIAPIKey,
 					conf,
 					gt.WithModel(*p.Configuration.GoogleAIModel),
 				)
@@ -390,9 +397,7 @@ func run(
 					promptFiles,
 					p.Generation.Filepaths,
 					p.OverrideFileMIMEType,
-					p.Generation.ThinkingOn,
-					p.Generation.ThinkingBudget,
-					p.Generation.ShowThinking,
+					p.Generation.ThinkingOn, p.Generation.ThinkingBudget, p.Generation.ShowThinking, nil,
 					p.Generation.GroundingOn,
 					p.Generation.WithGoogleMaps, p.Generation.GoogleMapsLatitude, p.Generation.GoogleMapsLongitude,
 					p.Caching.CachedContextName,
@@ -431,7 +436,6 @@ func run(
 		if p.Caching.CacheContext { // cache context
 			// gemini things client
 			gtc, err := gtClient(
-				p.Configuration.GoogleAIAPIKey,
 				conf,
 				gt.WithModel(*p.Configuration.GoogleAIModel),
 			)
@@ -459,7 +463,7 @@ func run(
 			)
 		} else if p.Caching.ListCachedContexts { // list cached contexts
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -481,7 +485,7 @@ func run(
 			)
 		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -504,7 +508,7 @@ func run(
 			)
 		} else if p.ListModels { // list models
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -526,7 +530,7 @@ func run(
 			)
 		} else if p.FileSearch.ListFileSearchStores { // list file search stores
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -545,7 +549,7 @@ func run(
 			)
 		} else if p.FileSearch.CreateFileSearchStore != nil { // create file search store
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -568,7 +572,7 @@ func run(
 			)
 		} else if p.FileSearch.DeleteFileSearchStore != nil { // delete file search store
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -610,7 +614,7 @@ func run(
 					}
 
 					// gemini things client
-					gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+					gtc, err := gtClient(conf)
 					if err != nil {
 						return 1, err
 					}
@@ -644,7 +648,7 @@ func run(
 			}
 		} else if p.FileSearch.ListFilesInFileSearchStore != nil { // list files in file search store
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
@@ -667,7 +671,7 @@ func run(
 			)
 		} else if p.FileSearch.DeleteFileInFileSearchStore != nil { // delete a file in a file search store
 			// gemini things client
-			gtc, err := gtClient(p.Configuration.GoogleAIAPIKey, conf)
+			gtc, err := gtClient(conf)
 			if err != nil {
 				return 1, err
 			}
