@@ -21,6 +21,8 @@ const (
 	// environment variable names
 	envVarNameAPIKey              = `GEMINI_API_KEY`
 	envVarNameCredentialsFilepath = `CREDENTIALS_FILEPATH`
+	envVarNameLocation            = `LOCATION`
+	envVarNameBucket              = `BUCKET`
 
 	// default config file's name
 	defaultConfigFilename       = `config.json`
@@ -54,11 +56,11 @@ Respond to user messages according to the following principles:
 	defaultGeneratedVideosFPS             = 24
 
 	// other default parameters
-	defaultTimeoutSeconds           = 5 * 60 // 5 minutes
-	defaultFetchURLTimeoutSeconds   = 10     // 10 seconds
-	defaultFetchUserAgent           = `gmn/fetcher`
-	defaultLocation                 = `global`
-	defaultBucketNameForFileUploads = `gmn-file-uploads`
+	defaultTimeoutSeconds                  = 5 * 60 // 5 minutes
+	defaultFetchURLTimeoutSeconds          = 10     // 10 seconds
+	defaultFetchUserAgent           string = `gmn/fetcher`
+	defaultLocation                 string = `global`
+	defaultBucketNameForFileUploads string = `gmn-file-uploads`
 )
 
 // config struct
@@ -127,6 +129,7 @@ func readConfig(configFilepath string) (conf config, err error) {
 					}
 				}
 
+				// set default values
 				if conf.Location == nil {
 					conf.Location = ptr(defaultLocation)
 				}

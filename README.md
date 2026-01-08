@@ -18,7 +18,7 @@ $ go install github.com/meinside/gmn@latest
 
 ## Configure
 
-### Using Config File
+### Using Config File with Gemini API key
 
 Create `config.json` file in `$XDG_CONFIG_HOME/gmn/` or `$HOME/.config/gmn/`:
 
@@ -32,10 +32,6 @@ with following content:
 ```json
 {
   "google_ai_api_key": "ABCDEFGHIJK1234567890",
-  "google_ai_model": "gemini-2.5-flash",
-  "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
-  "google_ai_speech_generation_model": "gemini-2.5-flash-preview-tts",
-  "google_ai_embeddings_model": "gemini-embedding-001",
 }
 ```
 
@@ -43,11 +39,22 @@ and replace things with your own values.
 
 ---
 
-You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample), and your Google AI API key [here](https://aistudio.google.com/app/apikey).
+You can get the sample config file [here](https://github.com/meinside/gmn/blob/master/config.json.sample), and your Gemini API key [here](https://aistudio.google.com/app/apikey).
 
-### Using Config File with Infisical
+### Using Config File with Google Credentials File
 
-You can use [Infisical](https://infisical.com/) for saving & retrieving your api key:
+Put the path of your Google Credentials file and the name of your Google Cloud Storage bucket name like:
+
+```json
+{
+  "google_credentials_filepath": "~/.config/gcp/credentials-12345-abcdefg9876.json",
+  "gcs_bucket_name_for_file_uploads": "some-bucket-name",
+}
+```
+
+### Using Config File with Infisical and Gemini API key
+
+You can use [Infisical](https://infisical.com/) for saving & retrieving your Gemini API key:
 
 ```json
 {
@@ -61,20 +68,19 @@ You can use [Infisical](https://infisical.com/) for saving & retrieving your api
 
     "google_ai_api_key_key_path": "/path/to/your/KEY_TO_GOOGLE_AI_API_KEY",
   },
-
-  "google_ai_model": "gemini-2.5-flash",
-  "google_ai_image_generation_model": "gemini-2.0-flash-preview-image-generation",
-  "google_ai_speech_generation_model": "gemini-2.5-flash-preview-tts",
-  "google_ai_embeddings_model": "gemini-embedding-001",
 }
 ```
 
 ### Using Environment Variables
 
-Or, you can run with an environment variable named `GEMINI_API_KEY`:
+Or, you can run with environment variables (but without config file) like:
 
 ```bash
+# with your Gemini API key,
 $ GEMINI_API_KEY="ABCDEFGHIJK1234567890" gmn -p "hello"
+
+# or with your Google Credentials file,
+$ CREDENTIALS_FILEPATH="/path/to/credentials.json" LOCATION="global" BUCKET="some-bucket-name" gmn -p "hi"
 ```
 
 ## Run
