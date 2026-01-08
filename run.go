@@ -96,19 +96,61 @@ func run(
 	}
 
 	// read and apply configs
+	configFilepath := resolveConfigFilepath(p.Configuration.ConfigFilepath)
 	var conf config
-	if conf, err = readConfig(resolveConfigFilepath(p.Configuration.ConfigFilepath)); err == nil {
+	if conf, err = readConfig(configFilepath); err == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"loaded configuration file: %s",
+			configFilepath,
+		)
+
 		if p.Generation.SystemInstruction == nil && conf.SystemInstruction != nil {
 			p.Generation.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
 		// check if environment variable for api key or credentials file exists,
 		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
-			// use it,
-			p.Configuration.GoogleAIAPIKey = &envAPIKey
+			writer.verbose(
+				verboseMinimum,
+				p.Verbose,
+				"using API key from environment variable: %s",
+				envVarNameAPIKey,
+			)
+			conf.GoogleAIAPIKey = &envAPIKey
 		} else if envCredentialsFilepath, exists := os.LookupEnv(envVarNameCredentialsFilepath); exists {
-			// use it,
-			p.Configuration.CredentialsFilepath = &envCredentialsFilepath
+			writer.verbose(
+				verboseMinimum,
+				p.Verbose,
+				"using credentials filepath from environment variable: %s",
+				envVarNameCredentialsFilepath,
+			)
+			conf.GoogleCredentialsFilepath = &envCredentialsFilepath
+
+			if envLocation, exists := os.LookupEnv(envVarNameLocation); exists {
+				writer.verbose(
+					verboseMinimum,
+					p.Verbose,
+					"using location from environment variable: %s",
+					envVarNameLocation,
+				)
+				conf.Location = &envLocation
+			} else {
+				conf.Location = ptr(defaultLocation)
+			}
+
+			if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
+				writer.verbose(
+					verboseMinimum,
+					p.Verbose,
+					"using bucket name from environment variable: %s",
+					envVarNameBucket,
+				)
+				conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
+			} else {
+				conf.GoogleCloudStorageBucketNameForFileUploads = ptr(defaultBucketNameForFileUploads)
+			}
 		} else {
 			// or return an error
 			return 1, fmt.Errorf(
@@ -132,7 +174,7 @@ func run(
 	// check existence of essential parameters here
 	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil &&
 		conf.GoogleCredentialsFilepath == nil && p.Configuration.CredentialsFilepath == nil {
-		return 1, fmt.Errorf("both google AI API key and credentials filepath is missing")
+		return 1, fmt.Errorf("both google AI API key and credentials filepath are missing")
 	}
 
 	// fallback to default values
