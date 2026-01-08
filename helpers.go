@@ -1286,6 +1286,7 @@ func gtClient(
 			context.TODO(),
 			credentialsBytes,
 			*conf.Location,
+			*conf.GoogleCloudStorageBucketNameForFileUploads,
 			options...,
 		)
 	}
