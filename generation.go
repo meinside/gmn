@@ -88,6 +88,8 @@ func doGeneration(
 
 	// generation options
 	opts := genai.GenerateContentConfig{}
+	// (safety settings)
+	opts.SafetySettings = safetySettings(gtc.Type)
 	// (cached context)
 	if cachedContextName != nil {
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)

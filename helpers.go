@@ -1425,3 +1425,42 @@ func promptImageOrVideoFromPrompts(writer *outputWriter, prompts []gt.Prompt) (p
 
 	return prompt, image, video
 }
+
+// generate safety settings for the client
+//
+// NOTE: all possible categories will be turned off
+func safetySettings(clientType genai.Backend) []*genai.SafetySetting {
+	settings := []*genai.SafetySetting{}
+
+	var categories []genai.HarmCategory
+	switch clientType {
+	case genai.BackendGeminiAPI:
+		categories = []genai.HarmCategory{
+			genai.HarmCategoryHarassment,
+			genai.HarmCategoryHateSpeech,
+			genai.HarmCategorySexuallyExplicit,
+			genai.HarmCategoryDangerousContent,
+		}
+	case genai.BackendVertexAI:
+		categories = []genai.HarmCategory{
+			genai.HarmCategoryHarassment,
+			genai.HarmCategoryHateSpeech,
+			genai.HarmCategorySexuallyExplicit,
+			genai.HarmCategoryDangerousContent,
+			genai.HarmCategoryImageHate,
+			genai.HarmCategoryImageDangerousContent,
+			genai.HarmCategoryImageHarassment,
+			genai.HarmCategoryImageSexuallyExplicit,
+			genai.HarmCategoryJailbreak,
+		}
+	}
+
+	for _, category := range categories {
+		settings = append(settings, &genai.SafetySetting{
+			Category:  category,
+			Threshold: genai.HarmBlockThresholdOff,
+		})
+	}
+
+	return settings
+}
