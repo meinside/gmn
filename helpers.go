@@ -444,7 +444,13 @@ func fetchContent(
 			err,
 		)
 	}
-	req.Header.Set("User-Agent", userAgent)
+
+	// request headers
+	req.Header.Set(`User-Agent`, userAgent)
+	req.Header.Set(`Sec-Fetch-Dest`, `document`)
+	req.Header.Set(`Sec-Fetch-Mode`, `navigate`)
+	req.Header.Set(`Sec-Fetch-Site`, `none`)
+	req.Header.Set(`Sec-Fetch-User`, `?1`)
 
 	resp, err := client.Do(req)
 	if err != nil {
