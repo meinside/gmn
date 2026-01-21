@@ -57,11 +57,12 @@ type params struct {
 		SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
 
 		// for video generation
-		GenerateVideos                 bool    `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
-		SaveVideosToDir                *string `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
-		NumGeneratedVideos             int32   `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
-		GeneratedVideosDurationSeconds int32   `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
-		GeneratedVideosFPS             int32   `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
+		GenerateVideos                 bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+		ReferenceImagesForVideo        map[string]string `long:"reference-image-for-video" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
+		SaveVideosToDir                *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
+		NumGeneratedVideos             int32             `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
+		GeneratedVideosDurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
+		GeneratedVideosFPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
 
 		// for speech generation
 		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`

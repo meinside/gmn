@@ -476,7 +476,7 @@ func run(
 					allMCPConnections,
 					p.Generation.OutputAsJSON,
 					p.Generation.GenerateImages, p.Generation.SaveImagesToFiles, p.Generation.SaveImagesToDir,
-					p.Generation.GenerateVideos, p.Generation.SaveVideosToDir, p.Generation.NumGeneratedVideos, p.Generation.GeneratedVideosDurationSeconds, p.Generation.GeneratedVideosFPS,
+					p.Generation.GenerateVideos, p.Generation.ReferenceImagesForVideo, p.Generation.SaveVideosToDir, p.Generation.NumGeneratedVideos, p.Generation.GeneratedVideosDurationSeconds, p.Generation.GeneratedVideosFPS,
 					p.Generation.GenerateSpeech, p.Generation.SpeechLanguage, p.Generation.SpeechVoice, p.Generation.SpeechVoices, p.Generation.SaveSpeechToDir,
 					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,
