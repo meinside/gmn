@@ -26,50 +26,67 @@ type params struct {
 
 	Generation struct {
 		// prompt, system instruction, and other things for generation
-		Prompt            *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
-		Filepaths         []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
-		SystemInstruction *string   `short:"s" long:"system" description:"System instruction (can be omitted)"`
-		Temperature       *float32  `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
-		TopP              *float32  `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
-		TopK              *int32    `long:"top-k" description:"'top_k' for generation (default: 20)"`
-		ThinkingOn        bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
-		ThinkingLevel     *string   `long:"thinking-level" description:"Level for thinking ('low', 'medium', 'high', or 'minimal')"`
-		ShowThinking      bool      `long:"show-thinking" description:"Show thinking process between <thought></thought> tags"`
-		GroundingOn       bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
-		FileSearchStores  []string  `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
-
-		// google maps
-		WithGoogleMaps      bool     `long:"with-google-maps" description:"Generate with Google Maps"`
-		GoogleMapsLatitude  *float64 `long:"google-maps-latitude" description:"Latitude for Google Maps query"`
-		GoogleMapsLongitude *float64 `long:"google-maps-longitude" description:"Longitude for Google Maps query"`
-
-		// for fetching contents
-		ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
-		KeepURLsAsIs            bool    `short:"X" long:"keep-urls" description:"Keep URLs in the prompt as-is (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
-		UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
+		Prompt      *string   `short:"p" long:"prompt" description:"Prompt for generation (can also be read from stdin)"`
+		Filepaths   []*string `short:"f" long:"filepath" description:"Path of a file or directory (can be used multiple times)"`
+		ThinkingOn  bool      `short:"t" long:"with-thinking" description:"Generate with thinking"`
+		GroundingOn bool      `short:"g" long:"with-grounding" description:"Generate with grounding (Google Search)"`
 
 		// other generation options
 		OutputAsJSON bool `short:"j" long:"json" description:"Output generated results as JSON"`
 
+		// detailed generation options
+		DetailedOptions struct {
+			SystemInstruction *string `short:"s" long:"system" description:"System instruction (can be omitted)"`
+
+			Temperature *float32 `long:"temperature" description:"'temperature' for generation (default: 1.0)"`
+			TopP        *float32 `long:"top-p" description:"'top_p' for generation (default: 0.95)"`
+			TopK        *int32   `long:"top-k" description:"'top_k' for generation (default: 20)"`
+
+			ThinkingLevel *string `long:"thinking-level" description:"Level for thinking ('low', 'medium', 'high', or 'minimal')"`
+			ShowThinking  bool    `long:"show-thinking" description:"Show thinking process between <thought></thought> tags"`
+
+			FileSearchStores []string `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
+		} `group:"Detailed Generation Options"`
+
+		// google maps
+		GoogleMaps struct {
+			WithGoogleMaps bool     `long:"with-google-maps" description:"Generate with Google Maps"`
+			Latitude       *float64 `long:"google-maps-latitude" description:"Latitude for Google Maps query"`
+			Longitude      *float64 `long:"google-maps-longitude" description:"Longitude for Google Maps query"`
+		} `group:"Google Maps"`
+
+		// for fetching contents
+		FetchContents struct {
+			ReplaceHTTPURLsInPrompt bool    `short:"x" long:"convert-urls" description:"Convert URLs in the prompt to their text representations (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
+			KeepURLsAsIs            bool    `short:"X" long:"keep-urls" description:"Keep URLs in the prompt as-is (when not given, URLs will be fetched or reused from cache by Gemini API automatically)"`
+			UserAgent               *string `long:"user-agent" description:"Override user-agent when fetching contents from URLs in the prompt"`
+		} `group:"Options for Fetching Contents"`
+
 		// for image generation
-		GenerateImages    bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
-		SaveImagesToFiles bool    `long:"save-images" description:"Save generated images to files"`
-		SaveImagesToDir   *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+		Image struct {
+			GenerateImages bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
+			SaveToFiles    bool    `long:"save-images" description:"Save generated images to files"`
+			SaveToDir      *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)"`
+		} `group:"Image Generation"`
 
 		// for video generation
-		GenerateVideos                 bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
-		ReferenceImagesForVideo        map[string]string `long:"reference-image-for-video" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
-		SaveVideosToDir                *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
-		NumGeneratedVideos             int32             `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
-		GeneratedVideosDurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
-		GeneratedVideosFPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
+		Video struct {
+			GenerateVideos           bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+			ReferenceImages          map[string]string `long:"reference-image-for-video" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
+			SaveToDir                *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
+			NumGenerated             int32             `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
+			GeneratedDurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
+			GeneratedFPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
+		} `group:"Video Generation"`
 
 		// for speech generation
-		GenerateSpeech  bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
-		SpeechLanguage  *string           `long:"speech-language" description:"Language for speech generation in BCP-47 code (eg. 'en-US')"`
-		SpeechVoice     *string           `long:"speech-voice" description:"Voice name for the generated speech (eg. 'Kore')"`
-		SpeechVoices    map[string]string `long:"speech-voices" description:"Voices for speech generation (can be used multiple times, eg. 'Speaker 1:Kore', 'Speaker 2:Puck')"`
-		SaveSpeechToDir *string           `long:"save-speech-to-dir" description:"Save generated speech to a directory ($TMPDIR when not given)"`
+		Speech struct {
+			GenerateSpeech bool              `long:"with-speech" description:"Generate speeches (system instruction will be ignored)"`
+			Language       *string           `long:"speech-language" description:"Language for speech generation in BCP-47 code (eg. 'en-US')"`
+			Voice          *string           `long:"speech-voice" description:"Voice name for the generated speech (eg. 'Kore')"`
+			Voices         map[string]string `long:"speech-voices" description:"Voices for speech generation (can be used multiple times, eg. 'Speaker 1:Kore', 'Speaker 2:Puck')"`
+			SaveToDir      *string           `long:"save-speech-to-dir" description:"Save generated speech to a directory ($TMPDIR when not given)"`
+		} `group:"Speech Generation"`
 	} `group:"Generation"`
 
 	// tools
@@ -261,13 +278,13 @@ func (p *params) multipleTasksRequested() bool {
 func (p *params) multipleMediaTypesRequested() bool {
 	num := 0
 
-	if p.Generation.GenerateImages { // generate images
+	if p.Generation.Image.GenerateImages { // generate images
 		num++
 	}
-	if p.Generation.GenerateSpeech { // generate speeches
+	if p.Generation.Speech.GenerateSpeech { // generate speeches
 		num++
 	}
-	if p.Generation.GenerateVideos { // generate videos
+	if p.Generation.Video.GenerateVideos { // generate videos
 		num++
 	}
 

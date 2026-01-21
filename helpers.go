@@ -315,7 +315,7 @@ func replaceURLsInPrompt(
 	conf config,
 	p params,
 ) (replaced string, files map[customURLInPrompt][]byte) {
-	userAgent := *p.Generation.UserAgent
+	userAgent := *p.Generation.FetchContents.UserAgent
 	prompt := *p.Generation.Prompt
 	vbs := p.Verbose
 

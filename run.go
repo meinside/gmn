@@ -106,8 +106,8 @@ func run(
 			configFilepath,
 		)
 
-		if p.Generation.SystemInstruction == nil && conf.SystemInstruction != nil {
-			p.Generation.SystemInstruction = conf.SystemInstruction
+		if p.Generation.DetailedOptions.SystemInstruction == nil && conf.SystemInstruction != nil {
+			p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
 		}
 	} else {
 		// check if environment variable for api key or credentials file exists,
@@ -178,20 +178,20 @@ func run(
 	}
 
 	// fallback to default values
-	if p.Generation.SystemInstruction == nil {
-		p.Generation.SystemInstruction = ptr(defaultSystemInstruction())
+	if p.Generation.DetailedOptions.SystemInstruction == nil {
+		p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
 	}
-	if p.Generation.UserAgent == nil {
-		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
+	if p.Generation.FetchContents.UserAgent == nil {
+		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
 	}
-	if p.Generation.NumGeneratedVideos == 0 {
-		p.Generation.NumGeneratedVideos = defaultNumGeneratedVideos
+	if p.Generation.Video.NumGenerated == 0 {
+		p.Generation.Video.NumGenerated = defaultNumGeneratedVideos
 	}
-	if p.Generation.GeneratedVideosDurationSeconds == 0 {
-		p.Generation.GeneratedVideosDurationSeconds = defaultGeneratedVideosDurationSeconds
+	if p.Generation.Video.GeneratedDurationSeconds == 0 {
+		p.Generation.Video.GeneratedDurationSeconds = defaultGeneratedVideosDurationSeconds
 	}
-	if p.Generation.GeneratedVideosFPS == 0 {
-		p.Generation.GeneratedVideosFPS = defaultGeneratedVideosFPS
+	if p.Generation.Video.GeneratedFPS == 0 {
+		p.Generation.Video.GeneratedFPS = defaultGeneratedVideosFPS
 	}
 	if conf.TimeoutSeconds <= 0 {
 		conf.TimeoutSeconds = defaultTimeoutSeconds
@@ -249,8 +249,8 @@ func run(
 			prompts := []gt.Prompt{}
 			promptFiles := map[string][]byte{}
 
-			if p.Generation.ReplaceHTTPURLsInPrompt {
-				if p.Generation.KeepURLsAsIs {
+			if p.Generation.FetchContents.ReplaceHTTPURLsInPrompt {
+				if p.Generation.FetchContents.KeepURLsAsIs {
 					return 1, fmt.Errorf("cannot use `--keep-urls` with `--convert-urls`")
 				}
 
@@ -304,7 +304,7 @@ func run(
 					writer,
 					conf.TimeoutSeconds,
 					gtc,
-					*p.Generation.SystemInstruction,
+					*p.Generation.DetailedOptions.SystemInstruction,
 					prompts,
 					promptFiles,
 					p.Generation.Filepaths,
@@ -314,11 +314,11 @@ func run(
 				)
 			} else { // generate
 				// model
-				if p.Generation.GenerateImages {
+				if p.Generation.Image.GenerateImages {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForImageGeneration)
-				} else if p.Generation.GenerateVideos {
+				} else if p.Generation.Video.GenerateVideos {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForVideoGeneration)
-				} else if p.Generation.GenerateSpeech {
+				} else if p.Generation.Speech.GenerateSpeech {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForSpeechGeneration)
 				} else {
 					p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForGeneralPurpose)
@@ -412,17 +412,17 @@ func run(
 				}
 
 				// generate with file search
-				if len(p.Generation.FileSearchStores) > 0 {
+				if len(p.Generation.DetailedOptions.FileSearchStores) > 0 {
 					tools = append(tools, genai.Tool{
 						FileSearch: &genai.FileSearch{
-							FileSearchStoreNames: p.Generation.FileSearchStores,
+							FileSearchStoreNames: p.Generation.DetailedOptions.FileSearchStores,
 						},
 					})
 				}
 
 				// check if prompt has any http url in it,
-				if !p.Generation.KeepURLsAsIs {
-					if urlsInPrompt(p) && !p.Generation.GenerateImages && !p.Generation.GenerateVideos && !p.Generation.GenerateSpeech {
+				if !p.Generation.FetchContents.KeepURLsAsIs {
+					if urlsInPrompt(p) && !p.Generation.Image.GenerateImages && !p.Generation.Video.GenerateVideos && !p.Generation.Speech.GenerateSpeech {
 						tools = append(tools, genai.Tool{
 							URLContext: &genai.URLContext{},
 						})
@@ -453,17 +453,17 @@ func run(
 					writer,
 					conf.TimeoutSeconds,
 					gtc,
-					*p.Generation.SystemInstruction,
-					p.Generation.Temperature,
-					p.Generation.TopP,
-					p.Generation.TopK,
+					*p.Generation.DetailedOptions.SystemInstruction,
+					p.Generation.DetailedOptions.Temperature,
+					p.Generation.DetailedOptions.TopP,
+					p.Generation.DetailedOptions.TopK,
 					prompts,
 					promptFiles,
 					p.Generation.Filepaths,
 					p.OverrideFileMIMEType,
-					p.Generation.ThinkingOn, p.Generation.ThinkingLevel, p.Generation.ShowThinking, nil,
+					p.Generation.ThinkingOn, p.Generation.DetailedOptions.ThinkingLevel, p.Generation.DetailedOptions.ShowThinking, nil,
 					p.Generation.GroundingOn,
-					p.Generation.WithGoogleMaps, p.Generation.GoogleMapsLatitude, p.Generation.GoogleMapsLongitude,
+					p.Generation.GoogleMaps.WithGoogleMaps, p.Generation.GoogleMaps.Latitude, p.Generation.GoogleMaps.Longitude,
 					p.Caching.CachedContextName,
 					p.Tools.ShowCallbackResults,
 					p.Tools.RecurseOnCallbackResults,
@@ -475,9 +475,9 @@ func run(
 					p.LocalTools.ToolCallbacksConfirm,
 					allMCPConnections,
 					p.Generation.OutputAsJSON,
-					p.Generation.GenerateImages, p.Generation.SaveImagesToFiles, p.Generation.SaveImagesToDir,
-					p.Generation.GenerateVideos, p.Generation.ReferenceImagesForVideo, p.Generation.SaveVideosToDir, p.Generation.NumGeneratedVideos, p.Generation.GeneratedVideosDurationSeconds, p.Generation.GeneratedVideosFPS,
-					p.Generation.GenerateSpeech, p.Generation.SpeechLanguage, p.Generation.SpeechVoice, p.Generation.SpeechVoices, p.Generation.SaveSpeechToDir,
+					p.Generation.Image.GenerateImages, p.Generation.Image.SaveToFiles, p.Generation.Image.SaveToDir,
+					p.Generation.Video.GenerateVideos, p.Generation.Video.ReferenceImages, p.Generation.Video.SaveToDir, p.Generation.Video.NumGenerated, p.Generation.Video.GeneratedDurationSeconds, p.Generation.Video.GeneratedFPS,
+					p.Generation.Speech.GenerateSpeech, p.Generation.Speech.Language, p.Generation.Speech.Voice, p.Generation.Speech.Voices, p.Generation.Speech.SaveToDir,
 					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,
 					p.Verbose,
@@ -512,7 +512,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.Generation.SystemInstruction,
+				*p.Generation.DetailedOptions.SystemInstruction,
 				nil, // prompt not given
 				nil, // prompt not given
 				p.Generation.Filepaths,

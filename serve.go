@@ -62,8 +62,8 @@ func serve(
 	}
 
 	// set default values
-	if p.Generation.UserAgent == nil {
-		p.Generation.UserAgent = ptr(defaultFetchUserAgent)
+	if p.Generation.FetchContents.UserAgent == nil {
+		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
 	}
 
 	// check existence of essential parameters here
@@ -317,14 +317,14 @@ If there was any newly-created file, make sure to report to the user about the f
 					}
 
 					// get system instruction,
-					p.Generation.SystemInstruction = nil
+					p.Generation.DetailedOptions.SystemInstruction = nil
 					switch *modality {
 					case "text":
-						if p.Generation.SystemInstruction == nil {
+						if p.Generation.DetailedOptions.SystemInstruction == nil {
 							if conf.SystemInstruction != nil {
-								p.Generation.SystemInstruction = conf.SystemInstruction
+								p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
 							} else {
-								p.Generation.SystemInstruction = ptr(defaultSystemInstruction())
+								p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
 							}
 						}
 					}
