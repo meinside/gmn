@@ -315,7 +315,7 @@ func replaceURLsInPrompt(
 	conf config,
 	p params,
 ) (replaced string, files map[customURLInPrompt][]byte) {
-	userAgent := *p.Generation.UserAgent
+	userAgent := *p.Generation.FetchContents.UserAgent
 	prompt := *p.Generation.Prompt
 	vbs := p.Verbose
 
@@ -748,6 +748,61 @@ func openFilesForPrompt(
 	}
 
 	return files, nil
+}
+
+// convert reference images for video generation
+func convertReferenceImagesForVideoGeneration(
+	ctx context.Context,
+	gtc *gt.Client,
+	referenceImages map[string]string,
+) (converted []*genai.VideoGenerationReferenceImage, err error) {
+	for fpath, referenceType := range referenceImages {
+		var image *genai.Image
+
+		if file, err := os.Open(expandPath(fpath)); err == nil {
+			defer func() { _ = file.Close() }()
+
+			switch gtc.Type {
+			case genai.BackendGeminiAPI:
+				if bytes, err := io.ReadAll(file); err == nil {
+					image = &genai.Image{
+						ImageBytes: bytes,
+						MIMEType:   mimetype.Detect(bytes).String(),
+					}
+				} else {
+					return nil, fmt.Errorf("failed to read reference image file %s: %w", fpath, err)
+				}
+			case genai.BackendVertexAI:
+				if uploaded, err := gtc.UploadFile(ctx, file, filepath.Base(fpath)); err == nil {
+					image = &genai.Image{
+						GCSURI:   uploaded.URI,
+						MIMEType: uploaded.MIMEType,
+					}
+				} else {
+					return nil, fmt.Errorf("failed to upload reference image file %s: %w", fpath, err)
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("failed to open reference image file %s: %w", fpath, err)
+		}
+
+		switch strings.ToUpper(referenceType) {
+		case string(genai.VideoGenerationReferenceTypeAsset):
+			converted = append(converted, &genai.VideoGenerationReferenceImage{
+				Image:         image,
+				ReferenceType: genai.VideoGenerationReferenceTypeAsset,
+			})
+		case string(genai.VideoGenerationReferenceTypeStyle):
+			converted = append(converted, &genai.VideoGenerationReferenceImage{
+				Image:         image,
+				ReferenceType: genai.VideoGenerationReferenceTypeStyle,
+			})
+		default:
+			return nil, fmt.Errorf("invalid reference type: %s", referenceType)
+		}
+	}
+
+	return converted, err
 }
 
 // print image to terminal which supports sixel
@@ -1300,136 +1355,67 @@ func gtClient(
 	return nil, fmt.Errorf("failed to create gemini-things client: %w", err)
 }
 
-// helper function for returning the first text, image, and video from given prompts
-func promptImageOrVideoFromPrompts(writer *outputWriter, prompts []gt.Prompt) (prompt *string, image *genai.Image, video *genai.Video) {
-	for i, p := range prompts {
-		switch p := p.(type) { // FIXME: currently ignoring forced mime types
-		case gt.TextPrompt:
-			if prompt == nil {
-				prompt = &p.Text
-			}
-		case gt.FilePrompt:
-			if p.Data != nil {
-				if strings.HasPrefix(p.Data.MIMEType, "image/") {
-					if image == nil {
-						image = &genai.Image{
-							GCSURI:   p.Data.FileURI,
-							MIMEType: p.Data.MIMEType,
-						}
-					} else {
-						writer.warn(
-							"Ignoring image at prompts[%d], because only 1 image is allowed.",
-							i,
-						)
-					}
-				} else if strings.HasPrefix(p.Data.MIMEType, "video/") {
-					if video == nil {
-						video = &genai.Video{
-							URI:      p.Data.FileURI,
-							MIMEType: p.Data.MIMEType,
-						}
-					} else {
-						writer.warn(
-							"Ignoring video at prompts[%d], because only 1 video is allowed.",
-							i,
-						)
-					}
-				}
-			} else {
-				if mime, bytes, recycled, err := readAndRecycle(p.Reader); err == nil {
-					mimeType := mime.String()
+// helper function for returning the first-appearing text,
+// images(first/last frame images), and video from given prompts
+func promptImageOrVideoFromPrompts(
+	writer *outputWriter,
+	files []openedFile,
+) (
+	firstFrame *genai.Image,
+	lastFrame *genai.Image,
+	videoForExtension *genai.Video,
+	err error,
+) {
+	for i, f := range files {
+		if bytes, err := io.ReadAll(f.reader); err == nil {
+			mimeType := mimetype.Detect(bytes).String()
 
-					p.Reader = recycled
-					prompts[i] = p
-
-					if strings.HasPrefix(mimeType, "image/") {
-						if image == nil {
-							image = &genai.Image{
-								ImageBytes: bytes,
-								MIMEType:   mimeType,
-							}
-						} else {
-							writer.warn(
-								"Ignoring image at prompts[%d], because only 1 image is allowed.",
-								i,
-							)
-						}
-					} else if strings.HasPrefix(mimeType, "video/") {
-						if video == nil {
-							video = &genai.Video{
-								VideoBytes: bytes,
-								MIMEType:   mimeType,
-							}
-						} else {
-							writer.warn(
-								"Ignoring video at prompts[%d], because only 1 video is allowed.",
-							)
-						}
+			if strings.HasPrefix(mimeType, "image/") {
+				if firstFrame == nil {
+					firstFrame = &genai.Image{
+						ImageBytes: bytes,
+						MIMEType:   mimeType,
+					}
+				} else if lastFrame == nil {
+					lastFrame = &genai.Image{
+						ImageBytes: bytes,
+						MIMEType:   mimeType,
 					}
 				} else {
 					writer.warn(
-						"Failed to read file at prompts[%d]: %s",
+						"Ignoring image at prompts[%d], because up to two images (first & last frame images) are allowed.",
 						i,
-						err,
+					)
+				}
+			} else if strings.HasPrefix(mimeType, "video/") {
+				if videoForExtension == nil {
+					videoForExtension = &genai.Video{
+						VideoBytes: bytes,
+						MIMEType:   mimeType,
+					}
+				} else {
+					writer.warn(
+						"Ignoring video at prompts[%d], because only one video file is allowed.",
 					)
 				}
 			}
-		case gt.URIPrompt:
-			if strings.HasPrefix(p.MIMEType, "image/") {
-				if image == nil {
-					image = &genai.Image{
-						GCSURI:   p.URI,
-						MIMEType: p.MIMEType,
-					}
-				} else {
-					writer.warn(
-						"Ignoring image at prompts[%d], because only 1 image is allowed.",
-						i,
-					)
-				}
-			} else if strings.HasPrefix(p.MIMEType, "video/") {
-				if video == nil {
-					video = &genai.Video{
-						URI:      p.URI,
-						MIMEType: p.MIMEType,
-					}
-				} else {
-					writer.warn(
-						"Ignoring video at prompts[%d], because only 1 video is allowed.",
-						i,
-					)
-				}
-			}
-		case gt.BytesPrompt:
-			if strings.HasPrefix(p.MIMEType, "image/") {
-				if image == nil {
-					image = &genai.Image{
-						ImageBytes: p.Bytes,
-						MIMEType:   p.MIMEType,
-					}
-				} else {
-					writer.warn(
-						"Ignoring image at prompts[%d], because only 1 image is allowed.",
-						i,
-					)
-				}
-			} else if strings.HasPrefix(p.MIMEType, "video/") {
-				if video == nil {
-					video = &genai.Video{
-						VideoBytes: p.Bytes,
-						MIMEType:   p.MIMEType,
-					}
-				} else {
-					writer.warn(
-						"Ignoring video at prompts[%d], because only 1 video is allowed.",
-						i,
-					)
-				}
-			}
+		} else {
+			err = fmt.Errorf("failed to read files[%d]: %w", i, err)
 		}
 	}
 
-	return prompt, image, video
+	return firstFrame, lastFrame, videoForExtension, err
+}
+
+// return the first-appearing text prompt (nil if none)
+func firstTextPrompt(prompts []gt.Prompt) *gt.TextPrompt {
+	for _, p := range prompts {
+		switch p := p.(type) {
+		case gt.TextPrompt:
+			return &p
+		}
+	}
+	return nil
 }
 
 // generate safety settings for the client

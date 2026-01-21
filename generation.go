@@ -33,6 +33,8 @@ const (
 	defaultGenerationTemperature = float32(1.0)
 	defaultGenerationTopP        = float32(0.95)
 	defaultGenerationTopK        = int32(20)
+
+	defaultVideoResolution = "1080p"
 )
 
 // generate text with given things
@@ -53,7 +55,7 @@ func doGeneration(
 	mcpConnsAndTools mcpConnectionsAndTools,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
-	generateVideos bool, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
+	generateVideos bool, referenceImagesForVideo map[string]string, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
 	pastGenerations []genai.Content,
 	ignoreUnsupportedType bool,
@@ -291,24 +293,73 @@ func doGeneration(
 			defer cancelGenerate()
 
 			if generateVideos {
+				// read & close files
+				files, err := openFilesForPrompt(nil, filepaths)
+				if err != nil {
+					ch <- result{
+						exit: 1,
+						err:  fmt.Errorf("failed to open files for video generation: %w", err),
+					}
+					return
+				}
+				defer func() {
+					for _, toClose := range files {
+						if err := toClose.Close(); err != nil {
+							writer.error(
+								"Failed to close file: %s",
+								err,
+							)
+						}
+					}
+				}()
+
+				// convert prompts to images and videos
 				var prompt *string
-				var image *genai.Image
-				var video *genai.Video
-				prompt, image, video = promptImageOrVideoFromPrompts(writer, prompts)
+				var firstFrame, lastFrame *genai.Image
+				var videoForExtension *genai.Video
+				firstFrame, lastFrame, videoForExtension, err = promptImageOrVideoFromPrompts(writer, files)
+				if err != nil {
+					ch <- result{
+						exit: 1,
+						err:  fmt.Errorf("failed to open files for video generation: %w", err),
+					}
+					return
+				}
+				if textPrompt := firstTextPrompt(prompts); textPrompt != nil {
+					prompt = &textPrompt.Text
+				}
+
+				// convert reference images
+				var referenceImages []*genai.VideoGenerationReferenceImage
+				if referenceImages, err = convertReferenceImagesForVideoGeneration(ctxGenerate, gtc, referenceImagesForVideo); err != nil {
+					ch <- result{
+						exit: 1,
+						err:  fmt.Errorf("failed to convert reference images for video generation: %w", err),
+					}
+					return
+				}
+
+				options := &genai.GenerateVideosConfig{
+					NumberOfVideos:   numVideos,
+					DurationSeconds:  ptr(videoDurationSeconds),
+					FPS:              ptr(videoFPS),
+					EnhancePrompt:    true,
+					Resolution:       defaultVideoResolution,
+					PersonGeneration: "allow_adult",
+				}
+				if lastFrame != nil {
+					options.LastFrame = lastFrame
+				}
+				if len(referenceImages) > 0 {
+					options.ReferenceImages = referenceImages
+				}
 
 				if res, err := gtc.GenerateVideos(
 					ctxGenerate,
 					prompt,
-					image,
-					video,
-					&genai.GenerateVideosConfig{
-						NumberOfVideos:   numVideos,
-						DurationSeconds:  ptr(videoDurationSeconds),
-						FPS:              ptr(videoFPS),
-						EnhancePrompt:    true,
-						Resolution:       "1080p",
-						PersonGeneration: "allow_adult",
-					},
+					firstFrame,
+					videoForExtension,
+					options,
 				); err == nil {
 					for _, video := range res.GeneratedVideos {
 						var data []byte
@@ -1339,7 +1390,7 @@ func doGeneration(
 				mcpConnsAndTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
-				generateVideos, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
+				generateVideos, referenceImagesForVideo, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
 				pastGenerations,
 				ignoreUnsupportedType,
