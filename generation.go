@@ -55,7 +55,7 @@ func doGeneration(
 	mcpConnsAndTools mcpConnectionsAndTools,
 	outputAsJSON bool,
 	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
-	generateVideos bool, referenceImagesForVideo map[string]string, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
+	generateVideos bool, negativePromptForVideo *string, resolutionForVideo *string, referenceImagesForVideo map[string]string, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
 	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
 	pastGenerations []genai.Content,
 	ignoreUnsupportedType bool,
@@ -344,7 +344,6 @@ func doGeneration(
 					DurationSeconds:  ptr(videoDurationSeconds),
 					FPS:              ptr(videoFPS),
 					EnhancePrompt:    true,
-					Resolution:       defaultVideoResolution,
 					PersonGeneration: "allow_adult",
 				}
 				if lastFrame != nil {
@@ -353,6 +352,13 @@ func doGeneration(
 				if len(referenceImages) > 0 {
 					options.ReferenceImages = referenceImages
 				}
+				if negativePromptForVideo != nil {
+					options.NegativePrompt = *negativePromptForVideo
+				}
+				if resolutionForVideo == nil {
+					resolutionForVideo = ptr(defaultVideoResolution)
+				}
+				options.Resolution = *resolutionForVideo
 
 				if res, err := gtc.GenerateVideos(
 					ctxGenerate,
@@ -1390,7 +1396,7 @@ func doGeneration(
 				mcpConnsAndTools,
 				outputAsJSON,
 				generateImages, saveImagesToFiles, saveImagesToDir,
-				generateVideos, referenceImagesForVideo, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
+				generateVideos, negativePromptForVideo, resolutionForVideo, referenceImagesForVideo, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
 				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
 				pastGenerations,
 				ignoreUnsupportedType,

@@ -187,11 +187,11 @@ func run(
 	if p.Generation.Video.NumGenerated == 0 {
 		p.Generation.Video.NumGenerated = defaultNumGeneratedVideos
 	}
-	if p.Generation.Video.GeneratedDurationSeconds == 0 {
-		p.Generation.Video.GeneratedDurationSeconds = defaultGeneratedVideosDurationSeconds
+	if p.Generation.Video.DurationSeconds == 0 {
+		p.Generation.Video.DurationSeconds = defaultGeneratedVideosDurationSeconds
 	}
-	if p.Generation.Video.GeneratedFPS == 0 {
-		p.Generation.Video.GeneratedFPS = defaultGeneratedVideosFPS
+	if p.Generation.Video.FPS == 0 {
+		p.Generation.Video.FPS = defaultGeneratedVideosFPS
 	}
 	if conf.TimeoutSeconds <= 0 {
 		conf.TimeoutSeconds = defaultTimeoutSeconds
@@ -476,7 +476,7 @@ func run(
 					allMCPConnections,
 					p.Generation.OutputAsJSON,
 					p.Generation.Image.GenerateImages, p.Generation.Image.SaveToFiles, p.Generation.Image.SaveToDir,
-					p.Generation.Video.GenerateVideos, p.Generation.Video.ReferenceImages, p.Generation.Video.SaveToDir, p.Generation.Video.NumGenerated, p.Generation.Video.GeneratedDurationSeconds, p.Generation.Video.GeneratedFPS,
+					p.Generation.Video.GenerateVideos, p.Generation.Video.NegativePrompt, p.Generation.Video.Resolution, p.Generation.Video.ReferenceImages, p.Generation.Video.SaveToDir, p.Generation.Video.NumGenerated, p.Generation.Video.DurationSeconds, p.Generation.Video.FPS,
 					p.Generation.Speech.GenerateSpeech, p.Generation.Speech.Language, p.Generation.Speech.Voice, p.Generation.Speech.Voices, p.Generation.Speech.SaveToDir,
 					nil, // NOTE: first call => no history
 					!p.ErrorOnUnsupportedType,

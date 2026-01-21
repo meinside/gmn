@@ -71,12 +71,14 @@ type params struct {
 
 		// for video generation
 		Video struct {
-			GenerateVideos           bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
-			ReferenceImages          map[string]string `long:"reference-image-for-video" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
-			SaveToDir                *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
-			NumGenerated             int32             `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
-			GeneratedDurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
-			GeneratedFPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
+			GenerateVideos  bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+			NegativePrompt  *string           `long:"negative-prompt-for-videos" description:"Negative prompt for video generation (can be omitted)"`
+			ReferenceImages map[string]string `long:"reference-image-for-videos" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
+			SaveToDir       *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)"`
+			NumGenerated    int32             `long:"num-generated-videos" description:"Number of generated videos (default: 1)"`
+			Resolution      *string           `long:"resolution-for-videos" description:"Resolution for generated videos (default: '1080p')"`
+			DurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds (default: 8)"`
+			FPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos (default: 24)"`
 		} `group:"Video Generation"`
 
 		// for speech generation
