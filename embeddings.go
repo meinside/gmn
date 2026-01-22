@@ -16,13 +16,6 @@ import (
 	gt "github.com/meinside/gemini-things-go"
 )
 
-// embeddings parameter constants
-const (
-	// https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding
-	defaultEmbeddingsChunkSize           uint = 2048 * 2
-	defaultEmbeddingsChunkOverlappedSize uint = 64
-)
-
 // generate embeddings with given things
 func doEmbeddingsGeneration(
 	ctx context.Context,

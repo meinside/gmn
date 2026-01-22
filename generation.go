@@ -26,17 +26,6 @@ import (
 	gt "github.com/meinside/gemini-things-go"
 )
 
-// generation parameter constants
-//
-// (https://ai.google.dev/gemini-api/docs/text-generation?lang=go#configure)
-const (
-	defaultGenerationTemperature = float32(1.0)
-	defaultGenerationTopP        = float32(0.95)
-	defaultGenerationTopK        = int32(20)
-
-	defaultVideoResolution = "1080p"
-)
-
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
@@ -44,6 +33,7 @@ func doGeneration(
 	timeoutSeconds int,
 	gtc *gt.Client,
 	systemInstruction string, temperature, topP *float32, topK *int32,
+	seed *int32,
 	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
 	overrideMimeTypeForExt map[string]string,
 	withThinking bool, thinkingLevel *string, showThinking bool, thoughtSignature []byte,
@@ -97,23 +87,17 @@ func doGeneration(
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)
 	}
 	// (temperature)
-	generationTemperature := defaultGenerationTemperature
-	if temperature != nil {
-		generationTemperature = *temperature
-	}
-	opts.Temperature = ptr(generationTemperature)
+	opts.Temperature = temperature
 	// (topP)
-	generationTopP := defaultGenerationTopP
-	if topP != nil {
-		generationTopP = *topP
-	}
-	opts.TopP = ptr(generationTopP)
+	opts.TopP = topP
 	// (topK)
-	generationTopK := defaultGenerationTopK
 	if topK != nil {
-		generationTopK = *topK
+		opts.TopK = ptr(float32(*topK))
 	}
-	opts.TopK = ptr(float32(generationTopK))
+	// (seed)
+	if seed != nil {
+		opts.Seed = seed
+	}
 	// (tools and tool config)
 	opts.Tools = []*genai.Tool{}
 	for _, tool := range tools {
@@ -356,7 +340,7 @@ func doGeneration(
 					options.NegativePrompt = *negativePromptForVideo
 				}
 				if resolutionForVideo == nil {
-					resolutionForVideo = ptr(defaultVideoResolution)
+					resolutionForVideo = ptr(defaultGeneratedVideosResolution)
 				}
 				options.Resolution = *resolutionForVideo
 
@@ -456,6 +440,8 @@ func doGeneration(
 					return
 				}
 			} else {
+				printedModelVersion := false
+
 				// iterate generated stream
 				for it, err := range gtc.GenerateStreamIterated(
 					ctxGenerate,
@@ -463,6 +449,13 @@ func doGeneration(
 					&opts,
 				) {
 					if err == nil {
+						// print model version
+						if !printedModelVersion && len(it.ModelVersion) > 0 {
+							printedModelVersion = true
+
+							writer.verbose(verboseMinimum, vbs, "model version: %s", it.ModelVersion)
+						}
+
 						// save token usages
 						tokenUsages := []string{}
 						if it.UsageMetadata != nil {
@@ -1385,6 +1378,7 @@ func doGeneration(
 				timeoutSeconds,
 				gtc,
 				systemInstruction, temperature, topP, topK,
+				seed,
 				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
 				overrideMimeTypeForExt,
 				withThinking, thinkingLevel, showThinking, thoughtSignature,

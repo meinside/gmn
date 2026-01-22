@@ -38,28 +38,41 @@ func listModels(
 		return 1, err
 	} else {
 		for _, model := range models {
+			// model name
 			writer.printColored(
 				color.FgHiGreen,
 				"%s",
 				model.Name,
 			)
-			writer.printColored(
-				color.FgHiWhite,
-				` (%s)`,
-				model.DisplayName,
-			)
 
-			writer.printColored(
-				color.FgWhite,
-				`
+			// model display name
+			if len(model.DisplayName) > 0 {
+				writer.printColored(
+					color.FgHiWhite,
+					` (%s)`,
+					model.DisplayName,
+				)
+			}
+
+			// token limits and supported actions
+			if model.InputTokenLimit > 0 && model.OutputTokenLimit > 0 && len(model.SupportedActions) > 0 {
+				writer.printColored(
+					color.FgWhite,
+					`
   > input tokens: %d
   > output tokens: %d
   > supported actions: %s
 `,
-				model.InputTokenLimit,
-				model.OutputTokenLimit,
-				strings.Join(model.SupportedActions, ", "),
-			)
+					model.InputTokenLimit,
+					model.OutputTokenLimit,
+					strings.Join(model.SupportedActions, ", "),
+				)
+			} else {
+				writer.printColored(
+					color.FgWhite,
+					"\n",
+				)
+			}
 		}
 	}
 
