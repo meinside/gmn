@@ -577,7 +577,7 @@ $ gmn --mcp-server-self --config=$HOME/.config/gmn/config.json
 It is for using `gmn` as an external MCP server from other applications.
 
 
-You can even run `gmn` recursively as a MCP server, like:
+You can even run `gmn` itself recursively as a MCP server, like:
 
 ```bash
 $ gmn -p "hello there?" \

@@ -1028,27 +1028,6 @@ func readMimeAndRecycle(input io.Reader) (mimeType *mimetype.MIME, recycled io.R
 	return mtype, recycled, err
 }
 
-// read bytes and  mime type from a `io.Reader` and return a new one for recycling it
-//
-// (altered `readMimeAndRecycle` above)
-func readAndRecycle(input io.Reader) (mimeType *mimetype.MIME, file []byte, recycled io.Reader, err error) {
-	// header will store the bytes mimetype uses for detection.
-	header := bytes.NewBuffer(nil)
-
-	file, err = io.ReadAll(io.TeeReader(input, header))
-	if err != nil {
-		return
-	}
-
-	mtype := mimetype.Detect(file)
-
-	// Concatenate back the header to the rest of the file.
-	// recycled now contains the complete, original data.
-	recycled = io.MultiReader(header, input)
-
-	return mtype, file, recycled, err
-}
-
 // run executable with given args and return its result
 func runExecutable(
 	execPath string,
@@ -1366,8 +1345,9 @@ func promptImageOrVideoFromPrompts(
 	videoForExtension *genai.Video,
 	err error,
 ) {
+	var bytes []byte
 	for i, f := range files {
-		if bytes, err := io.ReadAll(f.reader); err == nil {
+		if bytes, err = io.ReadAll(f.reader); err == nil {
 			mimeType := mimetype.Detect(bytes).String()
 
 			if strings.HasPrefix(mimeType, "image/") {
@@ -1401,6 +1381,7 @@ func promptImageOrVideoFromPrompts(
 			}
 		} else {
 			err = fmt.Errorf("failed to read files[%d]: %w", i, err)
+			break
 		}
 	}
 

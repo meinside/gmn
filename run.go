@@ -185,7 +185,7 @@ func run(
 		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
 	}
 	if p.Generation.Video.NumGenerated == 0 {
-		p.Generation.Video.NumGenerated = defaultNumGeneratedVideos
+		p.Generation.Video.NumGenerated = defaultGeneratedVideosCount
 	}
 	if p.Generation.Video.DurationSeconds == 0 {
 		p.Generation.Video.DurationSeconds = defaultGeneratedVideosDurationSeconds
@@ -453,10 +453,8 @@ func run(
 					writer,
 					conf.TimeoutSeconds,
 					gtc,
-					*p.Generation.DetailedOptions.SystemInstruction,
-					p.Generation.DetailedOptions.Temperature,
-					p.Generation.DetailedOptions.TopP,
-					p.Generation.DetailedOptions.TopK,
+					*p.Generation.DetailedOptions.SystemInstruction, p.Generation.DetailedOptions.Temperature, p.Generation.DetailedOptions.TopP, p.Generation.DetailedOptions.TopK,
+					p.Generation.DetailedOptions.Seed,
 					prompts,
 					promptFiles,
 					p.Generation.Filepaths,

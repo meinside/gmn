@@ -38,7 +38,7 @@ const (
 	// default system instruction
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API.
 
-Current datetime is %[2]s, and hostname is '%[3]s'.
+Current datetime is %[2]s, and the hostname is '%[3]s'.
 
 Respond to user messages according to the following principles:
 - Do not repeat the user's request and return only the response to the user's request.
@@ -51,16 +51,25 @@ Respond to user messages according to the following principles:
 `
 
 	// default values for generation
-	defaultNumGeneratedVideos             = 1
+	//
+	// https://ai.google.dev/gemini-api/docs/text-generation?lang=go#configure
+	defaultGeneratedVideosCount           = 1
 	defaultGeneratedVideosDurationSeconds = 8
 	defaultGeneratedVideosFPS             = 24
+	defaultGeneratedVideosResolution      = `1080p`
 
-	// other default parameters
+	// embeddings parameter constants
+	//
+	// https://ai.google.dev/gemini-api/docs/embeddings
+	defaultEmbeddingsChunkSize           uint = 2048 * 2
+	defaultEmbeddingsChunkOverlappedSize uint = 64
+
+	// other default parameters or constants
 	defaultTimeoutSeconds                  = 5 * 60 // 5 minutes
 	defaultFetchURLTimeoutSeconds          = 10     // 10 seconds
 	defaultFetchUserAgent           string = `gmn/fetcher`
-	defaultLocation                 string = `global`
-	defaultBucketNameForFileUploads string = `gmn-file-uploads`
+	defaultLocation                 string = `global`           // location for Google Cloud Platform
+	defaultBucketNameForFileUploads string = `gmn-file-uploads` // Google Cloud Storage bucket name
 )
 
 // config struct
