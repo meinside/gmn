@@ -160,21 +160,60 @@ func run(
 		}
 	}
 
-	// override command arguments with values from configs
-	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
-		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
-	}
-	if conf.GoogleCredentialsFilepath != nil && p.Configuration.CredentialsFilepath == nil {
-		p.Configuration.CredentialsFilepath = conf.GoogleCredentialsFilepath
-	}
+	// check if essential values are conflicting with each other
 	if p.Configuration.GoogleAIAPIKey != nil && p.Configuration.CredentialsFilepath != nil {
-		return 1, fmt.Errorf("google AI API Key and credentials file cannot be specified at the same time")
+		return 1, fmt.Errorf("parameters for google AI API Key and credentials file cannot be specified at the same time")
 	}
-
-	// check existence of essential parameters here
+	if conf.GoogleAIAPIKey != nil && conf.GoogleCredentialsFilepath != nil {
+		return 1, fmt.Errorf("configurations for google AI API Key and credentials file cannot be specified at the same time")
+	}
 	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil &&
 		conf.GoogleCredentialsFilepath == nil && p.Configuration.CredentialsFilepath == nil {
 		return 1, fmt.Errorf("both google AI API key and credentials filepath are missing")
+	}
+
+	// override values
+	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using API key from configuration file: %s",
+			*conf.GoogleAIAPIKey,
+		)
+
+		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
+		p.Configuration.CredentialsFilepath = nil
+	} else if p.Configuration.GoogleAIAPIKey != nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using API key from input parameters (overriding the one from config file): %s",
+			*p.Configuration.GoogleAIAPIKey,
+		)
+
+		conf.GoogleAIAPIKey = p.Configuration.GoogleAIAPIKey
+		conf.GoogleCredentialsFilepath = nil
+	}
+	if conf.GoogleCredentialsFilepath != nil && p.Configuration.CredentialsFilepath == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using credentials filepath from configuration file: %s",
+			*conf.GoogleCredentialsFilepath,
+		)
+
+		p.Configuration.CredentialsFilepath = conf.GoogleCredentialsFilepath
+		p.Configuration.GoogleAIAPIKey = nil
+	} else if p.Configuration.CredentialsFilepath != nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using credentials filepath from input parameters (overriding the one from config file): %s",
+			*p.Configuration.CredentialsFilepath,
+		)
+
+		conf.GoogleCredentialsFilepath = p.Configuration.CredentialsFilepath
+		conf.GoogleAIAPIKey = nil
 	}
 
 	// fallback to default values
