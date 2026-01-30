@@ -979,35 +979,39 @@ Make sure to report to the user if this function was called and the specified fi
 				// read a file at filepath
 				var content []byte
 				if content, err = os.ReadFile(*filepath); err == nil {
-					result := struct {
-						Filepath string `json:"filepath"`
-						Content  string `json:"content"`
-					}{
-						Filepath: *filepath,
-						Content:  string(content),
-					}
+					mimeType := mimetype.Detect(content)
+					if mimeType.Is("text/plain") {
+						result := struct {
+							Filepath string `json:"filepath"`
+							Content  string `json:"content"`
+						}{
+							Filepath: *filepath,
+							Content:  string(content),
+						}
 
-					var marshalled []byte
-					if marshalled, err = json.Marshal(result); err == nil {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: string(marshalled),
+						var marshalled []byte
+						if marshalled, err = json.Marshal(result); err == nil {
+							return &mcp.CallToolResult{
+								Content: []mcp.Content{
+									&mcp.TextContent{
+										Text: string(marshalled),
+									},
 								},
-							},
-							StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-						}, nil
+								StructuredContent: json.RawMessage(marshalled), // structured (JSON)
+							}, nil
+						} else {
+							return &mcp.CallToolResult{
+								Content: []mcp.Content{
+									&mcp.TextContent{
+										Text: fmt.Sprintf("Failed to marshal read file: %s", err),
+									},
+								},
+								IsError: true,
+							}, nil
+						}
 					} else {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: fmt.Sprintf("Failed to marshal read file: %s", err),
-								},
-							},
-							IsError: true,
-						}, nil
+						err = fmt.Errorf("given file '%s' is not in text/plain format: %s", *filepath, mimeType.String())
 					}
-
 				}
 			} else {
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)

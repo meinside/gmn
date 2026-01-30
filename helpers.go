@@ -92,7 +92,10 @@ func standardizeJSON(b []byte) ([]byte, error) {
 }
 
 // check if given directory should be ignored
-func ignoredDirectory(writer *outputWriter, path string) bool {
+func ignoredDirectory(
+	writer *outputWriter,
+	path string,
+) bool {
 	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
 		writer.print(
 			verboseMedium,
@@ -1169,7 +1172,10 @@ func prettify(v any, flatten ...bool) string {
 }
 
 // unmarshalJSONFromBytes handles standardizing and unmarshaling JSON bytes.
-func unmarshalJSONFromBytes(data *string, target any) error {
+func unmarshalJSONFromBytes(
+	data *string,
+	target any,
+) error {
 	if data == nil {
 		return nil // No data to unmarshal
 	}
