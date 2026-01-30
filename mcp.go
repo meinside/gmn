@@ -138,7 +138,10 @@ func keysFromTools(
 }
 
 // get a matched server name and tool from given mcp tools and function name
-func mcpToolFrom(mcpConnsAndTools mcpConnectionsAndTools, fnName string) (serverKey string, serverType mcpServerType, mc *mcp.ClientSession, tool mcp.Tool, exists bool) {
+func mcpToolFrom(
+	mcpConnsAndTools mcpConnectionsAndTools,
+	fnName string,
+) (serverKey string, serverType mcpServerType, mc *mcp.ClientSession, tool mcp.Tool, exists bool) {
 	for serverKey, connsAndTools := range mcpConnsAndTools {
 		for _, tool := range connsAndTools.tools {
 			if tool != nil && tool.Name == fnName {
@@ -299,7 +302,10 @@ func fetchMCPToolCallResult(
 }
 
 // strip sensitive information from given server info
-func stripServerInfo(serverType mcpServerType, info string) string {
+func stripServerInfo(
+	serverType mcpServerType,
+	info string,
+) string {
 	switch serverType {
 	case mcpServerStreamable:
 		return strings.Split(info, "?")[0]
