@@ -604,8 +604,7 @@ $ gmn -p "tell me what function call tools are available" -T -r
 
 $ gmn -p "generate images of cute chihuahua puppies" \
     --mcp-tool-self \
-    -r \
-    --save-images-to-dir=~/Downloads
+    -r
 ```
 
 ### Generate Embeddings
