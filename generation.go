@@ -110,7 +110,14 @@ func doGeneration(
 	for _, connsAndTools := range mcpConnsAndTools {
 		if geminiTools, err := gt.MCPToGeminiTools(connsAndTools.tools); err == nil {
 			if len(opts.Tools) > 0 {
-				opts.Tools[0].FunctionDeclarations = append(opts.Tools[0].FunctionDeclarations, geminiTools...)
+				last := len(opts.Tools) - 1
+				if len(opts.Tools[last].FunctionDeclarations) > 0 {
+					opts.Tools[last].FunctionDeclarations = append(opts.Tools[last].FunctionDeclarations, geminiTools...)
+				} else {
+					opts.Tools = append(opts.Tools, &genai.Tool{
+						FunctionDeclarations: geminiTools,
+					})
+				}
 			} else {
 				opts.Tools = append(opts.Tools, &genai.Tool{
 					FunctionDeclarations: geminiTools,
