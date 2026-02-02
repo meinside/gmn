@@ -186,9 +186,10 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_generate`,
-			Description: `This function generates texts/images/speeches by processing the given 'prompt'.
+			Description: `This function generates texts/images/speeches by processing the given 'prompt' and optional parameters.
 
-If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
+* NOTE:
+- If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -595,7 +596,8 @@ If there was any newly-created file, make sure to report to the user about the f
 			Name: `gmn_get_cwd`,
 			Description: `This function returns the current working directory (absolute path).
 
-It is advised to call this function before performing any task which handles filepaths.
+* NOTE:
+- It is advised to call this function before performing any task which handles filepaths.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -659,7 +661,8 @@ It is advised to call this function before performing any task which handles fil
 			Name: `gmn_stat_file`,
 			Description: `This function returns the state of a file or directory.
 
-It is advised to call this function before accessing or handling files and/or directories.
+* NOTE:
+- It is advised to call this function before accessing or handling files and/or directories.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -743,7 +746,8 @@ It is advised to call this function before accessing or handling files and/or di
 			Name: `gmn_get_mimetype`,
 			Description: `This function returns the mime type of a file at given path.
 
-It is advised to call this function before reading a file.
+* NOTE:
+- It is advised to call this function before reading a file.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -931,7 +935,8 @@ It is advised to call this function before reading a file.
 			Name: `gmn_read_text_file`,
 			Description: `This function reads a plain text file at a given filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully read.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully read.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1036,10 +1041,13 @@ Make sure to report to the user if this function was called and the specified fi
 		tool: mcp.Tool{
 			Name: `gmn_create_text_file`,
 			Description: `This function creates a plain text file at a given filepath.
-There should not be an existing file at the given path.
-And this function should not be used for creating binary files due to the risk of file corruption.
 
-Make sure to report to the user if this function was called and the specified file was successfully created.
+* CAUTION:
+- There should not be an existing file at the given path.
+- This function should not be used for creating binary files due to the risk of file corruption.
+
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully created.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1135,7 +1143,8 @@ Make sure to report to the user if this function was called and the specified fi
 			Name: `gmn_delete_file`,
 			Description: `This function deletes a file at a given filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully deleted.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully deleted.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1214,7 +1223,8 @@ Make sure to report to the user if this function was called and the specified fi
 			Name: `gmn_move_file`,
 			Description: `This function moves a file at a given filepath to another filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully moved.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully moved.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1304,9 +1314,13 @@ Make sure to report to the user if this function was called and the specified fi
 		tool: mcp.Tool{
 			Name: `gmn_run_cmdline`,
 			Description: fmt.Sprintf(`This function executes a given bash commandline and returns the resulting output.
-The commandline must be in one line, and should be escaped correctly.
-Never pass malicious input or non-existing commands to this function, as it will be executed as a shell command.
-This function will fail with timeout if the commandline takes %d seconds or longer to finish.
+
+* RULES:
+- The commandline must be in one line, and should be escaped correctly.
+
+* CAUTION:
+- Never pass malicious input or non-existing commands to this function, as it will be executed as a shell command.
+- This function will fail with timeout if the commandline takes %d seconds or longer to finish.
 `, commandTimeoutSeconds),
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
