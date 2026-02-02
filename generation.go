@@ -227,8 +227,15 @@ func doGeneration(
 	writer.verbose(
 		verboseMaximum,
 		vbs,
-		"with prompts: %v",
-		prompts,
+		"with prompts: %s",
+		prettify(prompts),
+	)
+
+	writer.verbose(
+		verboseMaximum,
+		vbs,
+		"with past generations: %s",
+		prettify(pastGenerations),
 	)
 
 	writer.verbose(

@@ -1368,10 +1368,12 @@ func promptImageOrVideoFromPrompts(
 						MIMEType:   mimeType,
 					}
 				} else {
-					writer.warn(
-						"Ignoring image at prompts[%d], because up to two images (first & last frame images) are allowed.",
-						i,
-					)
+					if writer != nil {
+						writer.warn(
+							"Ignoring image at prompts[%d], because up to two images (first & last frame images) are allowed.",
+							i,
+						)
+					}
 				}
 			} else if strings.HasPrefix(mimeType, "video/") {
 				if videoForExtension == nil {
@@ -1380,9 +1382,11 @@ func promptImageOrVideoFromPrompts(
 						MIMEType:   mimeType,
 					}
 				} else {
-					writer.warn(
-						"Ignoring video at prompts[%d], because only one video file is allowed.",
-					)
+					if writer != nil {
+						writer.warn(
+							"Ignoring video at prompts[%d], because only one video file is allowed.",
+						)
+					}
 				}
 			}
 		} else {
