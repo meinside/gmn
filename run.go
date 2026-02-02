@@ -461,13 +461,15 @@ func run(
 
 				// check if prompt has any http url in it,
 				if !p.Generation.FetchContents.KeepURLsAsIs {
-					if urlsInPrompt(p) && !p.Generation.Image.GenerateImages && !p.Generation.Video.GenerateVideos && !p.Generation.Speech.GenerateSpeech {
+					if urlsInPrompt(p) &&
+						!p.Generation.Image.GenerateImages &&
+						!p.Generation.Video.GenerateVideos &&
+						!p.Generation.Speech.GenerateSpeech {
 						tools = append(tools, genai.Tool{
 							URLContext: &genai.URLContext{},
 						})
 					}
 				}
-
 				// gemini things client
 				gtc, err := gtClient(
 					conf,
