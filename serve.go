@@ -5,10 +5,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -188,10 +191,10 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_generate`,
-			Description: `This function generates texts/images/speeches by processing the given 'prompt' and optional parameters.
+			Description: `This function generates texts/images/speeches/videos by processing the given 'prompt' and optional parameters.
 
-			- If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
 * NOTE:
+- If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -560,7 +563,7 @@ func buildSelfServer(
 													fpath := genFilepath(
 														mimeType,
 														"image",
-														nil,
+														p.Generation.Image.SaveToDir,
 													)
 													if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
 														content = append(content,
@@ -613,7 +616,7 @@ func buildSelfServer(
 													fpath := genFilepath(
 														mimeType,
 														"audio",
-														nil,
+														p.Generation.Speech.SaveToDir,
 													)
 													if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
 														content = append(content,
@@ -832,7 +835,7 @@ func buildSelfServer(
 										fpath := genFilepath(
 											mimeType,
 											"video",
-											nil,
+											p.Generation.Video.SaveToDir,
 										)
 										if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
 											content = append(content,
@@ -1522,20 +1525,20 @@ func buildSelfServer(
 				Type:     "object",
 				ReadOnly: true,
 				Properties: map[string]*jsonschema.Schema{
-					"fromFilepath": {
-						Title:       "fromFilepath",
+					"from": {
+						Title:       "from",
 						Description: `An original path (absolute) of a file that will be moved.`,
 						Type:        "string",
 					},
-					"toFilepath": {
-						Title:       "toFilepath",
+					"to": {
+						Title:       "to",
 						Description: `A destination path (absolute) of a moved file.`,
 						Type:        "string",
 					},
 				},
 				Required: []string{
-					"fromFilepath",
-					"toFilepath",
+					"from",
+					"to",
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
@@ -1563,12 +1566,12 @@ func buildSelfServer(
 				}, nil
 			}
 
-			// get 'fromFilepath',
+			// get 'from',
 			var fromFilepath *string
-			fromFilepath, err = gt.FuncArg[string](args, "fromFilepath")
+			fromFilepath, err = gt.FuncArg[string](args, "from")
 			if err == nil {
 				var toFilepath *string
-				toFilepath, err = gt.FuncArg[string](args, "toFilepath")
+				toFilepath, err = gt.FuncArg[string](args, "to")
 				if err == nil {
 					// move file
 					if err = os.Rename(*fromFilepath, *toFilepath); err == nil {
@@ -1581,10 +1584,10 @@ func buildSelfServer(
 						}, nil
 					}
 				} else {
-					err = fmt.Errorf("failed to get parameter 'toFilepath': %w", err)
+					err = fmt.Errorf("failed to get parameter 'to': %w", err)
 				}
 			} else {
-				err = fmt.Errorf("failed to get parameter 'fromFilepath': %w", err)
+				err = fmt.Errorf("failed to get parameter 'from': %w", err)
 			}
 
 			return &mcp.CallToolResult{
@@ -1714,6 +1717,212 @@ func buildSelfServer(
 						Text: fmt.Sprintf(
 							"Failed to execute cmdline '%s': %s",
 							*cmdline,
+							err,
+						),
+					},
+				},
+				IsError: true,
+			}, nil
+		},
+	})
+	//
+	// do http request
+	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
+		tool: mcp.Tool{
+			Name: `gmn_do_http`,
+			Description: `This function sends a HTTP request and returns the response.
+`,
+			Annotations: &mcp.ToolAnnotations{
+				DestructiveHint: ptr(true),
+			},
+			InputSchema: &jsonschema.Schema{
+				Type:     "object",
+				ReadOnly: true,
+				Properties: map[string]*jsonschema.Schema{
+					"method": {
+						Title:       "method",
+						Description: `HTTP request method.`,
+						Type:        "string",
+						Enum: []any{
+							"GET",
+							"POST",
+							"DELETE",
+							"PUT",
+						},
+					},
+					"url": {
+						Title:       "url",
+						Description: `HTTP request URL.`,
+						Type:        "string",
+					},
+					"headers": {
+						Title:       "headers",
+						Description: `HTTP request headers. Keys and values are all strings.`,
+						Type:        "object",
+					},
+					"params": {
+						Title:       "params",
+						Description: `HTTP request parameters, especially for GET/DELETE requests.`,
+						Type:        "object",
+					},
+					"body": {
+						Title: "body",
+						Description: `HTTP request body, especially for POST/PUT requests.
+
+* NOTE:
+Mime type of this parameter should also be specified in the 'Content-Type' header, eg. 'application/json', with the 'headers' parameter.`,
+						Type: "string",
+					},
+				},
+				Required: []string{
+					"method",
+					"url",
+				},
+			},
+		},
+		handler: func(
+			ctx context.Context,
+			request *mcp.CallToolRequest,
+		) (result *mcp.CallToolResult, err error) {
+			// convert arguments
+			var args map[string]any
+			if json.Unmarshal(request.Params.Arguments, &args) != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{
+							Text: fmt.Sprintf(
+								"Failed to convert arguments to `%T`: %s",
+								args,
+								err,
+							),
+						},
+					},
+					IsError: true,
+				}, nil
+			}
+
+			// get 'method'
+			var method *string
+			if method, err = gt.FuncArg[string](args, "method"); err == nil {
+				// get 'url'
+				var urlString *string
+				if urlString, err = gt.FuncArg[string](args, "url"); err == nil {
+					if u, uerr := url.Parse(*urlString); uerr == nil {
+						// get 'headers'
+						var headers *map[string]any
+						if headers, err = gt.FuncArg[map[string]any](args, "headers"); err != nil {
+							writer.error("failed to get parameter 'headers': %w", err)
+						}
+
+						// get 'params'
+						var params *map[string]any
+						if params, err = gt.FuncArg[map[string]any](args, "params"); err != nil {
+							writer.error("failed to get parameter 'params': %w", err)
+						}
+
+						// get 'body'
+						var body *string
+						if body, err = gt.FuncArg[string](args, "body"); err != nil {
+							writer.error("failed to get parameter 'body': %w", err)
+						}
+
+						hc := http.DefaultClient
+						var req *http.Request
+						switch *method {
+						case "GET", "DELETE":
+							req, err = http.NewRequest(*method, u.String(), nil)
+							if params != nil {
+								q := req.URL.Query()
+								for k, v := range *params {
+									q.Add(k, fmt.Sprintf("%v", v))
+								}
+								req.URL.RawQuery = q.Encode()
+							}
+						case "POST", "PUT":
+							var reader *bytes.Reader
+							if body != nil {
+								reader = bytes.NewReader([]byte(*body))
+							}
+							req, err = http.NewRequest(*method, u.String(), reader)
+						default:
+							return &mcp.CallToolResult{
+								Content: []mcp.Content{
+									&mcp.TextContent{
+										Text: fmt.Sprintf("not a supported 'method' for http request: %s", err),
+									},
+								},
+								IsError: true,
+							}, nil
+						}
+
+						if err == nil {
+							// headers
+							if headers != nil {
+								for k, v := range *headers {
+									req.Header.Set(k, fmt.Sprintf("%v", v))
+								}
+							}
+
+							var resp *http.Response
+							var body []byte
+							if resp, err = hc.Do(req); err == nil {
+								defer func() { _ = resp.Body.Close() }()
+
+								body, err = io.ReadAll(resp.Body)
+							}
+
+							var marshalled []byte
+							if marshalled, err = json.Marshal(struct {
+								RequestedMethod string `json:"requestedMethod"`
+								RequestedURL    string `json:"requestedUrl"`
+
+								Status  int                 `json:"status"`
+								Headers map[string][]string `json:"headers,omitempty"`
+								Body    string              `json:"body"`
+							}{
+								RequestedMethod: *method,
+								RequestedURL:    *urlString,
+
+								Status:  resp.StatusCode,
+								Headers: resp.Header,
+								Body:    string(body),
+							}); err == nil {
+								return &mcp.CallToolResult{
+									Content: []mcp.Content{
+										&mcp.TextContent{
+											Text: string(marshalled),
+										},
+									},
+									StructuredContent: json.RawMessage(marshalled), // structured (JSON)
+								}, nil
+							} else {
+								return &mcp.CallToolResult{
+									Content: []mcp.Content{
+										&mcp.TextContent{
+											Text: fmt.Sprintf("Failed to marshal http response: %s", err),
+										},
+									},
+									IsError: true,
+								}, nil
+							}
+						} else {
+							err = fmt.Errorf("failed to do http request: %w", err)
+						}
+					} else {
+						err = fmt.Errorf("invalid url '%s': %w", *urlString, err)
+					}
+				} else {
+					err = fmt.Errorf("failed to get parameter 'url': %w", err)
+				}
+			} else {
+				err = fmt.Errorf("failed to get parameter 'method': %w", err)
+			}
+
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{
+						Text: fmt.Sprintf(
+							"Failed to do HTTP request: %s",
 							err,
 						),
 					},
