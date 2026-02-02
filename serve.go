@@ -8,12 +8,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -24,7 +26,7 @@ import (
 )
 
 const (
-	mcpFunctionTimeoutSeconds = 60
+	mcpFunctionTimeoutSeconds = 3 * 60
 
 	commandTimeoutSeconds = 30
 )
@@ -186,9 +188,10 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_generate`,
-			Description: `This function generates texts/images/speeches by processing the given 'prompt'.
+			Description: `This function generates texts/images/speeches by processing the given 'prompt' and optional parameters.
 
-If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
+			- If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
+* NOTE:
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -201,17 +204,18 @@ If there was any newly-created file, make sure to report to the user about the f
 					},
 					"filepaths": {
 						Title:       "filepaths",
-						Description: `Paths to local files to be processed along with the given 'prompt'. If a path is not absolute, it will be resolved against the current working directory of this MCP server.`,
+						Description: `Paths to local files to be processed along with the given 'prompt'. If a path is not absolute, it will be resolved against the current working directory of this MCP server. It will be ignored if 'modality' is 'video'.`,
 						Type:        "array",
 					},
 					"modality": {
 						Title:       "modality",
-						Description: `The modality of the generation. Must be one of 'text', 'image', or 'audio'.`,
+						Description: `The modality of the generation. Must be one of 'text', 'image', 'audio', or 'video'.`,
 						Type:        "string",
 						Enum: []any{
 							"text",
 							"image",
 							"audio",
+							"video",
 						},
 					},
 					"model": {
@@ -233,6 +237,21 @@ If there was any newly-created file, make sure to report to the user about the f
 						Title:       "convert_url",
 						Description: `Whether to convert URLs in the prompt into the corresponding contents. If not specified, default value is false. It will be ignored unless 'modality' is 'text'.`,
 						Type:        "boolean",
+					},
+					"video_firstframe_filepath": {
+						Title:       "video_firstframe_filepath",
+						Description: `The filepath to the first frame (image) of the video to be generated. It will be ignored unless 'modality' is 'video'.`,
+						Type:        "string",
+					},
+					"video_lastframe_filepath": {
+						Title:       "video_lastframe_filepath",
+						Description: `The filepath to the last frame (image) of the video to be generated. It will be ignored unless 'modality' is 'video'.`,
+						Type:        "string",
+					},
+					"video_for_extension_filepath": {
+						Title:       "video_for_extension_filepath",
+						Description: `The filepath to a video which will be extended by the generation. It will be ignored unless 'modality' is 'video'.`,
+						Type:        "string",
 					},
 				},
 				Required: []string{
@@ -312,6 +331,14 @@ If there was any newly-created file, make sure to report to the user about the f
 								model = conf.GoogleAISpeechGenerationModel
 							} else {
 								model = ptr(string(defaultGoogleAISpeechGenerationModel))
+							}
+						}
+					case "video":
+						if model == nil {
+							if conf.GoogleAIVideoGenerationModel != nil {
+								model = conf.GoogleAIVideoGenerationModel
+							} else {
+								model = ptr(string(defaultGoogleAIVideoGenerationModel))
 							}
 						}
 					}
@@ -425,7 +452,8 @@ If there was any newly-created file, make sure to report to the user about the f
 						}
 
 						// read bytes from url prompts and local files, and append them as prompts
-						if files, err := openFilesForPrompt(
+						var files []openedFile
+						if files, err = openFilesForPrompt(
 							promptFiles,
 							filepaths,
 						); err == nil {
@@ -471,99 +499,363 @@ If there was any newly-created file, make sure to report to the user about the f
 							ctxGenerate, cancelGenerate := context.WithTimeout(ctx, mcpFunctionTimeoutSeconds*time.Second)
 							defer cancelGenerate()
 
-							var res *genai.GenerateContentResponse
-							if res, err = gtc.Generate(
-								ctxGenerate,
-								contentsForGeneration,
-								&genai.GenerateContentConfig{
-									Tools: tools,
-									ThinkingConfig: &genai.ThinkingConfig{
-										IncludeThoughts: *thinkingOn,
+							if *modality != "video" { // generate text, image, speech, ...
+								var res *genai.GenerateContentResponse
+								if res, err = gtc.Generate(
+									ctxGenerate,
+									contentsForGeneration,
+									&genai.GenerateContentConfig{
+										Tools: tools,
+										ThinkingConfig: &genai.ThinkingConfig{
+											IncludeThoughts: *thinkingOn,
+										},
+										ResponseModalities: responseModalities,
 									},
-									ResponseModalities: responseModalities,
-								},
-							); err == nil {
-								content := []mcp.Content{}
-								for _, candidate := range res.Candidates {
-									if candidate.Content.Role != string(gt.RoleModel) {
-										continue
-									}
-									for i, part := range candidate.Content.Parts {
-										if len(part.Text) > 0 {
-											writer.verbose(
-												verboseMaximum,
-												p.Verbose,
-												"text[%d]: '%s'", i, part.Text,
-											)
-
-											content = append(content, &mcp.TextContent{
-												Text: part.Text,
-											})
-										} else if part.InlineData != nil {
-											bytes := part.InlineData.Data
-											mimeType := part.InlineData.MIMEType
-
-											writer.verbose(
-												verboseMaximum,
-												p.Verbose,
-												"data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
-											)
-
-											if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
-												content = append(
-													content,
-													&mcp.TextContent{
-														Text: fmt.Sprintf(
-															"Here is the generated image file (%d bytes, %s):",
-															len(bytes),
-															mimeType,
-														),
-													},
-													&mcp.ImageContent{
-														Data:     bytes,
-														MIMEType: mimeType,
-													},
-												)
-											} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") {
-												// if it is in PCM, convert it to WAV
-												speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
-												if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
-													// convert,
-													if converted, err := pcmToWav(
-														part.InlineData.Data,
-														bitRate,
-													); err == nil {
-														bytes = converted
-														mimeType = mimetype.Detect(converted).String()
-													}
-												}
-
-												content = append(
-													content,
-													&mcp.TextContent{
-														Text: fmt.Sprintf(
-															"Here is the generated audio file (%d bytes, %s):",
-															len(bytes),
-															mimeType,
-														),
-													},
-													&mcp.AudioContent{
-														Data:     bytes,
-														MIMEType: mimeType,
-													},
-												)
-											} else {
-												writer.err(
+								); err == nil {
+									content := []mcp.Content{}
+									for _, candidate := range res.Candidates {
+										if candidate.Content.Role != string(gt.RoleModel) {
+											continue
+										}
+										for i, part := range candidate.Content.Parts {
+											if len(part.Text) > 0 {
+												writer.verbose(
 													verboseMaximum,
-													"unknown inline data type: %s", part.InlineData.MIMEType,
+													p.Verbose,
+													"text[%d]: '%s'", i, part.Text,
 												)
+
+												content = append(content, &mcp.TextContent{
+													Text: part.Text,
+												})
+											} else if part.InlineData != nil {
+												bytes := part.InlineData.Data
+												mimeType := part.InlineData.MIMEType
+
+												writer.verbose(
+													verboseMaximum,
+													p.Verbose,
+													"image data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
+												)
+
+												if strings.HasPrefix(part.InlineData.MIMEType, "image/") {
+													content = append(
+														content,
+														&mcp.TextContent{
+															Text: fmt.Sprintf(
+																"Generated an image file with %d bytes(%s).",
+																len(bytes),
+																mimeType,
+															),
+														},
+														/*
+															&mcp.ImageContent{
+																Data:     bytes,
+																MIMEType: mimeType,
+															},
+														*/
+													)
+
+													// save to a file
+													fpath := genFilepath(
+														mimeType,
+														"image",
+														nil,
+													)
+													if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
+														content = append(content,
+															&mcp.TextContent{
+																Text: fmt.Sprintf(
+																	"Saved an image to the following filepath: '%s'",
+																	fpath,
+																),
+															},
+														)
+													} else {
+														writer.err(
+															verboseMaximum,
+															"failed to save image file: %s",
+															err,
+														)
+													}
+												} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") {
+													// if it is in PCM, convert it to WAV
+													speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
+													if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
+														// convert,
+														if converted, err := pcmToWav(
+															part.InlineData.Data,
+															bitRate,
+														); err == nil {
+															bytes = converted
+															mimeType = mimetype.Detect(converted).String()
+														}
+													}
+
+													content = append(
+														content,
+														&mcp.TextContent{
+															Text: fmt.Sprintf(
+																"Generated an audio file with %d bytes(%s).",
+																len(bytes),
+																mimeType,
+															),
+														},
+														/*
+															&mcp.AudioContent{
+																Data:     bytes,
+																MIMEType: mimeType,
+															},
+														*/
+													)
+
+													// save to a file
+													fpath := genFilepath(
+														mimeType,
+														"audio",
+														nil,
+													)
+													if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
+														content = append(content,
+															&mcp.TextContent{
+																Text: fmt.Sprintf(
+																	"Saved an audio to the following filepath: '%s'",
+																	fpath,
+																),
+															},
+														)
+													} else {
+														writer.err(
+															verboseMaximum,
+															"failed to save audio file: %s",
+															err,
+														)
+													}
+												} else {
+													writer.err(
+														verboseMaximum,
+														"unknown inline data type: %s", part.InlineData.MIMEType,
+													)
+												}
 											}
 										}
 									}
+									return &mcp.CallToolResult{
+										Content: content,
+									}, nil
 								}
-								return &mcp.CallToolResult{
-									Content: content,
-								}, nil
+							} else { // generate video,
+								// convert arguments to images and videos
+								var firstFrame, lastFrame *genai.Image
+								var videoForExtension *genai.Video
+								var firstFrameFilepath *string
+								if firstFrameFilepath, err = gt.FuncArg[string](args, "video_firstframe_filepath"); err == nil && firstFrameFilepath != nil {
+									if bs, ferr := os.ReadFile(*firstFrameFilepath); ferr == nil {
+										firstFrame = &genai.Image{
+											ImageBytes: bs,
+											MIMEType:   mimetype.Detect(bs).String(),
+										}
+									} else {
+										// error
+										writer.err(
+											verboseMaximum,
+											"failed to read first frame file for video generation: %s",
+											ferr,
+										)
+
+										return &mcp.CallToolResult{
+											Content: []mcp.Content{
+												&mcp.TextContent{
+													Text: fmt.Sprintf(
+														"failed to read first frame file for video generation: %s",
+														ferr,
+													),
+												},
+											},
+											IsError: true,
+										}, nil
+									}
+								}
+								var lastFrameFilepath *string
+								if lastFrameFilepath, err = gt.FuncArg[string](args, "video_lastframe_filepath"); err == nil && lastFrameFilepath != nil {
+									if bs, ferr := os.ReadFile(*lastFrameFilepath); ferr == nil {
+										lastFrame = &genai.Image{
+											ImageBytes: bs,
+											MIMEType:   mimetype.Detect(bs).String(),
+										}
+									} else {
+										// error
+										writer.err(
+											verboseMaximum,
+											"failed to read last frame file for video generation: %s",
+											ferr,
+										)
+
+										return &mcp.CallToolResult{
+											Content: []mcp.Content{
+												&mcp.TextContent{
+													Text: fmt.Sprintf(
+														"failed to read last frame file for video generation: %s",
+														ferr,
+													),
+												},
+											},
+											IsError: true,
+										}, nil
+									}
+								}
+								var videoForExtensionFilepath *string
+								if videoForExtensionFilepath, err = gt.FuncArg[string](args, "video_for_extension_filepath"); err == nil && videoForExtensionFilepath != nil {
+									if bs, ferr := os.ReadFile(*videoForExtensionFilepath); ferr == nil {
+										videoForExtension = &genai.Video{
+											VideoBytes: bs,
+											MIMEType:   mimetype.Detect(bs).String(),
+										}
+									} else {
+										// error
+										writer.err(
+											verboseMaximum,
+											"failed to read video file for video generation: %s",
+											ferr,
+										)
+
+										return &mcp.CallToolResult{
+											Content: []mcp.Content{
+												&mcp.TextContent{
+													Text: fmt.Sprintf(
+														"failed to read video file for video generation: %s",
+														ferr,
+													),
+												},
+											},
+											IsError: true,
+										}, nil
+									}
+								}
+
+								options := &genai.GenerateVideosConfig{
+									EnhancePrompt:    true,
+									PersonGeneration: "allow_adult",
+								}
+								if lastFrame != nil {
+									options.LastFrame = lastFrame
+								}
+
+								// TODO: reference images
+
+								content := []mcp.Content{}
+								var res *genai.GenerateVideosResponse
+								if res, err = gtc.GenerateVideos(ctxGenerate, prompt, firstFrame, videoForExtension, options); err == nil {
+									for i, video := range res.GeneratedVideos {
+										var bytes []byte
+										var mimeType string
+										if len(video.Video.VideoBytes) > 0 {
+											bytes = video.Video.VideoBytes
+											// mimeType = mimetype.Detect(data).String()
+											mimeType = video.Video.MIMEType
+										} else if len(video.Video.URI) > 0 {
+											var ferr error
+											if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
+												var reader *storage.Reader
+												if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
+													defer func() { _ = reader.Close() }()
+
+													if bytes, ferr = io.ReadAll(reader); ferr == nil {
+														mimeType = video.Video.MIMEType
+													}
+												}
+											} else {
+												ferr = fmt.Errorf("bucket object was nil")
+											}
+
+											if ferr != nil {
+												// error
+												writer.err(
+													verboseMaximum,
+													"failed to get generated videos: %s",
+													ferr,
+												)
+
+												return &mcp.CallToolResult{
+													Content: []mcp.Content{
+														&mcp.TextContent{
+															Text: fmt.Sprintf(
+																"failed to get generated videos: %s",
+																ferr,
+															),
+														},
+													},
+													IsError: true,
+												}, nil
+											}
+										} else {
+											// error
+											writer.err(
+												verboseMaximum,
+												"failed to generate videos: no returned bytes",
+											)
+
+											return &mcp.CallToolResult{
+												Content: []mcp.Content{
+													&mcp.TextContent{
+														Text: "failed to generate videos: no returned bytes",
+													},
+												},
+												IsError: true,
+											}, nil
+										}
+
+										writer.verbose(
+											verboseMaximum,
+											p.Verbose,
+											"video data[%d]: %d bytes (%s)", i, len(bytes), mimeType,
+										)
+
+										content = append(
+											content,
+											&mcp.TextContent{
+												Text: fmt.Sprintf(
+													"Generated a video file with %d bytes(%s).",
+													len(bytes),
+													mimeType,
+												),
+											},
+											/*
+												&mcp.VideoContent{
+													Data:     bytes,
+													MIMEType: mimeType,
+												},
+											*/
+										)
+
+										// save to a file
+										fpath := genFilepath(
+											mimeType,
+											"video",
+											nil,
+										)
+										if err = os.WriteFile(fpath, bytes, 0o640); err == nil {
+											content = append(content,
+												&mcp.TextContent{
+													Text: fmt.Sprintf(
+														"Saved a video to the following filepath: '%s'",
+														fpath,
+													),
+												},
+											)
+										} else {
+											writer.err(
+												verboseMaximum,
+												"failed to save video file: %s",
+												err,
+											)
+										}
+									}
+
+									return &mcp.CallToolResult{
+										Content: content,
+									}, nil
+								}
 							}
 						} else {
 							err = fmt.Errorf("failed to convert prompts for generation: %w", err)
@@ -573,6 +865,7 @@ If there was any newly-created file, make sure to report to the user about the f
 			} else {
 				err = fmt.Errorf("failed to get parameter 'prompt': %w", err)
 			}
+
 			return &mcp.CallToolResult{
 				Content: []mcp.Content{
 					&mcp.TextContent{
@@ -595,7 +888,8 @@ If there was any newly-created file, make sure to report to the user about the f
 			Name: `gmn_get_cwd`,
 			Description: `This function returns the current working directory (absolute path).
 
-It is advised to call this function before performing any task which handles filepaths.
+* NOTE:
+- It is advised to call this function before performing any task which handles filepaths.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -659,7 +953,8 @@ It is advised to call this function before performing any task which handles fil
 			Name: `gmn_stat_file`,
 			Description: `This function returns the state of a file or directory.
 
-It is advised to call this function before accessing or handling files and/or directories.
+* NOTE:
+- It is advised to call this function before accessing or handling files and/or directories.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -743,7 +1038,8 @@ It is advised to call this function before accessing or handling files and/or di
 			Name: `gmn_get_mimetype`,
 			Description: `This function returns the mime type of a file at given path.
 
-It is advised to call this function before reading a file.
+* NOTE:
+- It is advised to call this function before reading a file.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -931,7 +1227,8 @@ It is advised to call this function before reading a file.
 			Name: `gmn_read_text_file`,
 			Description: `This function reads a plain text file at a given filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully read.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully read.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1036,10 +1333,13 @@ Make sure to report to the user if this function was called and the specified fi
 		tool: mcp.Tool{
 			Name: `gmn_create_text_file`,
 			Description: `This function creates a plain text file at a given filepath.
-There should not be an existing file at the given path.
-And this function should not be used for creating binary files due to the risk of file corruption.
 
-Make sure to report to the user if this function was called and the specified file was successfully created.
+* CAUTION:
+- There should not be an existing file at the given path.
+- This function should not be used for creating binary files due to the risk of file corruption.
+
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully created.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1135,7 +1435,8 @@ Make sure to report to the user if this function was called and the specified fi
 			Name: `gmn_delete_file`,
 			Description: `This function deletes a file at a given filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully deleted.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully deleted.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1214,7 +1515,8 @@ Make sure to report to the user if this function was called and the specified fi
 			Name: `gmn_move_file`,
 			Description: `This function moves a file at a given filepath to another filepath.
 
-Make sure to report to the user if this function was called and the specified file was successfully moved.
+* NOTE:
+- Make sure to report to the user if this function was called and the specified file was successfully moved.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1304,9 +1606,13 @@ Make sure to report to the user if this function was called and the specified fi
 		tool: mcp.Tool{
 			Name: `gmn_run_cmdline`,
 			Description: fmt.Sprintf(`This function executes a given bash commandline and returns the resulting output.
-The commandline must be in one line, and should be escaped correctly.
-Never pass malicious input or non-existing commands to this function, as it will be executed as a shell command.
-This function will fail with timeout if the commandline takes %d seconds or longer to finish.
+
+* RULES:
+- The commandline must be in one line, and should be escaped correctly.
+
+* CAUTION:
+- Never pass malicious input or non-existing commands to this function, as it will be executed as a shell command.
+- This function will fail with timeout if the commandline takes %d seconds or longer to finish.
 `, commandTimeoutSeconds),
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
