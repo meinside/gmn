@@ -885,7 +885,7 @@ func buildSelfServer(
 	//
 	// TODO: generate embeddings with text (readonly)
 	//
-	// get current working directory (readonly, idempotent, destructive)
+	// get current working directory (readonly, idempotent)
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_get_cwd`,
@@ -899,9 +899,8 @@ func buildSelfServer(
 				ReadOnly: true,
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
-				IdempotentHint:  true,
-				ReadOnlyHint:    true,
+				IdempotentHint: true,
+				ReadOnlyHint:   true,
 			},
 		},
 		handler: func(
@@ -950,7 +949,7 @@ func buildSelfServer(
 		},
 	})
 	//
-	// stat a file at given path (readonly, destructive)
+	// stat a file at given path (readonly)
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_stat_file`,
@@ -974,8 +973,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
-				ReadOnlyHint:    true,
+				ReadOnlyHint: true,
 			},
 		},
 		handler: func(
@@ -1035,7 +1033,7 @@ func buildSelfServer(
 		},
 	})
 	//
-	// get mime type of a file at given path (readonly, destructive)
+	// get mime type of a file at given path (readonly)
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_get_mimetype`,
@@ -1059,8 +1057,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
-				ReadOnlyHint:    true,
+				ReadOnlyHint: true,
 			},
 		},
 		handler: func(
@@ -1142,7 +1139,7 @@ func buildSelfServer(
 		},
 	})
 	//
-	// list files at path (readonly, destructive)
+	// list files at path (readonly)
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_list_files`,
@@ -1163,8 +1160,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
-				ReadOnlyHint:    true,
+				ReadOnlyHint: true,
 			},
 		},
 		handler: func(
@@ -1249,6 +1245,7 @@ func buildSelfServer(
 			},
 			Annotations: &mcp.ToolAnnotations{
 				DestructiveHint: ptr(true),
+				ReadOnlyHint:    true,
 			},
 		},
 		handler: func(

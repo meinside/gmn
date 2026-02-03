@@ -756,6 +756,19 @@ func doGeneration(
 											part.FunctionCall.Name,
 											prettify(part.FunctionCall.Args, true),
 										)
+										fnColorized := fmt.Sprintf(
+											`%s(%s)`,
+											sprintfColored(
+												color.FgHiYellow,
+												"%s",
+												part.FunctionCall.Name,
+											),
+											sprintfColored(
+												color.FgYellow,
+												"%s",
+												prettify(part.FunctionCall.Args, true),
+											),
+										)
 
 										// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
 										duplicated := 0
@@ -898,7 +911,7 @@ func doGeneration(
 														!forceCallDestructiveTools {
 														okToRun = confirm(fmt.Sprintf(
 															"May I call tool '%s' from '%s'?",
-															fn,
+															fnColorized,
 															stripServerInfo(serverType, serverKey),
 														))
 													} else {
