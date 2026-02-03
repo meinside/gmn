@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -78,6 +79,23 @@ func (w *outputWriter) printColored(
 	}
 
 	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
+}
+
+// sprintf given string with color (if possible)
+func sprintfColored(
+	c color.Attribute,
+	format string,
+	a ...any,
+) string {
+	formatted := fmt.Sprintf(format, a...)
+
+	if supportscolor.Stdout().SupportsColor { // if color is supported,
+		buf := new(bytes.Buffer)
+		_, _ = color.New(c).Fprint(buf, formatted)
+		return buf.String()
+	} else {
+		return fmt.Sprint(formatted)
+	}
 }
 
 // print given string to stderr with color (if possible)
