@@ -822,11 +822,11 @@ func doGeneration(
 										// NOTE: if tool callbackPath exists for this function call, execute it with the args
 										if callbackPath, exists := toolCallbacks[part.FunctionCall.Name]; exists {
 											fnCallback, okToRun := checkCallbackPath(
+												writer,
 												callbackPath,
 												toolCallbacksConfirm,
 												forceCallDestructiveTools,
 												part.FunctionCall,
-												writer,
 												vbs,
 											)
 
@@ -1495,11 +1495,11 @@ const (
 
 // check if given `callbackPath` is executable
 func checkCallbackPath(
+	writer outputWriter,
 	callbackPath string,
 	confirmToolCallbacks map[string]bool,
 	forceCallDestructiveTools bool,
 	fnCall *genai.FunctionCall,
-	writer outputWriter,
 	vbs []bool,
 ) (
 	fnCallback func() (string, error),

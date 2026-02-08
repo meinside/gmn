@@ -21,12 +21,15 @@ func cacheContext(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	systemInstruction string,
-	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
-	overrideMimeTypeForExt map[string]string,
-	cachedContextDisplayName *string,
-	vbs []bool,
+	prompts []gt.Prompt, promptFiles map[string][]byte,
+	p params,
 ) (exit int, e error) {
+	systemInstruction := *p.Generation.DetailedOptions.SystemInstruction
+	filepaths := p.Generation.Filepaths
+	overrideMimeTypeForExt := p.OverrideFileMIMEType
+	cachedContextDisplayName := p.Caching.CachedContextName
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -98,8 +101,10 @@ func listCachedContexts(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -154,9 +159,11 @@ func deleteCachedContext(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	cachedContextName string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	cachedContextName := *p.Caching.DeleteCachedContext
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,

@@ -20,8 +20,10 @@ func listModels(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,

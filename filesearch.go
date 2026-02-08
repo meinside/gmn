@@ -23,8 +23,10 @@ func listFileSearchStores(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -89,9 +91,11 @@ func createFileSearchStore(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	displayName string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	displayName := *p.FileSearch.CreateFileSearchStore
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -125,9 +129,11 @@ func deleteFileSearchStore(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	name string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	name := *p.FileSearch.DeleteFileSearchStore
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -165,12 +171,15 @@ func uploadFilesToFileSearchStore(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	fileSearchStoreName string,
 	filepaths []string,
-	chunkSize, overlappedChunkSize *uint,
-	overrideMimeTypeForExt map[string]string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	fileSearchStoreName := *p.FileSearch.FileSearchStoreNameToUploadFiles
+	chunkSize := p.Embeddings.EmbeddingsChunkSize
+	overlappedChunkSize := p.Embeddings.EmbeddingsOverlappedChunkSize
+	overrideMimeTypeForExt := p.OverrideFileMIMEType
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -296,9 +305,11 @@ func listFilesInFileSearchStore(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	fileSearchStoreName string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	fileSearchStoreName := *p.FileSearch.ListFilesInFileSearchStore
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -364,9 +375,11 @@ func deleteFileInFileSearchStore(
 	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	fileName string,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	fileName := *p.FileSearch.DeleteFileInFileSearchStore
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,

@@ -1447,3 +1447,150 @@ func safetySettings(clientType genai.Backend) []*genai.SafetySetting {
 
 	return settings
 }
+
+// read and return configs filled with default values
+func readAndFillConfig(p params, writer outputWriter) (conf config, altered params, err error) {
+	configFilepath := resolveConfigFilepath(p.Configuration.ConfigFilepath)
+
+	if conf, err = readConfig(configFilepath); err == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"loaded configuration file: %s",
+			configFilepath,
+		)
+	} else {
+		// check if environment variable for api key or credentials file exists,
+		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
+			writer.verbose(
+				verboseMinimum,
+				p.Verbose,
+				"using API key from environment variable: %s",
+				envVarNameAPIKey,
+			)
+			conf.GoogleAIAPIKey = &envAPIKey
+		} else if envCredentialsFilepath, exists := os.LookupEnv(envVarNameCredentialsFilepath); exists {
+			writer.verbose(
+				verboseMinimum,
+				p.Verbose,
+				"using credentials filepath from environment variable: %s",
+				envVarNameCredentialsFilepath,
+			)
+			conf.GoogleCredentialsFilepath = &envCredentialsFilepath
+
+			if envLocation, exists := os.LookupEnv(envVarNameLocation); exists {
+				writer.verbose(
+					verboseMinimum,
+					p.Verbose,
+					"using location from environment variable: %s",
+					envVarNameLocation,
+				)
+				conf.Location = &envLocation
+			} else {
+				conf.Location = ptr(defaultLocation)
+			}
+
+			if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
+				writer.verbose(
+					verboseMinimum,
+					p.Verbose,
+					"using bucket name from environment variable: %s",
+					envVarNameBucket,
+				)
+				conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
+			} else {
+				conf.GoogleCloudStorageBucketNameForFileUploads = ptr(defaultBucketNameForFileUploads)
+			}
+		} else {
+			// or return an error
+			return config{}, params{}, fmt.Errorf(
+				"failed to read configuration: %w",
+				err,
+			)
+		}
+	}
+
+	// check if essential values are conflicting with each other
+	if p.Configuration.GoogleAIAPIKey != nil && p.Configuration.CredentialsFilepath != nil {
+		return config{}, params{}, fmt.Errorf("parameters for google AI API Key and credentials file cannot be specified at the same time")
+	}
+	if conf.GoogleAIAPIKey != nil && conf.GoogleCredentialsFilepath != nil {
+		return config{}, params{}, fmt.Errorf("configurations for google AI API Key and credentials file cannot be specified at the same time")
+	}
+	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil &&
+		conf.GoogleCredentialsFilepath == nil && p.Configuration.CredentialsFilepath == nil {
+		return config{}, params{}, fmt.Errorf("both google AI API key and credentials filepath are missing")
+	}
+
+	// override values
+	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using API key from configuration file: %s",
+			*conf.GoogleAIAPIKey,
+		)
+
+		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
+		p.Configuration.CredentialsFilepath = nil
+	} else if p.Configuration.GoogleAIAPIKey != nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using API key from input parameters (overriding the one from config file): %s",
+			*p.Configuration.GoogleAIAPIKey,
+		)
+
+		conf.GoogleAIAPIKey = p.Configuration.GoogleAIAPIKey
+		conf.GoogleCredentialsFilepath = nil
+	}
+	if conf.GoogleCredentialsFilepath != nil && p.Configuration.CredentialsFilepath == nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using credentials filepath from configuration file: %s",
+			*conf.GoogleCredentialsFilepath,
+		)
+
+		p.Configuration.CredentialsFilepath = conf.GoogleCredentialsFilepath
+		p.Configuration.GoogleAIAPIKey = nil
+	} else if p.Configuration.CredentialsFilepath != nil {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using credentials filepath from input parameters (overriding the one from config file): %s",
+			*p.Configuration.CredentialsFilepath,
+		)
+
+		conf.GoogleCredentialsFilepath = p.Configuration.CredentialsFilepath
+		conf.GoogleAIAPIKey = nil
+	}
+
+	// fallback to default values
+	if p.Generation.DetailedOptions.SystemInstruction == nil && conf.SystemInstruction != nil {
+		p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
+	}
+	if p.Generation.DetailedOptions.SystemInstruction == nil {
+		p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
+	}
+	if p.Generation.FetchContents.UserAgent == nil {
+		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
+	}
+	if p.Generation.Video.NumGenerated == 0 {
+		p.Generation.Video.NumGenerated = defaultGeneratedVideosCount
+	}
+	if p.Generation.Video.DurationSeconds == 0 {
+		p.Generation.Video.DurationSeconds = defaultGeneratedVideosDurationSeconds
+	}
+	if p.Generation.Video.FPS == 0 {
+		p.Generation.Video.FPS = defaultGeneratedVideosFPS
+	}
+	if conf.TimeoutSeconds <= 0 {
+		conf.TimeoutSeconds = defaultTimeoutSeconds
+	}
+	if conf.ReplaceHTTPURLTimeoutSeconds <= 0 {
+		conf.ReplaceHTTPURLTimeoutSeconds = defaultFetchURLTimeoutSeconds
+	}
+
+	return conf, p, nil
+}
