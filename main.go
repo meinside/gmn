@@ -21,7 +21,7 @@ const (
 // main
 func main() {
 	// output writer
-	writer := newOutputWriter()
+	writer := newStdoutWriter()
 
 	// parse params,
 	var p params
@@ -32,7 +32,7 @@ func main() {
 	if remaining, err := parser.Parse(); err == nil {
 		// check if multiple tasks were requested at a time
 		if p.multipleTasksRequested() {
-			writer.print(
+			writer.printWithColorForLevel(
 				verboseMaximum,
 				"Input error: multiple tasks were requested at a time.",
 			)
@@ -42,7 +42,7 @@ func main() {
 
 		// check if multiple media types were requested at a time
 		if p.multipleMediaTypesRequested() {
-			writer.print(
+			writer.printWithColorForLevel(
 				verboseMaximum,
 				"Input error: multiple media types were requested at a time.",
 			)
@@ -53,7 +53,7 @@ func main() {
 
 		// check if there was any parameter without flag
 		if len(remaining) > 0 {
-			writer.print(
+			writer.printWithColorForLevel(
 				verboseMaximum,
 				"Input error: parameters without flags: %s",
 				strings.Join(remaining, " "),
@@ -137,7 +137,7 @@ func main() {
 			if e.Type != flags.ErrHelp {
 				helpExitCode = 1
 
-				writer.print(
+				writer.printWithColorForLevel(
 					verboseMedium,
 					"Input error: %s",
 					e.Error(),

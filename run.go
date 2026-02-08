@@ -71,11 +71,11 @@ func resolveGoogleAIModel(
 func run(
 	parser *flags.Parser,
 	p params,
-	writer *outputWriter,
+	writer outputWriter,
 ) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
-		writer.print(
+		writer.printWithColorForLevel(
 			verboseMedium,
 			"No task was requested.\n\n",
 		)
@@ -85,7 +85,7 @@ func run(
 
 	// early return after printing the version
 	if p.ShowVersion {
-		writer.print(
+		writer.printWithColorForLevel(
 			verboseMinimum,
 			"%s %s\n\n",
 			appName,
@@ -769,7 +769,7 @@ func run(
 				p.Verbose,
 			)
 		} else { // otherwise, (should not reach here)
-			writer.print(
+			writer.printWithColorForLevel(
 				verboseMedium,
 				"Parameter error: no task was requested or handled properly.",
 			)

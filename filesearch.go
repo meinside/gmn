@@ -20,7 +20,7 @@ import (
 // list file search stores
 func listFileSearchStores(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	vbs []bool,
@@ -86,7 +86,7 @@ func listFileSearchStores(
 // create a file search store
 func createFileSearchStore(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	displayName string,
@@ -122,7 +122,7 @@ func createFileSearchStore(
 // delete a file search store
 func deleteFileSearchStore(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	name string,
@@ -162,7 +162,7 @@ func deleteFileSearchStore(
 // upload files to file search store
 func uploadFilesToFileSearchStore(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	fileSearchStoreName string,
@@ -293,7 +293,7 @@ func uploadFilesToFileSearchStore(
 // list files in a file search store
 func listFilesInFileSearchStore(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	fileSearchStoreName string,
@@ -361,7 +361,7 @@ func listFilesInFileSearchStore(
 // delete a file in a file search store
 func deleteFileInFileSearchStore(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	fileName string,

@@ -18,7 +18,7 @@ import (
 // cache context
 func cacheContext(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	systemInstruction string,
@@ -95,7 +95,7 @@ func cacheContext(
 // list cached contexts
 func listCachedContexts(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	vbs []bool,
@@ -151,7 +151,7 @@ func listCachedContexts(
 // delete cached context
 func deleteCachedContext(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	cachedContextName string,

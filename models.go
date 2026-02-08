@@ -17,7 +17,7 @@ import (
 // list models
 func listModels(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	vbs []bool,
