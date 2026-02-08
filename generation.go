@@ -29,7 +29,7 @@ import (
 // generate text with given things
 func doGeneration(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	pastGenerations []genai.Content,
@@ -456,7 +456,7 @@ func doGeneration(
 							}
 							return
 						} else {
-							writer.print(
+							writer.printWithColorForLevel(
 								verboseMinimum,
 								"Saved video to file: %s",
 								fpath,
@@ -627,7 +627,7 @@ func doGeneration(
 										// flush model response
 										pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-										writer.makeSureToEndWithNewLine()
+										writer.makeSureToEndWithNewline()
 
 										if strings.HasPrefix(part.InlineData.MIMEType, "image/") { // (images)
 											if saveImagesToFiles || saveImagesToDir != nil {
@@ -651,7 +651,7 @@ func doGeneration(
 													}
 													return
 												} else {
-													writer.print(
+													writer.printWithColorForLevel(
 														verboseMinimum,
 														"Saved image to file: %s",
 														fpath,
@@ -719,7 +719,7 @@ func doGeneration(
 														}
 														return
 													} else {
-														writer.print(
+														writer.printWithColorForLevel(
 															verboseMinimum,
 															"Saved speech to file: %s",
 															fpath,
@@ -1071,7 +1071,7 @@ func doGeneration(
 																			}
 																			return
 																		} else {
-																			writer.print(
+																			writer.printWithColorForLevel(
 																				verboseMinimum,
 																				"Saved image to file: %s",
 																				fpath,
@@ -1139,7 +1139,7 @@ func doGeneration(
 																			}
 																			return
 																		} else {
-																			writer.print(
+																			writer.printWithColorForLevel(
 																				verboseMinimum,
 																				"Saved speech to file: %s",
 																				fpath,
@@ -1217,7 +1217,7 @@ func doGeneration(
 												}
 											} else {
 												// no matching tool, just print the function call data
-												writer.print(
+												writer.printWithColorForLevel(
 													verboseMinimum,
 													"No matching tool; given function call was: %s",
 													prettify(part.FunctionCall),
@@ -1244,7 +1244,7 @@ func doGeneration(
 											}
 										} else {
 											// just print the function call data
-											writer.print(
+											writer.printWithColorForLevel(
 												verboseMinimum,
 												"Generated function call: %s",
 												prettify(part.FunctionCall),
@@ -1277,7 +1277,7 @@ func doGeneration(
 							if cand.GroundingMetadata != nil {
 								// NOTE: make sure to insert a new line before displaying grounding metadata
 								if verboseLevel(vbs) >= verboseMinimum {
-									writer.makeSureToEndWithNewLine()
+									writer.makeSureToEndWithNewline()
 								}
 
 								writer.verbose(
@@ -1303,7 +1303,7 @@ func doGeneration(
 							if cand.CitationMetadata != nil {
 								// NOTE: make sure to insert a new line before displaying grounding metadata
 								if verboseLevel(vbs) >= verboseMinimum {
-									writer.makeSureToEndWithNewLine()
+									writer.makeSureToEndWithNewline()
 								}
 
 								writer.verbose(
@@ -1321,7 +1321,7 @@ func doGeneration(
 								// flush model response
 								pastGenerations = appendAndFlushModelResponse(pastGenerations, bufModelResponse)
 
-								writer.makeSureToEndWithNewLine() // NOTE: make sure to insert a new line before displaying finish reason
+								writer.makeSureToEndWithNewline() // NOTE: make sure to insert a new line before displaying finish reason
 
 								// print retrieved context titles
 								if len(retrievedContextTitles) > 0 {
@@ -1499,7 +1499,7 @@ func checkCallbackPath(
 	confirmToolCallbacks map[string]bool,
 	forceCallDestructiveTools bool,
 	fnCall *genai.FunctionCall,
-	writer *outputWriter,
+	writer outputWriter,
 	vbs []bool,
 ) (
 	fnCallback func() (string, error),

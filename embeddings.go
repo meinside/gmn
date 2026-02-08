@@ -19,7 +19,7 @@ import (
 // generate embeddings with given things
 func doEmbeddingsGeneration(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
 	p params,

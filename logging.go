@@ -38,34 +38,55 @@ func verboseLevel(verbosityFromParams []bool) verbosity {
 	return verboseNone
 }
 
-// output writer for managing stdout
-type outputWriter struct {
-	endsWithNewLine bool
+// output writer interface for printing things
+type outputWriter interface {
+	endsWithNewline() bool                                                              // check if output ends with a new line
+	makeSureToEndWithNewline()                                                          // make sure output ends with a new line
+	println()                                                                           // force add a new line to output
+	printWithColorForLevel(level verbosity, format string, a ...any)                    // print given string to output with predefined color (will add a new line if there isn't)
+	errorWithColorForLevel(level verbosity, format string, a ...any)                    // print given string to error output with predefined color (will add a new line if there isn't)
+	printColored(c color.Attribute, format string, a ...any)                            // print given string to output with color (if possible)
+	errorColored(c color.Attribute, format string, a ...any)                            // print given string to error output with color (if possible)
+	verbose(targetLevel verbosity, verbosityFromParams []bool, format string, a ...any) // print given verbose string to error output (will add a new line if there isn't)
+	warn(format string, a ...any)                                                       // print given warning string to error output (will add a new line if there isn't)
+	error(format string, a ...any)                                                      // print given error string to error output (will add a new line if there isn't)
+	printHelpBeforeExit(code int, parser *flags.Parser) int                             // print help message to error output before os.Exit()
+	printErrorBeforeExit(code int, format string, a ...any) int                         // print error string to error output before os.Exit()
 }
 
-// generate a new output writer
-func newOutputWriter() *outputWriter {
-	return &outputWriter{
-		endsWithNewLine: true,
+// output writer for printing to stdout/stderr
+type stdoutWriter struct {
+	didEndWithNewline bool
+}
+
+// generate a new stdoutWriter
+func newStdoutWriter() outputWriter {
+	return &stdoutWriter{
+		didEndWithNewline: true,
 	}
 }
 
+// check if stdout ends with a new line
+func (w *stdoutWriter) endsWithNewline() bool {
+	return w.didEndWithNewline
+}
+
 // force add a new line to stdout
-func (w *outputWriter) println() {
+func (w *stdoutWriter) println() {
 	_, _ = fmt.Fprintf(os.Stdout, "\n")
 
-	w.endsWithNewLine = true
+	w.didEndWithNewline = true
 }
 
 // make sure stdout ends with new line
-func (w *outputWriter) makeSureToEndWithNewLine() {
-	if !w.endsWithNewLine {
+func (w *stdoutWriter) makeSureToEndWithNewline() {
+	if !w.didEndWithNewline {
 		w.println()
 	}
 }
 
 // print given string to stdout with color (if possible)
-func (w *outputWriter) printColored(
+func (w *stdoutWriter) printColored(
 	c color.Attribute,
 	format string,
 	a ...any,
@@ -78,28 +99,11 @@ func (w *outputWriter) printColored(
 		fmt.Print(formatted)
 	}
 
-	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
-}
-
-// sprintf given string with color (if possible)
-func sprintfColored(
-	c color.Attribute,
-	format string,
-	a ...any,
-) string {
-	formatted := fmt.Sprintf(format, a...)
-
-	if supportscolor.Stdout().SupportsColor { // if color is supported,
-		buf := new(bytes.Buffer)
-		_, _ = color.New(c).Fprint(buf, formatted)
-		return buf.String()
-	} else {
-		return fmt.Sprint(formatted)
-	}
+	w.didEndWithNewline = strings.HasSuffix(formatted, "\n")
 }
 
 // print given string to stderr with color (if possible)
-func (w *outputWriter) errorColored(
+func (w *stdoutWriter) errorColored(
 	c color.Attribute,
 	format string,
 	a ...any,
@@ -112,11 +116,11 @@ func (w *outputWriter) errorColored(
 		_, _ = fmt.Fprint(os.Stderr, formatted)
 	}
 
-	w.endsWithNewLine = strings.HasSuffix(formatted, "\n")
+	w.didEndWithNewline = strings.HasSuffix(formatted, "\n")
 }
 
-// print given string to stdout (will add a new line if there isn't)
-func (w *outputWriter) print(
+// print given string to stdout with predefined color (will add a new line if there isn't)
+func (w *stdoutWriter) printWithColorForLevel(
 	level verbosity,
 	format string,
 	a ...any,
@@ -142,8 +146,8 @@ func (w *outputWriter) print(
 	)
 }
 
-// print given string to stderr (will add a new line if there isn't)
-func (w *outputWriter) err(
+// print given string to stderr with predefined color (will add a new line if there isn't)
+func (w *stdoutWriter) errorWithColorForLevel(
 	level verbosity,
 	format string,
 	a ...any,
@@ -169,28 +173,8 @@ func (w *outputWriter) err(
 	)
 }
 
-// print verbose message to stderr (will add a new line if there isn't)
-//
-// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
-func (w *outputWriter) verbose(
-	targetLevel verbosity,
-	verbosityFromParams []bool,
-	format string,
-	a ...any,
-) {
-	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
-		format = fmt.Sprintf(">>> %s", format)
-
-		w.err(
-			targetLevel,
-			format,
-			a...,
-		)
-	}
-}
-
 // print given string to stderr and append a new line if there isn't
-func (w *outputWriter) errWithNewlineAppended(
+func (w *stdoutWriter) errWithNewlineAppended(
 	c color.Attribute,
 	format string,
 	a ...any,
@@ -206,8 +190,28 @@ func (w *outputWriter) errWithNewlineAppended(
 	)
 }
 
+// print verbose message to stderr (will add a new line if there isn't)
+//
+// (only when the level of given `verbosityFromParams` is greater or equal to `targetLevel`)
+func (w *stdoutWriter) verbose(
+	targetLevel verbosity,
+	verbosityFromParams []bool,
+	format string,
+	a ...any,
+) {
+	if vb := verboseLevel(verbosityFromParams); vb >= targetLevel {
+		format = fmt.Sprintf(">>> %s", format)
+
+		w.errorWithColorForLevel(
+			targetLevel,
+			format,
+			a...,
+		)
+	}
+}
+
 // print given warning string to stderr (will add a new line if there isn't)
-func (w *outputWriter) warn(
+func (w *stdoutWriter) warn(
 	format string,
 	a ...any,
 ) {
@@ -215,7 +219,7 @@ func (w *outputWriter) warn(
 }
 
 // print given error string to stderr (will add a new line if there isn't)
-func (w *outputWriter) error(
+func (w *stdoutWriter) error(
 	format string,
 	a ...any,
 ) {
@@ -223,7 +227,7 @@ func (w *outputWriter) error(
 }
 
 // print help message to stderr before os.Exit()
-func (w *outputWriter) printHelpBeforeExit(
+func (w *stdoutWriter) printHelpBeforeExit(
 	code int,
 	parser *flags.Parser,
 ) (exit int) {
@@ -233,7 +237,7 @@ func (w *outputWriter) printHelpBeforeExit(
 }
 
 // print error to stderr before os.Exit()
-func (w *outputWriter) printErrorBeforeExit(
+func (w *stdoutWriter) printErrorBeforeExit(
 	code int,
 	format string,
 	a ...any,
@@ -243,4 +247,21 @@ func (w *outputWriter) printErrorBeforeExit(
 	}
 
 	return code
+}
+
+// sprintf given string with color (if possible)
+func sprintfColored(
+	c color.Attribute,
+	format string,
+	a ...any,
+) string {
+	formatted := fmt.Sprintf(format, a...)
+
+	if supportscolor.Stdout().SupportsColor { // if color is supported,
+		buf := new(bytes.Buffer)
+		_, _ = color.New(c).Fprint(buf, formatted)
+		return buf.String()
+	} else {
+		return fmt.Sprint(formatted)
+	}
 }

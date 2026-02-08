@@ -37,7 +37,7 @@ const (
 // serve MCP server with params
 func serve(
 	p params,
-	writer *outputWriter,
+	writer outputWriter,
 ) (exit int, err error) {
 	writer.verbose(
 		verboseMinimum,
@@ -98,7 +98,7 @@ func serve(
 func buildSelfServer(
 	conf config,
 	p params,
-	writer *outputWriter,
+	writer outputWriter,
 ) (*mcp.Server, []*mcp.Tool) {
 	// new server
 	server := mcp.NewServer(
@@ -575,7 +575,7 @@ func buildSelfServer(
 															},
 														)
 													} else {
-														writer.err(
+														writer.errorWithColorForLevel(
 															verboseMaximum,
 															"failed to save image file: %s",
 															err,
@@ -628,14 +628,14 @@ func buildSelfServer(
 															},
 														)
 													} else {
-														writer.err(
+														writer.errorWithColorForLevel(
 															verboseMaximum,
 															"failed to save audio file: %s",
 															err,
 														)
 													}
 												} else {
-													writer.err(
+													writer.errorWithColorForLevel(
 														verboseMaximum,
 														"unknown inline data type: %s", part.InlineData.MIMEType,
 													)
@@ -660,7 +660,7 @@ func buildSelfServer(
 										}
 									} else {
 										// error
-										writer.err(
+										writer.errorWithColorForLevel(
 											verboseMaximum,
 											"failed to read first frame file for video generation: %s",
 											ferr,
@@ -688,7 +688,7 @@ func buildSelfServer(
 										}
 									} else {
 										// error
-										writer.err(
+										writer.errorWithColorForLevel(
 											verboseMaximum,
 											"failed to read last frame file for video generation: %s",
 											ferr,
@@ -716,7 +716,7 @@ func buildSelfServer(
 										}
 									} else {
 										// error
-										writer.err(
+										writer.errorWithColorForLevel(
 											verboseMaximum,
 											"failed to read video file for video generation: %s",
 											ferr,
@@ -773,7 +773,7 @@ func buildSelfServer(
 
 											if ferr != nil {
 												// error
-												writer.err(
+												writer.errorWithColorForLevel(
 													verboseMaximum,
 													"failed to get generated videos: %s",
 													ferr,
@@ -793,7 +793,7 @@ func buildSelfServer(
 											}
 										} else {
 											// error
-											writer.err(
+											writer.errorWithColorForLevel(
 												verboseMaximum,
 												"failed to generate videos: no returned bytes",
 											)
@@ -847,7 +847,7 @@ func buildSelfServer(
 												},
 											)
 										} else {
-											writer.err(
+											writer.errorWithColorForLevel(
 												verboseMaximum,
 												"failed to save video file: %s",
 												err,
@@ -1945,7 +1945,7 @@ func runStdioServer(
 	ctx context.Context,
 	conf config,
 	p params,
-	writer *outputWriter,
+	writer outputWriter,
 	vbs []bool,
 ) (err error) {
 	server, _ := buildSelfServer(conf, p, writer)
@@ -2004,7 +2004,7 @@ func selfAsMCPTool(
 	ctx context.Context,
 	conf config,
 	p params,
-	writer *outputWriter,
+	writer outputWriter,
 ) (connDetails *mcpConnectionDetails, err error) {
 	server, tools := buildSelfServer(conf, p, writer)
 

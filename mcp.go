@@ -46,7 +46,7 @@ type mcpConnectionDetails struct {
 // fetchAndRegisterMCPTools connects to an MCP server and fetches its tools.
 func fetchAndRegisterMCPTools(
 	ctx context.Context,
-	writer *outputWriter,
+	writer outputWriter,
 	p params,
 	serverType mcpServerType,
 	serverIdentifier string,

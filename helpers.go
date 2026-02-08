@@ -93,11 +93,11 @@ func standardizeJSON(b []byte) ([]byte, error) {
 
 // check if given directory should be ignored
 func ignoredDirectory(
-	writer *outputWriter,
+	writer outputWriter,
 	path string,
 ) bool {
 	if _, exists := _dirNamesToIgnore[filepath.Base(path)]; exists {
-		writer.print(
+		writer.printWithColorForLevel(
 			verboseMedium,
 			"Ignoring directory '%s'",
 			path,
@@ -109,13 +109,13 @@ func ignoredDirectory(
 
 // check if given file should be ignored
 func ignoredFile(
-	writer *outputWriter,
+	writer outputWriter,
 	path string,
 	stat os.FileInfo,
 ) bool {
 	// ignore empty files,
 	if stat.Size() <= 0 {
-		writer.print(
+		writer.printWithColorForLevel(
 			verboseMedium,
 			"Ignoring empty file '%s'",
 			path,
@@ -125,7 +125,7 @@ func ignoredFile(
 
 	// ignore files with ignored names,
 	if _, exists := _fileNamesToIgnore[filepath.Base(path)]; exists {
-		writer.print(
+		writer.printWithColorForLevel(
 			verboseMedium,
 			"Ignoring file '%s'",
 			path,
@@ -138,7 +138,7 @@ func ignoredFile(
 
 // return all files' paths in the given directory
 func filesInDir(
-	writer *outputWriter,
+	writer outputWriter,
 	dir string,
 	vbs []bool,
 ) ([]*string, error) {
@@ -180,7 +180,7 @@ func filesInDir(
 
 // expand given filepaths (expand directories with their sub files)
 func expandFilepaths(
-	writer *outputWriter,
+	writer outputWriter,
 	p params,
 ) (expanded []*string, err error) {
 	filepaths := p.Generation.Filepaths
@@ -228,7 +228,7 @@ func expandFilepaths(
 		if override, exists := p.OverrideFileMIMEType[filepath.Ext(*fp)]; exists {
 			filtered = append(filtered, fp)
 
-			writer.print(
+			writer.printWithColorForLevel(
 				verboseMedium,
 				"Overriding mime type of file '%s': %s",
 				*fp,
@@ -239,7 +239,7 @@ func expandFilepaths(
 				if supported {
 					filtered = append(filtered, fp)
 				} else {
-					writer.print(
+					writer.printWithColorForLevel(
 						verboseMedium,
 						"Ignoring file '%s', unsupported mime type: %s",
 						*fp,
@@ -314,7 +314,7 @@ func (u customURLInPrompt) url() string {
 
 // replace all http urls in given text to body texts
 func replaceURLsInPrompt(
-	writer *outputWriter,
+	writer outputWriter,
 	conf config,
 	p params,
 ) (replaced string, files map[customURLInPrompt][]byte) {
@@ -423,7 +423,7 @@ func urlsInPrompt(p params) bool {
 
 // fetch the content from given url and convert it to text for prompting.
 func fetchContent(
-	writer *outputWriter,
+	writer outputWriter,
 	conf config,
 	userAgent,
 	url string,
@@ -1343,7 +1343,7 @@ func gtClient(
 // helper function for returning the first-appearing text,
 // images(first/last frame images), and video from given prompts
 func promptImageOrVideoFromPrompts(
-	writer *outputWriter,
+	writer outputWriter,
 	files []openedFile,
 ) (
 	firstFrame *genai.Image,
