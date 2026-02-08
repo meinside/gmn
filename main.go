@@ -64,7 +64,7 @@ func main() {
 
 		if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a MCP server?
 			// then serve as a MCP server
-			exit, err := serve(p, writer)
+			exit, err := serve(writer, p)
 			if err != nil {
 				os.Exit(writer.printErrorBeforeExit(
 					exit,
@@ -99,7 +99,7 @@ func main() {
 			}
 
 			// run with params
-			exit, err := run(parser, p, writer)
+			exit, err := run(parser, writer, p)
 
 			if err != nil {
 				if gt.IsQuotaExceeded(err) {

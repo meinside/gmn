@@ -36,8 +36,8 @@ const (
 
 // serve MCP server with params
 func serve(
-	p params,
 	writer outputWriter,
+	p params,
 ) (exit int, err error) {
 	writer.verbose(
 		verboseMinimum,
@@ -47,33 +47,8 @@ func serve(
 
 	// read and apply configs
 	var conf config
-	if conf, err = readConfig(resolveConfigFilepath(p.Configuration.ConfigFilepath)); err != nil {
-		// check if environment variable for api key exists,
-		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
-			// use it,
-			p.Configuration.GoogleAIAPIKey = &envAPIKey
-		} else {
-			// or return an error
-			return 1, fmt.Errorf(
-				"failed to read configuration: %w",
-				err,
-			)
-		}
-	}
-
-	// override command arguments with values from configs
-	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
-		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
-	}
-
-	// set default values
-	if p.Generation.FetchContents.UserAgent == nil {
-		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
-	}
-
-	// check existence of essential parameters here
-	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil {
-		return 1, fmt.Errorf("google AI API Key is missing")
+	if conf, p, err = readAndFillConfig(p, writer); err != nil {
+		return 1, fmt.Errorf("failed to read and fill configs: %w", err)
 	}
 
 	// files are not supported
@@ -84,10 +59,9 @@ func serve(
 	// run stdio MCP server
 	if err = runStdioServer(
 		context.TODO(),
+		writer,
 		conf,
 		p,
-		writer,
-		p.Verbose,
 	); err != nil {
 		return 1, err
 	}
@@ -96,9 +70,9 @@ func serve(
 
 // build a MCP server with itself
 func buildSelfServer(
+	writer outputWriter,
 	conf config,
 	p params,
-	writer outputWriter,
 ) (*mcp.Server, []*mcp.Tool) {
 	// new server
 	server := mcp.NewServer(
@@ -1943,12 +1917,13 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 // run MCP server through STDIO
 func runStdioServer(
 	ctx context.Context,
+	writer outputWriter,
 	conf config,
 	p params,
-	writer outputWriter,
-	vbs []bool,
 ) (err error) {
-	server, _ := buildSelfServer(conf, p, writer)
+	vbs := p.Verbose
+
+	server, _ := buildSelfServer(writer, conf, p)
 
 	// trap signals
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -2006,7 +1981,7 @@ func selfAsMCPTool(
 	p params,
 	writer outputWriter,
 ) (connDetails *mcpConnectionDetails, err error) {
-	server, tools := buildSelfServer(conf, p, writer)
+	server, tools := buildSelfServer(writer, conf, p)
 
 	writer.verbose(
 		verboseMinimum,

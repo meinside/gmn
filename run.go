@@ -70,8 +70,8 @@ func resolveGoogleAIModel(
 // run with params
 func run(
 	parser *flags.Parser,
-	p params,
 	writer outputWriter,
+	p params,
 ) (exit int, err error) {
 	// early return if no task was requested
 	if !p.taskRequested() {
@@ -96,147 +96,9 @@ func run(
 	}
 
 	// read and apply configs
-	configFilepath := resolveConfigFilepath(p.Configuration.ConfigFilepath)
 	var conf config
-	if conf, err = readConfig(configFilepath); err == nil {
-		writer.verbose(
-			verboseMinimum,
-			p.Verbose,
-			"loaded configuration file: %s",
-			configFilepath,
-		)
-
-		if p.Generation.DetailedOptions.SystemInstruction == nil && conf.SystemInstruction != nil {
-			p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
-		}
-	} else {
-		// check if environment variable for api key or credentials file exists,
-		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
-			writer.verbose(
-				verboseMinimum,
-				p.Verbose,
-				"using API key from environment variable: %s",
-				envVarNameAPIKey,
-			)
-			conf.GoogleAIAPIKey = &envAPIKey
-		} else if envCredentialsFilepath, exists := os.LookupEnv(envVarNameCredentialsFilepath); exists {
-			writer.verbose(
-				verboseMinimum,
-				p.Verbose,
-				"using credentials filepath from environment variable: %s",
-				envVarNameCredentialsFilepath,
-			)
-			conf.GoogleCredentialsFilepath = &envCredentialsFilepath
-
-			if envLocation, exists := os.LookupEnv(envVarNameLocation); exists {
-				writer.verbose(
-					verboseMinimum,
-					p.Verbose,
-					"using location from environment variable: %s",
-					envVarNameLocation,
-				)
-				conf.Location = &envLocation
-			} else {
-				conf.Location = ptr(defaultLocation)
-			}
-
-			if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
-				writer.verbose(
-					verboseMinimum,
-					p.Verbose,
-					"using bucket name from environment variable: %s",
-					envVarNameBucket,
-				)
-				conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
-			} else {
-				conf.GoogleCloudStorageBucketNameForFileUploads = ptr(defaultBucketNameForFileUploads)
-			}
-		} else {
-			// or return an error
-			return 1, fmt.Errorf(
-				"failed to read configuration: %w",
-				err,
-			)
-		}
-	}
-
-	// check if essential values are conflicting with each other
-	if p.Configuration.GoogleAIAPIKey != nil && p.Configuration.CredentialsFilepath != nil {
-		return 1, fmt.Errorf("parameters for google AI API Key and credentials file cannot be specified at the same time")
-	}
-	if conf.GoogleAIAPIKey != nil && conf.GoogleCredentialsFilepath != nil {
-		return 1, fmt.Errorf("configurations for google AI API Key and credentials file cannot be specified at the same time")
-	}
-	if conf.GoogleAIAPIKey == nil && p.Configuration.GoogleAIAPIKey == nil &&
-		conf.GoogleCredentialsFilepath == nil && p.Configuration.CredentialsFilepath == nil {
-		return 1, fmt.Errorf("both google AI API key and credentials filepath are missing")
-	}
-
-	// override values
-	if conf.GoogleAIAPIKey != nil && p.Configuration.GoogleAIAPIKey == nil {
-		writer.verbose(
-			verboseMinimum,
-			p.Verbose,
-			"using API key from configuration file: %s",
-			*conf.GoogleAIAPIKey,
-		)
-
-		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
-		p.Configuration.CredentialsFilepath = nil
-	} else if p.Configuration.GoogleAIAPIKey != nil {
-		writer.verbose(
-			verboseMinimum,
-			p.Verbose,
-			"using API key from input parameters (overriding the one from config file): %s",
-			*p.Configuration.GoogleAIAPIKey,
-		)
-
-		conf.GoogleAIAPIKey = p.Configuration.GoogleAIAPIKey
-		conf.GoogleCredentialsFilepath = nil
-	}
-	if conf.GoogleCredentialsFilepath != nil && p.Configuration.CredentialsFilepath == nil {
-		writer.verbose(
-			verboseMinimum,
-			p.Verbose,
-			"using credentials filepath from configuration file: %s",
-			*conf.GoogleCredentialsFilepath,
-		)
-
-		p.Configuration.CredentialsFilepath = conf.GoogleCredentialsFilepath
-		p.Configuration.GoogleAIAPIKey = nil
-	} else if p.Configuration.CredentialsFilepath != nil {
-		writer.verbose(
-			verboseMinimum,
-			p.Verbose,
-			"using credentials filepath from input parameters (overriding the one from config file): %s",
-			*p.Configuration.CredentialsFilepath,
-		)
-
-		conf.GoogleCredentialsFilepath = p.Configuration.CredentialsFilepath
-		conf.GoogleAIAPIKey = nil
-	}
-
-	// fallback to default values
-	if p.Generation.DetailedOptions.SystemInstruction == nil {
-		p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
-	}
-	if p.Generation.FetchContents.UserAgent == nil {
-		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
-	}
-	if p.Generation.Video.NumGenerated == 0 {
-		p.Generation.Video.NumGenerated = defaultGeneratedVideosCount
-	}
-	if p.Generation.Video.DurationSeconds == 0 {
-		p.Generation.Video.DurationSeconds = defaultGeneratedVideosDurationSeconds
-	}
-	if p.Generation.Video.FPS == 0 {
-		p.Generation.Video.FPS = defaultGeneratedVideosFPS
-	}
-	if conf.TimeoutSeconds <= 0 {
-		conf.TimeoutSeconds = defaultTimeoutSeconds
-	}
-	if conf.ReplaceHTTPURLTimeoutSeconds <= 0 {
-		conf.ReplaceHTTPURLTimeoutSeconds = defaultFetchURLTimeoutSeconds
+	if conf, p, err = readAndFillConfig(p, writer); err != nil {
+		return 1, fmt.Errorf("failed to read and fill configs: %w", err)
 	}
 
 	// expand filepaths (recurse directories)
@@ -339,13 +201,9 @@ func run(
 					writer,
 					conf.TimeoutSeconds,
 					gtc,
-					*p.Generation.DetailedOptions.SystemInstruction,
 					prompts,
 					promptFiles,
-					p.Generation.Filepaths,
-					p.OverrideFileMIMEType,
-					p.Caching.CachedContextName,
-					p.Verbose,
+					p,
 				)
 			} else { // generate
 				// model
@@ -529,13 +387,9 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.Generation.DetailedOptions.SystemInstruction,
 				nil, // prompt not given
 				nil, // prompt not given
-				p.Generation.Filepaths,
-				p.OverrideFileMIMEType,
-				p.Caching.CachedContextName,
-				p.Verbose,
+				p,
 			)
 		} else if p.Caching.ListCachedContexts { // list cached contexts
 			// gemini things client
@@ -557,7 +411,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				p.Verbose,
+				p,
 			)
 		} else if p.Caching.DeleteCachedContext != nil { // delete cached context
 			// gemini things client
@@ -579,8 +433,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.Caching.DeleteCachedContext,
-				p.Verbose,
+				p,
 			)
 		} else if p.ListModels { // list models
 			// gemini things client
@@ -602,7 +455,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				p.Verbose,
+				p,
 			)
 		} else if p.FileSearch.ListFileSearchStores { // list file search stores
 			// gemini things client
@@ -621,7 +474,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				p.Verbose,
+				p,
 			)
 		} else if p.FileSearch.CreateFileSearchStore != nil { // create file search store
 			// gemini things client
@@ -643,8 +496,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.FileSearch.CreateFileSearchStore,
-				p.Verbose,
+				p,
 			)
 		} else if p.FileSearch.DeleteFileSearchStore != nil { // delete file search store
 			// gemini things client
@@ -666,8 +518,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.FileSearch.DeleteFileSearchStore,
-				p.Verbose,
+				p,
 			)
 		} else if p.FileSearch.FileSearchStoreNameToUploadFiles != nil { // upload files to file search store
 			if len(p.Generation.Filepaths) > 0 {
@@ -708,12 +559,8 @@ func run(
 						writer,
 						conf.TimeoutSeconds,
 						gtc,
-						*p.FileSearch.FileSearchStoreNameToUploadFiles,
 						filepaths,
-						p.Embeddings.EmbeddingsChunkSize,
-						p.Embeddings.EmbeddingsOverlappedChunkSize,
-						p.OverrideFileMIMEType,
-						p.Verbose,
+						p,
 					)
 
 				} else {
@@ -742,8 +589,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.FileSearch.ListFilesInFileSearchStore,
-				p.Verbose,
+				p,
 			)
 		} else if p.FileSearch.DeleteFileInFileSearchStore != nil { // delete a file in a file search store
 			// gemini things client
@@ -765,8 +611,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.FileSearch.DeleteFileInFileSearchStore,
-				p.Verbose,
+				p,
 			)
 		} else { // otherwise, (should not reach here)
 			writer.printWithColorForLevel(
