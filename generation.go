@@ -32,25 +32,52 @@ func doGeneration(
 	writer *outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	systemInstruction string, temperature, topP *float32, topK *int32,
-	seed *int32,
-	prompts []gt.Prompt, promptFiles map[string][]byte, filepaths []*string,
-	overrideMimeTypeForExt map[string]string,
-	withThinking bool, thinkingLevel *string, showThinking bool, thoughtSignature []byte,
-	withGrounding bool,
-	withGoogleMaps bool, googleMapsLatitude, googleMapsLongitude *float64,
-	cachedContextName *string,
-	forcePrintCallbackResults bool, recurseOnCallbackResults bool, maxCallbackLoopCount int, forceCallDestructiveTools bool,
-	tools []genai.Tool, toolConfig *genai.ToolConfig, toolCallbacks map[string]string, toolCallbacksConfirm map[string]bool,
-	mcpConnsAndTools mcpConnectionsAndTools,
-	outputAsJSON bool,
-	generateImages, saveImagesToFiles bool, saveImagesToDir *string,
-	generateVideos bool, negativePromptForVideo *string, resolutionForVideo *string, referenceImagesForVideo map[string]string, saveVideosToDir *string, numVideos, videoDurationSeconds, videoFPS int32,
-	generateSpeech bool, speechLanguage, speechVoice *string, speechVoices map[string]string, saveSpeechToDir *string,
 	pastGenerations []genai.Content,
-	ignoreUnsupportedType bool,
-	vbs []bool,
+	prompts []gt.Prompt, promptFiles map[string][]byte,
+	tools []genai.Tool, toolConfig *genai.ToolConfig, mcpConnsAndTools mcpConnectionsAndTools, thoughtSignature []byte,
+	p params,
 ) (exit int, e error) {
+	systemInstruction := *p.Generation.DetailedOptions.SystemInstruction
+	temperature := p.Generation.DetailedOptions.Temperature
+	topP := p.Generation.DetailedOptions.TopP
+	topK := p.Generation.DetailedOptions.TopK
+	seed := p.Generation.DetailedOptions.Seed
+	filepaths := p.Generation.Filepaths
+	overrideMimeTypeForExt := p.OverrideFileMIMEType
+	withThinking := p.Generation.ThinkingOn
+	thinkingLevel := p.Generation.DetailedOptions.ThinkingLevel
+	showThinking := p.Generation.DetailedOptions.ShowThinking
+	withGrounding := p.Generation.GroundingOn
+	withGoogleMaps := p.Generation.GoogleMaps.WithGoogleMaps
+	googleMapsLatitude := p.Generation.GoogleMaps.Latitude
+	googleMapsLongitude := p.Generation.GoogleMaps.Longitude
+	cachedContextName := p.Caching.CachedContextName
+	forcePrintCallbackResults := p.Tools.ShowCallbackResults
+	recurseOnCallbackResults := p.Tools.RecurseOnCallbackResults
+	maxCallbackLoopCount := p.Tools.MaxCallbackLoopCount
+	forceCallDestructiveTools := p.Tools.ForceCallDestructiveTools
+	toolCallbacks := p.LocalTools.ToolCallbacks
+	toolCallbacksConfirm := p.LocalTools.ToolCallbacksConfirm
+	outputAsJSON := p.Generation.OutputAsJSON
+	generateImages := p.Generation.Image.GenerateImages
+	saveImagesToFiles := p.Generation.Image.SaveToFiles
+	saveImagesToDir := p.Generation.Image.SaveToDir
+	generateVideos := p.Generation.Video.GenerateVideos
+	negativePromptForVideo := p.Generation.Video.NegativePrompt
+	resolutionForVideo := p.Generation.Video.Resolution
+	referenceImagesForVideo := p.Generation.Video.ReferenceImages
+	saveVideosToDir := p.Generation.Video.SaveToDir
+	numVideos := p.Generation.Video.NumGenerated
+	videoDurationSeconds := p.Generation.Video.DurationSeconds
+	videoFPS := p.Generation.Video.FPS
+	generateSpeech := p.Generation.Speech.GenerateSpeech
+	speechLanguage := p.Generation.Speech.Language
+	speechVoice := p.Generation.Speech.Voice
+	speechVoices := p.Generation.Speech.Voices
+	saveSpeechToDir := p.Generation.Speech.SaveToDir
+	ignoreUnsupportedType := !p.ErrorOnUnsupportedType
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,
@@ -1404,24 +1431,11 @@ func doGeneration(
 				writer,
 				timeoutSeconds,
 				gtc,
-				systemInstruction, temperature, topP, topK,
-				seed,
-				nil, nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
-				overrideMimeTypeForExt,
-				withThinking, thinkingLevel, showThinking, thoughtSignature,
-				withGrounding,
-				withGoogleMaps, googleMapsLatitude, googleMapsLongitude,
-				cachedContextName,
-				forcePrintCallbackResults, recurseOnCallbackResults, maxCallbackLoopCount, forceCallDestructiveTools,
-				tools, toolConfig, toolCallbacks, toolCallbacksConfirm,
-				mcpConnsAndTools,
-				outputAsJSON,
-				generateImages, saveImagesToFiles, saveImagesToDir,
-				generateVideos, negativePromptForVideo, resolutionForVideo, referenceImagesForVideo, saveVideosToDir, numVideos, videoDurationSeconds, videoFPS,
-				generateSpeech, speechLanguage, speechVoice, speechVoices, saveSpeechToDir,
 				pastGenerations,
-				ignoreUnsupportedType,
-				vbs,
+				nil, nil, // NOTE: all prompts and histories for recursion are already appended in `pastGenerations`
+				tools, toolConfig, mcpConnsAndTools,
+				thoughtSignature,
+				p,
 			)
 		}
 

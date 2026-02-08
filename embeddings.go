@@ -22,11 +22,17 @@ func doEmbeddingsGeneration(
 	writer *outputWriter,
 	timeoutSeconds int,
 	gtc *gt.Client,
-	prompt string,
-	taskType *string,
-	chunkSize, overlappedChunkSize *uint,
-	vbs []bool,
+	p params,
 ) (exit int, e error) {
+	if p.Generation.Prompt == nil {
+		return 1, fmt.Errorf("prompt is required for embeddings generation")
+	}
+	prompt := *p.Generation.Prompt
+	taskType := p.Embeddings.EmbeddingsTaskType
+	chunkSize := p.Embeddings.EmbeddingsChunkSize
+	overlappedChunkSize := p.Embeddings.EmbeddingsOverlappedChunkSize
+	vbs := p.Verbose
+
 	writer.verbose(
 		verboseMedium,
 		vbs,

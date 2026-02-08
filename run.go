@@ -278,11 +278,7 @@ func run(
 				writer,
 				conf.TimeoutSeconds,
 				gtc,
-				*p.Generation.Prompt,
-				p.Embeddings.EmbeddingsTaskType,
-				p.Embeddings.EmbeddingsChunkSize,
-				p.Embeddings.EmbeddingsOverlappedChunkSize,
-				p.Verbose,
+				p,
 			)
 		} else {
 			prompts := []gt.Prompt{}
@@ -494,32 +490,14 @@ func run(
 					writer,
 					conf.TimeoutSeconds,
 					gtc,
-					*p.Generation.DetailedOptions.SystemInstruction, p.Generation.DetailedOptions.Temperature, p.Generation.DetailedOptions.TopP, p.Generation.DetailedOptions.TopK,
-					p.Generation.DetailedOptions.Seed,
+					nil, // NOTE: first call => no history
 					prompts,
 					promptFiles,
-					p.Generation.Filepaths,
-					p.OverrideFileMIMEType,
-					p.Generation.ThinkingOn, p.Generation.DetailedOptions.ThinkingLevel, p.Generation.DetailedOptions.ShowThinking, nil,
-					p.Generation.GroundingOn,
-					p.Generation.GoogleMaps.WithGoogleMaps, p.Generation.GoogleMaps.Latitude, p.Generation.GoogleMaps.Longitude,
-					p.Caching.CachedContextName,
-					p.Tools.ShowCallbackResults,
-					p.Tools.RecurseOnCallbackResults,
-					p.Tools.MaxCallbackLoopCount,
-					p.Tools.ForceCallDestructiveTools,
 					tools,
 					toolConfig,
-					p.LocalTools.ToolCallbacks,
-					p.LocalTools.ToolCallbacksConfirm,
 					allMCPConnections,
-					p.Generation.OutputAsJSON,
-					p.Generation.Image.GenerateImages, p.Generation.Image.SaveToFiles, p.Generation.Image.SaveToDir,
-					p.Generation.Video.GenerateVideos, p.Generation.Video.NegativePrompt, p.Generation.Video.Resolution, p.Generation.Video.ReferenceImages, p.Generation.Video.SaveToDir, p.Generation.Video.NumGenerated, p.Generation.Video.DurationSeconds, p.Generation.Video.FPS,
-					p.Generation.Speech.GenerateSpeech, p.Generation.Speech.Language, p.Generation.Speech.Voice, p.Generation.Speech.Voices, p.Generation.Speech.SaveToDir,
-					nil, // NOTE: first call => no history
-					!p.ErrorOnUnsupportedType,
-					p.Verbose,
+					nil, // NOTE: first call => no thought signature
+					p,
 				)
 			}
 		}
