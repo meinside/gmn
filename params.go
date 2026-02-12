@@ -298,6 +298,6 @@ func (p *params) multipleMediaTypesRequested() bool {
 // redact params for printing to stdout
 func (p *params) redact() params {
 	copied := *p
-	copied.Configuration.GoogleAIAPIKey = ptr("REDACTED")
+	copied.Configuration.GoogleAIAPIKey = new("REDACTED")
 	return copied
 }

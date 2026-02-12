@@ -678,12 +678,6 @@ func customMetadataToMap(metadata []*genai.CustomMetadata) map[string]string {
 	return m
 }
 
-// get pointer of given value
-func ptr[T any](v T) *T {
-	val := v
-	return &val
-}
-
 // get unique elements of given slice of pointers
 func uniqPtrs[T comparable](slice []*T) []*T {
 	keys := map[T]bool{}
@@ -1248,7 +1242,7 @@ func dirEntryToStruct(
 		Mode:        entry.Type(),
 	}
 	if info, _ := entry.Info(); info != nil { // may be nil when entry was removed after listing dir entries
-		result.Info = ptr(fileInfoToStruct(info, filepath.Join(parentDirpath, entry.Name())))
+		result.Info = new(fileInfoToStruct(info, filepath.Join(parentDirpath, entry.Name())))
 	}
 
 	return result
@@ -1487,7 +1481,7 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 				)
 				conf.Location = &envLocation
 			} else {
-				conf.Location = ptr(defaultLocation)
+				conf.Location = new(defaultLocation)
 			}
 
 			if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
@@ -1499,7 +1493,7 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 				)
 				conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
 			} else {
-				conf.GoogleCloudStorageBucketNameForFileUploads = ptr(defaultBucketNameForFileUploads)
+				conf.GoogleCloudStorageBucketNameForFileUploads = new(defaultBucketNameForFileUploads)
 			}
 		} else {
 			// or return an error
@@ -1571,10 +1565,10 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 		p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
 	}
 	if p.Generation.DetailedOptions.SystemInstruction == nil {
-		p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
+		p.Generation.DetailedOptions.SystemInstruction = new(defaultSystemInstruction())
 	}
 	if p.Generation.FetchContents.UserAgent == nil {
-		p.Generation.FetchContents.UserAgent = ptr(defaultFetchUserAgent)
+		p.Generation.FetchContents.UserAgent = new(defaultFetchUserAgent)
 	}
 	if p.Generation.Video.NumGenerated == 0 {
 		p.Generation.Video.NumGenerated = defaultGeneratedVideosCount

@@ -119,7 +119,7 @@ func doGeneration(
 	opts.TopP = topP
 	// (topK)
 	if topK != nil {
-		opts.TopK = ptr(float32(*topK))
+		opts.TopK = new(float32(*topK))
 	}
 	// (seed)
 	if seed != nil {
@@ -366,8 +366,8 @@ func doGeneration(
 
 				options := &genai.GenerateVideosConfig{
 					NumberOfVideos:   numVideos,
-					DurationSeconds:  ptr(videoDurationSeconds),
-					FPS:              ptr(videoFPS),
+					DurationSeconds:  new(videoDurationSeconds),
+					FPS:              new(videoFPS),
 					EnhancePrompt:    true,
 					PersonGeneration: "allow_adult",
 				}
@@ -381,7 +381,7 @@ func doGeneration(
 					options.NegativePrompt = *negativePromptForVideo
 				}
 				if resolutionForVideo == nil {
-					resolutionForVideo = ptr(defaultGeneratedVideosResolution)
+					resolutionForVideo = new(defaultGeneratedVideosResolution)
 				}
 				options.Resolution = *resolutionForVideo
 

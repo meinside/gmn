@@ -270,7 +270,7 @@ func buildSelfServer(
 				if fps != nil {
 					for _, fp := range *fps {
 						if pth, ok := fp.(string); ok {
-							filepaths = append(filepaths, ptr(expandPath(pth)))
+							filepaths = append(filepaths, new(expandPath(pth)))
 						}
 					}
 				}
@@ -291,7 +291,7 @@ func buildSelfServer(
 							} else if conf.GoogleAIModel != nil {
 								model = conf.GoogleAIModel
 							} else {
-								model = ptr(defaultGoogleAIModel)
+								model = new(defaultGoogleAIModel)
 							}
 						}
 					case "image":
@@ -299,7 +299,7 @@ func buildSelfServer(
 							if conf.GoogleAIImageGenerationModel != nil {
 								model = conf.GoogleAIImageGenerationModel
 							} else {
-								model = ptr(string(defaultGoogleAIImageGenerationModel))
+								model = new(string(defaultGoogleAIImageGenerationModel))
 							}
 						}
 					case "audio":
@@ -307,7 +307,7 @@ func buildSelfServer(
 							if conf.GoogleAISpeechGenerationModel != nil {
 								model = conf.GoogleAISpeechGenerationModel
 							} else {
-								model = ptr(string(defaultGoogleAISpeechGenerationModel))
+								model = new(string(defaultGoogleAISpeechGenerationModel))
 							}
 						}
 					case "video":
@@ -315,7 +315,7 @@ func buildSelfServer(
 							if conf.GoogleAIVideoGenerationModel != nil {
 								model = conf.GoogleAIVideoGenerationModel
 							} else {
-								model = ptr(string(defaultGoogleAIVideoGenerationModel))
+								model = new(string(defaultGoogleAIVideoGenerationModel))
 							}
 						}
 					}
@@ -328,7 +328,7 @@ func buildSelfServer(
 							if conf.SystemInstruction != nil {
 								p.Generation.DetailedOptions.SystemInstruction = conf.SystemInstruction
 							} else {
-								p.Generation.DetailedOptions.SystemInstruction = ptr(defaultSystemInstruction())
+								p.Generation.DetailedOptions.SystemInstruction = new(defaultSystemInstruction())
 							}
 						}
 					}
@@ -347,7 +347,7 @@ func buildSelfServer(
 					}
 
 					// get 'with_thinking',
-					thinkingOn := ptr(false)
+					thinkingOn := new(false)
 					switch *modality {
 					case "text":
 						withThinking, _ := gt.FuncArg[bool](args, "with_thinking")
@@ -357,7 +357,7 @@ func buildSelfServer(
 					}
 
 					// get 'with_grounding',
-					withGrounding := ptr(false)
+					withGrounding := new(false)
 					switch *modality {
 					case "text":
 						grounding, _ := gt.FuncArg[bool](args, "with_grounding")
@@ -367,7 +367,7 @@ func buildSelfServer(
 					}
 
 					// get 'convert_url',
-					convertURL := ptr(false)
+					convertURL := new(false)
 					switch *modality {
 					case "text":
 						withURLConversion, _ := gt.FuncArg[bool](args, "convert_url")
@@ -1218,7 +1218,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 				ReadOnlyHint:    true,
 			},
 		},
@@ -1336,7 +1336,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 			},
 		},
 		handler: func(
@@ -1427,7 +1427,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 			},
 		},
 		handler: func(
@@ -1513,7 +1513,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 			},
 		},
 		handler: func(
@@ -1603,7 +1603,7 @@ func buildSelfServer(
 				},
 			},
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 			},
 		},
 		handler: func(
@@ -1704,7 +1704,7 @@ func buildSelfServer(
 			Description: `This function sends a HTTP request and returns the response.
 `,
 			Annotations: &mcp.ToolAnnotations{
-				DestructiveHint: ptr(true),
+				DestructiveHint: new(true),
 			},
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",

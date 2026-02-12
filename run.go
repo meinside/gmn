@@ -43,27 +43,27 @@ func resolveGoogleAIModel(
 		if conf.GoogleAIEmbeddingsModel != nil {
 			return conf.GoogleAIEmbeddingsModel
 		}
-		return ptr(defaultGoogleAIEmbeddingsModel)
+		return new(defaultGoogleAIEmbeddingsModel)
 	case modelForImageGeneration:
 		if conf.GoogleAIImageGenerationModel != nil {
 			return conf.GoogleAIImageGenerationModel
 		}
-		return ptr(defaultGoogleAIImageGenerationModel)
+		return new(defaultGoogleAIImageGenerationModel)
 	case modelForVideoGeneration:
 		if conf.GoogleAIVideoGenerationModel != nil {
 			return conf.GoogleAIVideoGenerationModel
 		}
-		return ptr(defaultGoogleAIVideoGenerationModel)
+		return new(defaultGoogleAIVideoGenerationModel)
 	case modelForSpeechGeneration:
 		if conf.GoogleAISpeechGenerationModel != nil {
 			return conf.GoogleAISpeechGenerationModel
 		}
-		return ptr(defaultGoogleAISpeechGenerationModel)
+		return new(defaultGoogleAISpeechGenerationModel)
 	default: // general generation
 		if conf.GoogleAIModel != nil {
 			return conf.GoogleAIModel
 		}
-		return ptr(defaultGoogleAIModel)
+		return new(defaultGoogleAIModel)
 	}
 }
 
