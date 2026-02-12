@@ -857,6 +857,164 @@ func buildSelfServer(
 		},
 	})
 	//
+	// get environment variables' names (readonly)
+	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
+		tool: mcp.Tool{
+			Name: `gmn_list_envvar_names`,
+			Description: `This function lists all environment variables' names.
+
+* NOTE:
+- This function should be called prior to 'gmn_get_envvar'.
+`,
+			InputSchema: &jsonschema.Schema{
+				Type:       "object",
+				ReadOnly:   true,
+				Properties: map[string]*jsonschema.Schema{},
+			},
+			Annotations: &mcp.ToolAnnotations{
+				ReadOnlyHint: true,
+			},
+		},
+		handler: func(
+			ctx context.Context,
+			request *mcp.CallToolRequest,
+		) (result *mcp.CallToolResult, err error) {
+			// list all environment variables' names
+			names := []string{}
+			envs := os.Environ()
+			for _, env := range envs {
+				splitted := strings.Split(env, "=")
+				if len(splitted) >= 2 {
+					names = append(names, splitted[0])
+				}
+			}
+			if len(names) > 0 {
+				var marshalled []byte
+				if marshalled, err = json.Marshal(names); err == nil {
+					return &mcp.CallToolResult{
+						Content: []mcp.Content{
+							&mcp.TextContent{
+								Text: fmt.Sprintf(
+									`All environment variables' names:
+
+%s`,
+									prettify(names),
+								),
+							},
+						},
+						StructuredContent: json.RawMessage(marshalled), // structured (JSON)
+					}, nil
+				} else {
+					err = fmt.Errorf("failed to marshal environment variables' names: %w", err)
+				}
+			} else {
+				err = fmt.Errorf("there was no environment variable")
+			}
+
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{
+						Text: fmt.Sprintf(
+							"Failed to list all environment variables' names: %s",
+							err,
+						),
+					},
+				},
+				IsError: true,
+			}, nil
+		},
+	})
+	//
+	// get environment variable's value (readonly)
+	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
+		tool: mcp.Tool{
+			Name: `gmn_get_envvar`,
+			Description: `This function retrieves the value of an environment variable.
+`,
+			InputSchema: &jsonschema.Schema{
+				Type:     "object",
+				ReadOnly: true,
+				Properties: map[string]*jsonschema.Schema{
+					"name": {
+						Title:       "name",
+						Description: `The name of an environment variable.`,
+						Type:        "string",
+					},
+				},
+				Required: []string{
+					"name",
+				},
+			},
+			Annotations: &mcp.ToolAnnotations{
+				DestructiveHint: new(true),
+				ReadOnlyHint:    true,
+			},
+		},
+		handler: func(
+			ctx context.Context,
+			request *mcp.CallToolRequest,
+		) (result *mcp.CallToolResult, err error) {
+			// convert arguments
+			var args map[string]any
+			if json.Unmarshal(request.Params.Arguments, &args) != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{
+							Text: fmt.Sprintf(
+								"Failed to convert arguments to `%T`: %s",
+								args,
+								err,
+							),
+						},
+					},
+					IsError: true,
+				}, nil
+			}
+
+			// get 'name',
+			var name *string
+			name, err = gt.FuncArg[string](args, "name")
+			if err == nil {
+				// get environment variable's value
+				value := os.Getenv(*name)
+
+				var marshalled []byte
+				if marshalled, err = json.Marshal(value); err == nil {
+					return &mcp.CallToolResult{
+						Content: []mcp.Content{
+							&mcp.TextContent{
+								Text: fmt.Sprintf(
+									`Value of environment variable '%s':
+
+"%s"`,
+									*name,
+									value,
+								),
+							},
+						},
+						StructuredContent: json.RawMessage(marshalled), // structured (JSON)
+					}, nil
+				} else {
+					err = fmt.Errorf("failed to marshal value of environment variable '%s': %w", *name, err)
+				}
+			} else {
+				err = fmt.Errorf("failed to get parameter 'name': %w", err)
+			}
+
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{
+						Text: fmt.Sprintf(
+							"Failed to retrieve environment variable: %s",
+							err,
+						),
+					},
+				},
+				IsError: true,
+			}, nil
+		},
+	})
+	//
 	// TODO: generate embeddings with text (readonly)
 	//
 	// get current working directory (readonly, idempotent)
@@ -1583,6 +1741,7 @@ func buildSelfServer(
 
 * RULES:
 - The commandline must be in one line, and should be escaped correctly.
+- This function should be treated as a last resort when there is no other way for you to fulfill the given task.
 
 * CAUTION:
 - Never pass malicious input or non-existing commands to this function, as it will be executed as a shell command.
@@ -1716,9 +1875,12 @@ func buildSelfServer(
 						Type:        "string",
 						Enum: []any{
 							"GET",
-							"POST",
 							"DELETE",
+							"HEAD",
+
+							"POST",
 							"PUT",
+							"PATCH",
 						},
 					},
 					"url": {
@@ -1800,7 +1962,7 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 						hc := http.DefaultClient
 						var req *http.Request
 						switch *method {
-						case "GET", "DELETE":
+						case "GET", "DELETE", "HEAD":
 							req, err = http.NewRequest(*method, u.String(), nil)
 							if params != nil {
 								q := req.URL.Query()
@@ -1809,7 +1971,7 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 								}
 								req.URL.RawQuery = q.Encode()
 							}
-						case "POST", "PUT":
+						case "POST", "PUT", "PATCH":
 							var reader *bytes.Reader
 							if body != nil {
 								reader = bytes.NewReader([]byte(*body))
