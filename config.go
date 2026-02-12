@@ -142,10 +142,10 @@ func readConfig(
 
 				// set default values
 				if conf.Location == nil {
-					conf.Location = ptr(defaultLocation)
+					conf.Location = new(defaultLocation)
 				}
 				if conf.GoogleCloudStorageBucketNameForFileUploads == nil {
-					conf.GoogleCloudStorageBucketNameForFileUploads = ptr(string(defaultBucketNameForFileUploads))
+					conf.GoogleCloudStorageBucketNameForFileUploads = new(string(defaultBucketNameForFileUploads))
 				}
 			}
 		}
@@ -206,7 +206,7 @@ func fetchConfFromInfisical(
 	if err != nil {
 		return config{}, err
 	}
-	conf.GoogleAIAPIKey = ptr(secret.SecretValue)
+	conf.GoogleAIAPIKey = new(secret.SecretValue)
 
 	return conf, nil
 }

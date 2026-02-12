@@ -40,10 +40,10 @@ func doEmbeddingsGeneration(
 	)
 
 	if chunkSize == nil {
-		chunkSize = ptr(defaultEmbeddingsChunkSize)
+		chunkSize = new(defaultEmbeddingsChunkSize)
 	}
 	if overlappedChunkSize == nil {
-		overlappedChunkSize = ptr(defaultEmbeddingsChunkOverlappedSize)
+		overlappedChunkSize = new(defaultEmbeddingsChunkOverlappedSize)
 	}
 
 	// chunk prompt text

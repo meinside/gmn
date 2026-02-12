@@ -83,11 +83,11 @@ func main() {
 			}
 			if len(stdin) > 0 {
 				if p.Generation.Prompt == nil {
-					p.Generation.Prompt = ptr(string(stdin))
+					p.Generation.Prompt = new(string(stdin))
 				} else {
 					// merge prompts from stdin and parameter
 					merged := string(stdin) + "\n\n" + *p.Generation.Prompt
-					p.Generation.Prompt = ptr(merged)
+					p.Generation.Prompt = new(merged)
 
 					writer.verbose(
 						verboseMedium,

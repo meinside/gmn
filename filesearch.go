@@ -194,7 +194,7 @@ func uploadFilesToFileSearchStore(
 			WhiteSpaceConfig: &genai.WhiteSpaceConfig{},
 		}
 
-		chunkConfig.WhiteSpaceConfig.MaxTokensPerChunk = ptr(int32(*chunkSize))
+		chunkConfig.WhiteSpaceConfig.MaxTokensPerChunk = new(int32(*chunkSize))
 	}
 	if overlappedChunkSize != nil {
 		if chunkConfig == nil {
@@ -203,7 +203,7 @@ func uploadFilesToFileSearchStore(
 			}
 		}
 
-		chunkConfig.WhiteSpaceConfig.MaxOverlapTokens = ptr(int32(*overlappedChunkSize))
+		chunkConfig.WhiteSpaceConfig.MaxOverlapTokens = new(int32(*overlappedChunkSize))
 	}
 
 	for _, path := range filepaths {
