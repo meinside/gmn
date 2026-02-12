@@ -250,7 +250,7 @@ func (w *stdoutWriter) printErrorBeforeExit(
 }
 
 // sprintf given string with color (if possible)
-func sprintfColored(
+func colorizef(
 	c color.Attribute,
 	format string,
 	a ...any,
