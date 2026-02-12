@@ -783,19 +783,6 @@ func doGeneration(
 											part.FunctionCall.Name,
 											prettify(part.FunctionCall.Args, true),
 										)
-										fnColorized := fmt.Sprintf(
-											`%s(%s)`,
-											sprintfColored(
-												color.FgHiYellow,
-												"%s",
-												part.FunctionCall.Name,
-											),
-											sprintfColored(
-												color.FgYellow,
-												"%s",
-												prettify(part.FunctionCall.Args, true),
-											),
-										)
 
 										// NOTE: check if past generations has duplicated `fn` (for avoiding infinite loop)
 										duplicated := 0
@@ -937,9 +924,27 @@ func doGeneration(
 														*tool.Annotations.DestructiveHint &&
 														!forceCallDestructiveTools {
 														okToRun = confirm(fmt.Sprintf(
-															"May I call tool '%s' from '%s'?",
-															fnColorized,
-															stripServerInfo(serverType, serverKey),
+															`May I call tool '%s' from '%s'?`,
+															// tool name + arguments
+															fmt.Sprintf(
+																"%s(%s)",
+																colorizef(
+																	color.FgHiYellow,
+																	"%s",
+																	part.FunctionCall.Name,
+																),
+																colorizef(
+																	color.FgYellow,
+																	"%s",
+																	prettify(part.FunctionCall.Args, true),
+																),
+															),
+															// server info
+															colorizef(
+																color.FgHiBlue,
+																"%s",
+																stripServerInfo(serverType, serverKey),
+															),
 														))
 													} else {
 														okToRun = true
@@ -1545,10 +1550,27 @@ func checkCallbackPath(
 		// ask for confirmation
 		if confirmNeeded, exists := confirmToolCallbacks[fnCall.Name]; exists && confirmNeeded && !forceCallDestructiveTools {
 			okToRun = confirm(fmt.Sprintf(
-				"May I execute callback '%s' for function '%s(%s)'?",
-				callbackPath,
-				fnCall.Name,
-				prettify(fnCall.Args, true),
+				`May I execute callback '%s' for function '%s'?`,
+				// callback path
+				colorizef(
+					color.FgHiBlue,
+					"%s",
+					callbackPath,
+				),
+				// tool name + arguments
+				fmt.Sprintf(
+					"%s(%s)",
+					colorizef(
+						color.FgHiYellow,
+						"%s",
+						fnCall.Name,
+					),
+					colorizef(
+						color.FgYellow,
+						"%s",
+						prettify(fnCall.Args, true),
+					),
+				),
 			))
 		} else {
 			okToRun = true
