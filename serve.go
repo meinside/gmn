@@ -168,7 +168,7 @@ func buildSelfServer(
 			Description: `This function generates texts/images/speeches/videos by processing the given 'prompt' and optional parameters.
 
 * NOTE:
-- If there was any newly-created file, make sure to report to the user about the file's absolute filepath so the user could use it later.
+- If there was any newly-created file, make sure to report to the user about the new file's absolute filepath so the user could use it later.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -930,6 +930,11 @@ func buildSelfServer(
 		tool: mcp.Tool{
 			Name: `gmn_get_envvar`,
 			Description: `This function retrieves the value of an environment variable.
+
+Without YOLO mode, this function requires the user's confirmation before running.
+
+* NOTE:
+- Make sure to report to the user if this function was called and the specified environment variable was successfully retrieved.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1358,6 +1363,8 @@ func buildSelfServer(
 			Name: `gmn_read_text_file`,
 			Description: `This function reads a plain text file at a given filepath.
 
+Without YOLO mode, this function requires the user's confirmation before running.
+
 * NOTE:
 - Make sure to report to the user if this function was called and the specified file was successfully read.
 `,
@@ -1466,6 +1473,8 @@ func buildSelfServer(
 			Name: `gmn_create_text_file`,
 			Description: `This function creates a plain text file at a given filepath.
 
+Without YOLO mode, this function requires the user's confirmation before running.
+
 * CAUTION:
 - There should not be an existing file at the given path.
 - This function should not be used for creating binary files due to the risk of file corruption.
@@ -1567,6 +1576,8 @@ func buildSelfServer(
 			Name: `gmn_delete_file`,
 			Description: `This function deletes a file at a given filepath.
 
+Without YOLO mode, this function requires the user's confirmation before running.
+
 * NOTE:
 - Make sure to report to the user if this function was called and the specified file was successfully deleted.
 `,
@@ -1646,6 +1657,8 @@ func buildSelfServer(
 		tool: mcp.Tool{
 			Name: `gmn_move_file`,
 			Description: `This function moves a file at a given filepath to another filepath.
+
+Without YOLO mode, this function requires the user's confirmation before running.
 
 * NOTE:
 - Make sure to report to the user if this function was called and the specified file was successfully moved.
@@ -1738,6 +1751,8 @@ func buildSelfServer(
 		tool: mcp.Tool{
 			Name: `gmn_run_cmdline`,
 			Description: fmt.Sprintf(`This function executes a given bash commandline and returns the resulting output.
+
+Without YOLO mode, this function requires the user's confirmation before running.
 
 * RULES:
 - The commandline must be in one line, and should be escaped correctly.
@@ -1861,6 +1876,8 @@ func buildSelfServer(
 		tool: mcp.Tool{
 			Name: `gmn_do_http`,
 			Description: `This function sends a HTTP request and returns the response.
+
+Without YOLO mode, this function requires the user's confirmation before running.
 `,
 			Annotations: &mcp.ToolAnnotations{
 				DestructiveHint: new(true),

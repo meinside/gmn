@@ -99,7 +99,7 @@ type params struct {
 		RecurseOnCallbackResults bool `short:"r" long:"recurse-on-callback-results" description:"Whether to do recursive generations on callback results"`
 		MaxCallbackLoopCount     int  `long:"max-callback-loop-count" description:"Maximum number of times to call a tool callback with the same arguments" default:"0" value-name:"COUNT"`
 
-		ForceCallDestructiveTools bool `long:"force-call-destructive-tools" description:"Whether to force calling destructive tools without asking"`
+		ForceCallDestructiveTools bool `short:"y" long:"force-call-destructive-tools" description:"Whether to force calling destructive tools without asking (like YOLO mode)"`
 	} `group:"Tools"`
 
 	// tools (local)
