@@ -30,7 +30,7 @@ const (
 
 	// default model names
 	defaultGoogleAIModel                 = `gemini-3-flash-preview`
-	defaultGoogleAIImageGenerationModel  = `gemini-3-pro-image-preview`
+	defaultGoogleAIImageGenerationModel  = `gemini-3.1-flash-image-preview`
 	defaultGoogleAIVideoGenerationModel  = `veo-3.1-fast-generate-preview`
 	defaultGoogleAISpeechGenerationModel = `gemini-2.5-pro-preview-tts`
 	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-001`
