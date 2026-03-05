@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -95,11 +96,14 @@ func fetchAndRegisterMCPTools(
 }
 
 // for reusing http client
-var _mcpHTTPClient *http.Client
+var (
+	_mcpHTTPClient     *http.Client
+	_mcpHTTPClientOnce sync.Once
+)
 
 // helper function for generating a http client
 func mcpHTTPClient() *http.Client {
-	if _mcpHTTPClient == nil {
+	_mcpHTTPClientOnce.Do(func() {
 		_mcpHTTPClient = &http.Client{
 			Timeout: defaultTimeoutSeconds * time.Second,
 			Transport: &http.Transport{
@@ -114,7 +118,7 @@ func mcpHTTPClient() *http.Client {
 				DisableCompression:    true,
 			},
 		}
-	}
+	})
 	return _mcpHTTPClient
 }
 

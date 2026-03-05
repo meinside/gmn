@@ -72,9 +72,9 @@ func TestCommandlineParsing(t *testing.T) {
 			parsed: []string{
 				`/path/to/executable`,
 				`--text`,
-				`testin' commandline parsing`,
+				`"testin' commandline parsing"`,
 				`--phrase`,
-				`"should work" correctly`,
+				`'"should work" correctly'`,
 				`-v`,
 			},
 		},
@@ -87,8 +87,8 @@ func TestCommandlineParsing(t *testing.T) {
 		}
 
 		merged := append([]string{cmdline}, args...)
-		if slices.Equal(append([]string{cmdline}, args...), test.parsed) {
-			t.Errorf("expected '%s', got '%s'", test.parsed, merged)
+		if !slices.Equal(merged, test.parsed) {
+			t.Errorf("expected '%s', got '%s'", prettify(test.parsed, true), prettify(merged, true))
 		}
 	}
 }

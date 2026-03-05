@@ -40,8 +40,13 @@ import (
 
 const (
 	// for replacing URLs in prompt to body texts
-	urlRegexp       = `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	urlToTextFormat = "<link url=\"%[1]s\" content-type=\"%[2]s\">\n%[3]s\n</link>"
+)
+
+// pre-compiled regexps
+var (
+	_urlRegexp                    = regexp.MustCompile(`https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
+	_consecutiveEmptyLinesRegexp = regexp.MustCompile("\n{2,}")
 )
 
 // file/directory names to ignore while recursing directories
@@ -324,8 +329,7 @@ func replaceURLsInPrompt(
 
 	files = map[customURLInPrompt][]byte{}
 
-	re := regexp.MustCompile(urlRegexp)
-	for _, url := range re.FindAllString(prompt, -1) {
+	for _, url := range _urlRegexp.FindAllString(prompt, -1) {
 		// if `url` is from YouTube,
 		if isURLFromYoutube(url) {
 			files[youtubeURLInPrompt(url)] = []byte(url)
@@ -417,8 +421,7 @@ func replaceURLsInPrompt(
 
 // check if there is any http url in given text prompt
 func urlsInPrompt(p params) bool {
-	return regexp.MustCompile(urlRegexp).
-		FindAllString(*p.Generation.Prompt, -1) != nil
+	return _urlRegexp.FindAllString(*p.Generation.Prompt, -1) != nil
 }
 
 // fetch the content from given url and convert it to text for prompting.
@@ -491,7 +494,7 @@ func fetchContent(
 					// NOTE: removing unwanted things here
 					_ = doc.Find("script").Remove()                   // javascripts
 					_ = doc.Find("link[rel=\"stylesheet\"]").Remove() // css links
-					_ = doc.Find("style").Remove()                    // embeded css tyles
+					_ = doc.Find("style").Remove()                    // embedded css styles
 
 					converted = fmt.Appendf(
 						nil,
@@ -645,22 +648,19 @@ func removeConsecutiveEmptyLines(input string) string {
 	input = strings.Join(trimmed, "\n")
 
 	// remove redundant empty lines
-	regex := regexp.MustCompile("\n{2,}")
-	return regex.ReplaceAllString(input, "\n")
+	return _consecutiveEmptyLinesRegexp.ReplaceAllString(input, "\n")
 }
 
 // check if given HTTP content type is a supported text type
 func supportedTextContentType(contentType string) bool {
-	return func(contentType string) bool {
-		switch {
-		case strings.HasPrefix(contentType, "text/"):
-			return true
-		case strings.HasPrefix(contentType, "application/json"):
-			return true
-		default:
-			return false
-		}
-	}(contentType)
+	switch {
+	case strings.HasPrefix(contentType, "text/"):
+		return true
+	case strings.HasPrefix(contentType, "application/json"):
+		return true
+	default:
+		return false
+	}
 }
 
 // convert given custom metadata to a map
@@ -754,52 +754,66 @@ func convertReferenceImagesForVideoGeneration(
 	referenceImages map[string]string,
 ) (converted []*genai.VideoGenerationReferenceImage, err error) {
 	for fpath, referenceType := range referenceImages {
-		var image *genai.Image
+		refImage, err := loadReferenceImage(ctx, gtc, fpath, referenceType)
+		if err != nil {
+			return nil, err
+		}
+		converted = append(converted, refImage)
+	}
 
-		if file, err := os.Open(expandPath(fpath)); err == nil {
-			defer func() { _ = file.Close() }()
+	return converted, nil
+}
 
-			switch gtc.Type {
-			case genai.BackendGeminiAPI:
-				if bytes, err := io.ReadAll(file); err == nil {
-					image = &genai.Image{
-						ImageBytes: bytes,
-						MIMEType:   mimetype.Detect(bytes).String(),
-					}
-				} else {
-					return nil, fmt.Errorf("failed to read reference image file %s: %w", fpath, err)
-				}
-			case genai.BackendVertexAI:
-				if uploaded, err := gtc.UploadFile(ctx, file, filepath.Base(fpath)); err == nil {
-					image = &genai.Image{
-						GCSURI:   uploaded.URI,
-						MIMEType: uploaded.MIMEType,
-					}
-				} else {
-					return nil, fmt.Errorf("failed to upload reference image file %s: %w", fpath, err)
-				}
+// load a single reference image for video generation
+// (extracted to avoid defer in loop)
+func loadReferenceImage(
+	ctx context.Context,
+	gtc *gt.Client,
+	fpath string,
+	referenceType string,
+) (*genai.VideoGenerationReferenceImage, error) {
+	file, err := os.Open(expandPath(fpath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open reference image file %s: %w", fpath, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	var image *genai.Image
+	switch gtc.Type {
+	case genai.BackendGeminiAPI:
+		if bytes, err := io.ReadAll(file); err == nil {
+			image = &genai.Image{
+				ImageBytes: bytes,
+				MIMEType:   mimetype.Detect(bytes).String(),
 			}
 		} else {
-			return nil, fmt.Errorf("failed to open reference image file %s: %w", fpath, err)
+			return nil, fmt.Errorf("failed to read reference image file %s: %w", fpath, err)
 		}
-
-		switch strings.ToUpper(referenceType) {
-		case string(genai.VideoGenerationReferenceTypeAsset):
-			converted = append(converted, &genai.VideoGenerationReferenceImage{
-				Image:         image,
-				ReferenceType: genai.VideoGenerationReferenceTypeAsset,
-			})
-		case string(genai.VideoGenerationReferenceTypeStyle):
-			converted = append(converted, &genai.VideoGenerationReferenceImage{
-				Image:         image,
-				ReferenceType: genai.VideoGenerationReferenceTypeStyle,
-			})
-		default:
-			return nil, fmt.Errorf("invalid reference type: %s", referenceType)
+	case genai.BackendVertexAI:
+		if uploaded, err := gtc.UploadFile(ctx, file, filepath.Base(fpath)); err == nil {
+			image = &genai.Image{
+				GCSURI:   uploaded.URI,
+				MIMEType: uploaded.MIMEType,
+			}
+		} else {
+			return nil, fmt.Errorf("failed to upload reference image file %s: %w", fpath, err)
 		}
 	}
 
-	return converted, err
+	switch strings.ToUpper(referenceType) {
+	case string(genai.VideoGenerationReferenceTypeAsset):
+		return &genai.VideoGenerationReferenceImage{
+			Image:         image,
+			ReferenceType: genai.VideoGenerationReferenceTypeAsset,
+		}, nil
+	case string(genai.VideoGenerationReferenceTypeStyle):
+		return &genai.VideoGenerationReferenceImage{
+			Image:         image,
+			ReferenceType: genai.VideoGenerationReferenceTypeStyle,
+		}, nil
+	default:
+		return nil, fmt.Errorf("invalid reference type: %s", referenceType)
+	}
 }
 
 // print image to terminal which supports sixel
@@ -885,6 +899,14 @@ func genFilepath(
 			ext,
 		),
 	)
+}
+
+// mask API key for safe logging (show first 4 and last 4 chars only)
+func maskAPIKey(key string) string {
+	if len(key) <= 8 {
+		return "****"
+	}
+	return key[:4] + strings.Repeat("*", len(key)-8) + key[len(key)-4:]
 }
 
 // expand given path
@@ -1522,7 +1544,7 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 			verboseMinimum,
 			p.Verbose,
 			"using API key from configuration file: %s",
-			*conf.GoogleAIAPIKey,
+			maskAPIKey(*conf.GoogleAIAPIKey),
 		)
 
 		p.Configuration.GoogleAIAPIKey = conf.GoogleAIAPIKey
@@ -1532,7 +1554,7 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 			verboseMinimum,
 			p.Verbose,
 			"using API key from input parameters (overriding the one from config file): %s",
-			*p.Configuration.GoogleAIAPIKey,
+			maskAPIKey(*p.Configuration.GoogleAIAPIKey),
 		)
 
 		conf.GoogleAIAPIKey = p.Configuration.GoogleAIAPIKey

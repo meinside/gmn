@@ -404,9 +404,10 @@ func doGeneration(
 							if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
 								var reader *storage.Reader
 								if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
-									defer func() { _ = reader.Close() }()
+									data, ferr = io.ReadAll(reader)
+									_ = reader.Close()
 
-									if data, ferr = io.ReadAll(reader); ferr == nil {
+									if ferr == nil {
 										mimeType = video.Video.MIMEType
 									}
 								}
@@ -682,7 +683,7 @@ func doGeneration(
 												}
 											}
 										} else if strings.HasPrefix(part.InlineData.MIMEType, "audio/") { // (audio)
-											// check codec and birtate
+											// check codec and bitrate
 											speechCodec, bitRate := speechCodecAndBitRateFromMimeType(part.InlineData.MIMEType)
 											if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
 												// convert,
@@ -1108,7 +1109,7 @@ func doGeneration(
 																	}
 																} else if strings.HasPrefix(mimeType, "audio/") {
 																	if saveSpeechToDir != nil {
-																		// check codec and birtate
+																		// check codec and bitrate
 																		speechCodec, bitRate := speechCodecAndBitRateFromMimeType(mimeType)
 																		if speechCodec == "pcm" && bitRate > 0 { // FIXME: only 'pcm' is supported for now
 																			// convert,

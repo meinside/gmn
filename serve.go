@@ -207,7 +207,7 @@ func buildSelfServer(
 					},
 					"with_grounding": {
 						Title:       "with_grounding",
-						Description: `Whether to generate with grounding, with the helo of Google Search. If not specified, default value is false. It will be ignored unless 'modality' is 'text'.`,
+						Description: `Whether to generate with grounding, with the help of Google Search. If not specified, default value is false. It will be ignored unless 'modality' is 'text'.`,
 						Type:        "boolean",
 					},
 					"convert_url": {
@@ -735,9 +735,10 @@ func buildSelfServer(
 											if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
 												var reader *storage.Reader
 												if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
-													defer func() { _ = reader.Close() }()
+													bytes, ferr = io.ReadAll(reader)
+													_ = reader.Close()
 
-													if bytes, ferr = io.ReadAll(reader); ferr == nil {
+													if ferr == nil {
 														mimeType = video.Video.MIMEType
 													}
 												}
