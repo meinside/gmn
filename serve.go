@@ -120,43 +120,15 @@ func buildSelfServer(
 					}{
 						Models: models,
 					}); err == nil {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: string(marshalled),
-								},
-							},
-							StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-						}, nil
+						return mcpJSONResult(marshalled)
 					} else {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: fmt.Sprintf("Failed to marshal fetched Google AI models: %s", err),
-								},
-							},
-							IsError: true,
-						}, nil
+						return mcpErrorResult("Failed to marshal fetched Google AI models: %s", err)
 					}
 				} else {
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: fmt.Sprintf("Failed to fetch Google AI models: %s", err),
-							},
-						},
-						IsError: true,
-					}, nil
+					return mcpErrorResult("Failed to fetch Google AI models: %s", err)
 				}
 			} else {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf("Failed to initialize Google AI client: %s", err),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult("Failed to initialize Google AI client: %s", err)
 			}
 		},
 	})
@@ -246,18 +218,11 @@ func buildSelfServer(
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'prompt',
@@ -450,17 +415,10 @@ func buildSelfServer(
 								}
 							}()
 						} else {
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: fmt.Sprintf(
-											"Failed to open files: %s",
-											err,
-										),
-									},
-								},
-								IsError: true,
-							}, nil
+							return mcpErrorResult(
+								"Failed to open files: %s",
+								err,
+							)
 						}
 
 						ctxContents, cancelContents := context.WithTimeout(ctx, mcpFunctionTimeoutSeconds*time.Second)
@@ -640,17 +598,10 @@ func buildSelfServer(
 											ferr,
 										)
 
-										return &mcp.CallToolResult{
-											Content: []mcp.Content{
-												&mcp.TextContent{
-													Text: fmt.Sprintf(
-														"failed to read first frame file for video generation: %s",
-														ferr,
-													),
-												},
-											},
-											IsError: true,
-										}, nil
+										return mcpErrorResult(
+											"Failed to read first frame file for video generation: %s",
+											ferr,
+										)
 									}
 								}
 								var lastFrameFilepath *string
@@ -668,17 +619,10 @@ func buildSelfServer(
 											ferr,
 										)
 
-										return &mcp.CallToolResult{
-											Content: []mcp.Content{
-												&mcp.TextContent{
-													Text: fmt.Sprintf(
-														"failed to read last frame file for video generation: %s",
-														ferr,
-													),
-												},
-											},
-											IsError: true,
-										}, nil
+										return mcpErrorResult(
+											"Failed to read last frame file for video generation: %s",
+											ferr,
+										)
 									}
 								}
 								var videoForExtensionFilepath *string
@@ -696,17 +640,10 @@ func buildSelfServer(
 											ferr,
 										)
 
-										return &mcp.CallToolResult{
-											Content: []mcp.Content{
-												&mcp.TextContent{
-													Text: fmt.Sprintf(
-														"failed to read video file for video generation: %s",
-														ferr,
-													),
-												},
-											},
-											IsError: true,
-										}, nil
+										return mcpErrorResult(
+											"Failed to read video file for video generation: %s",
+											ferr,
+										)
 									}
 								}
 
@@ -754,17 +691,10 @@ func buildSelfServer(
 													ferr,
 												)
 
-												return &mcp.CallToolResult{
-													Content: []mcp.Content{
-														&mcp.TextContent{
-															Text: fmt.Sprintf(
-																"failed to get generated videos: %s",
-																ferr,
-															),
-														},
-													},
-													IsError: true,
-												}, nil
+												return mcpErrorResult(
+													"Failed to get generated videos: %s",
+													ferr,
+												)
 											}
 										} else {
 											// error
@@ -773,14 +703,7 @@ func buildSelfServer(
 												"failed to generate videos: no returned bytes",
 											)
 
-											return &mcp.CallToolResult{
-												Content: []mcp.Content{
-													&mcp.TextContent{
-														Text: "failed to generate videos: no returned bytes",
-													},
-												},
-												IsError: true,
-											}, nil
+											return mcpErrorResult("Failed to generate videos: no returned bytes")
 										}
 
 										writer.verbose(
@@ -844,17 +767,10 @@ func buildSelfServer(
 				err = fmt.Errorf("failed to get parameter 'prompt': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to generate: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to generate: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -912,17 +828,10 @@ func buildSelfServer(
 				err = fmt.Errorf("there was no environment variable")
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to list all environment variables' names: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to list all environment variables' names: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -963,18 +872,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'name',
@@ -985,7 +887,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				value := os.Getenv(*name)
 
 				var marshalled []byte
-				if marshalled, err = json.Marshal(value); err == nil {
+				if marshalled, err = json.Marshal(map[string]string{
+					"name":  *name,
+					"value": value,
+				}); err == nil {
 					return &mcp.CallToolResult{
 						Content: []mcp.Content{
 							&mcp.TextContent{
@@ -1007,17 +912,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'name': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to retrieve environment variable: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to retrieve environment variable: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1056,33 +954,12 @@ Without YOLO mode, this function requires the user's confirmation before running
 
 				var marshalled []byte
 				if marshalled, err = json.Marshal(result); err == nil {
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: string(marshalled),
-							},
-						},
-						StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-					}, nil
+					return mcpJSONResult(marshalled)
 				} else {
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: fmt.Sprintf("Failed to marshal current working directory: %s", err),
-							},
-						},
-						IsError: true,
-					}, nil
+					return mcpErrorResult("Failed to marshal current working directory: %s", err)
 				}
 			} else {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf("Failed to get current working directory: %s", err),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult("Failed to get current working directory: %s", err)
 			}
 		},
 	})
@@ -1121,18 +998,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'filepath',
@@ -1144,30 +1014,16 @@ Without YOLO mode, this function requires the user's confirmation before running
 				if stat, err = os.Stat(*filepath); err == nil {
 					result := fileInfoToJSON(stat, *filepath)
 
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: result,
-							},
-						},
-						StructuredContent: json.RawMessage(result), // structured (JSON)
-					}, nil
+					return mcpJSONResult([]byte(result))
 				}
 			} else {
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to stat file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to stat file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1205,18 +1061,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'filepath',
@@ -1238,23 +1087,9 @@ Without YOLO mode, this function requires the user's confirmation before running
 
 					var marshalled []byte
 					if marshalled, err = json.Marshal(result); err == nil {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: string(marshalled),
-								},
-							},
-							StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-						}, nil
+						return mcpJSONResult(marshalled)
 					} else {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: fmt.Sprintf("Failed to marshal read file: %s", err),
-								},
-							},
-							IsError: true,
-						}, nil
+						return mcpErrorResult("Failed to marshal read file: %s", err)
 					}
 				} else {
 					err = fmt.Errorf("failed to get mime type: %w", err)
@@ -1263,17 +1098,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to stat file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to stat file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1308,18 +1136,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'dirpath',
@@ -1331,30 +1152,16 @@ Without YOLO mode, this function requires the user's confirmation before running
 				if entries, err = os.ReadDir(*dirpath); err == nil {
 					result := dirEntriesToJSON(entries, *dirpath)
 
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: result,
-							},
-						},
-						StructuredContent: json.RawMessage(result), // structured (JSON)
-					}, nil
+					return mcpJSONResult([]byte(result))
 				}
 			} else {
 				err = fmt.Errorf("failed to get parameter 'dirpath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to list files: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to list files: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1395,18 +1202,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'filepath',
@@ -1428,23 +1228,9 @@ Without YOLO mode, this function requires the user's confirmation before running
 
 						var marshalled []byte
 						if marshalled, err = json.Marshal(result); err == nil {
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: string(marshalled),
-									},
-								},
-								StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-							}, nil
+							return mcpJSONResult(marshalled)
 						} else {
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: fmt.Sprintf("Failed to marshal read file: %s", err),
-									},
-								},
-								IsError: true,
-							}, nil
+							return mcpErrorResult("Failed to marshal read file: %s", err)
 						}
 					} else {
 						err = fmt.Errorf("given file '%s' is not in text/plain format: %s", *filepath, mimeType.String())
@@ -1454,17 +1240,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to read file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to read file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1514,18 +1293,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'filepath',
@@ -1542,13 +1314,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 						[]byte(*content),
 						0o644,
 					); err == nil {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: fmt.Sprintf("File was successfully created at path: '%s'", *filepath),
-								},
-							},
-						}, nil
+						return mcpTextResult(fmt.Sprintf("File was successfully created at path: '%s'", *filepath))
 					}
 				} else {
 					err = fmt.Errorf("failed to get parameter 'content': %w", err)
@@ -1557,17 +1323,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to create text file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to create text file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1607,18 +1366,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'filepath',
@@ -1627,29 +1379,16 @@ Without YOLO mode, this function requires the user's confirmation before running
 			if err == nil {
 				// delete a file
 				if err = os.Remove(*filepath); err == nil {
-					return &mcp.CallToolResult{
-						Content: []mcp.Content{
-							&mcp.TextContent{
-								Text: fmt.Sprintf("File was successfully deleted: '%s'", *filepath),
-							},
-						},
-					}, nil
+					return mcpTextResult(fmt.Sprintf("File was successfully deleted: '%s'", *filepath))
 				}
 			} else {
 				err = fmt.Errorf("failed to get parameter 'filepath': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to delete file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to delete file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1695,18 +1434,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'from',
@@ -1718,13 +1450,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 				if err == nil {
 					// move file
 					if err = os.Rename(*fromFilepath, *toFilepath); err == nil {
-						return &mcp.CallToolResult{
-							Content: []mcp.Content{
-								&mcp.TextContent{
-									Text: fmt.Sprintf("File was successfully moved: '%s' -> '%s'", *fromFilepath, *toFilepath),
-								},
-							},
-						}, nil
+						return mcpTextResult(fmt.Sprintf("File was successfully moved: '%s' -> '%s'", *fromFilepath, *toFilepath))
 					}
 				} else {
 					err = fmt.Errorf("failed to get parameter 'to': %w", err)
@@ -1733,17 +1459,10 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'from': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to move file: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to move file: %s",
+				err,
+			)
 		},
 	})
 	//
@@ -1788,18 +1507,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'cmdline',
@@ -1831,23 +1543,9 @@ Without YOLO mode, this function requires the user's confirmation before running
 
 						var marshalled []byte
 						if marshalled, err = json.Marshal(result); err == nil {
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: string(marshalled),
-									},
-								},
-								StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-							}, nil
+							return mcpJSONResult(marshalled)
 						} else {
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: fmt.Sprintf("Failed to marshal cmdline result: %s", err),
-									},
-								},
-								IsError: true,
-							}, nil
+							return mcpErrorResult("Failed to marshal cmdline result: %s", err)
 						}
 					}
 				} else {
@@ -1857,18 +1555,11 @@ Without YOLO mode, this function requires the user's confirmation before running
 				err = fmt.Errorf("failed to get parameter 'cmdline': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to execute cmdline '%s': %s",
-							*cmdline,
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to execute cmdline '%s': %s",
+				*cmdline,
+				err,
+			)
 		},
 	})
 	//
@@ -1938,18 +1629,11 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 			// convert arguments
 			var args map[string]any
 			if json.Unmarshal(request.Params.Arguments, &args) != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf(
-								"Failed to convert arguments to `%T`: %s",
-								args,
-								err,
-							),
-						},
-					},
-					IsError: true,
-				}, nil
+				return mcpErrorResult(
+					"Failed to convert arguments to `%T`: %s",
+					args,
+					err,
+				)
 			}
 
 			// get 'method'
@@ -1996,14 +1680,7 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 							}
 							req, err = http.NewRequest(*method, u.String(), reader)
 						default:
-							return &mcp.CallToolResult{
-								Content: []mcp.Content{
-									&mcp.TextContent{
-										Text: fmt.Sprintf("not a supported 'method' for http request: %s", err),
-									},
-								},
-								IsError: true,
-							}, nil
+							return mcpErrorResult("Not a supported 'method' for http request: %s", err)
 						}
 
 						if err == nil {
@@ -2038,23 +1715,9 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 								Headers: resp.Header,
 								Body:    string(body),
 							}); err == nil {
-								return &mcp.CallToolResult{
-									Content: []mcp.Content{
-										&mcp.TextContent{
-											Text: string(marshalled),
-										},
-									},
-									StructuredContent: json.RawMessage(marshalled), // structured (JSON)
-								}, nil
+								return mcpJSONResult(marshalled)
 							} else {
-								return &mcp.CallToolResult{
-									Content: []mcp.Content{
-										&mcp.TextContent{
-											Text: fmt.Sprintf("Failed to marshal http response: %s", err),
-										},
-									},
-									IsError: true,
-								}, nil
+								return mcpErrorResult("Failed to marshal http response: %s", err)
 							}
 						} else {
 							err = fmt.Errorf("failed to do http request: %w", err)
@@ -2069,17 +1732,10 @@ Mime type of this parameter should also be specified in the 'Content-Type' heade
 				err = fmt.Errorf("failed to get parameter 'method': %w", err)
 			}
 
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{
-						Text: fmt.Sprintf(
-							"Failed to do HTTP request: %s",
-							err,
-						),
-					},
-				},
-				IsError: true,
-			}, nil
+			return mcpErrorResult(
+				"Failed to do HTTP request: %s",
+				err,
+			)
 		},
 	})
 

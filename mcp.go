@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -303,6 +304,37 @@ func fetchMCPToolCallResult(
 	}
 
 	return res, err
+}
+
+// mcpErrorResult returns an error CallToolResult with a formatted message.
+func mcpErrorResult(format string, args ...any) (*mcp.CallToolResult, error) {
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: fmt.Sprintf(format, args...),
+			},
+		},
+		IsError: true,
+	}, nil
+}
+
+// mcpTextResult returns a success CallToolResult with text content.
+func mcpTextResult(text string) (*mcp.CallToolResult, error) {
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: text},
+		},
+	}, nil
+}
+
+// mcpJSONResult returns a success CallToolResult with both text and structured JSON.
+func mcpJSONResult(marshalled []byte) (*mcp.CallToolResult, error) {
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(marshalled)},
+		},
+		StructuredContent: json.RawMessage(marshalled),
+	}, nil
 }
 
 // strip sensitive information from given server info
