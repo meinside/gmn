@@ -453,6 +453,20 @@ func runWithoutPrompt(
 		})
 	}
 
+	// generate embeddings without a prompt
+	if p.Embeddings.GenerateEmbeddings {
+		p.Configuration.GoogleAIModel = resolveGoogleAIModel(&p, &conf, modelForEmbeddings)
+
+		return withGTClient(writer, conf, func(gtc *gt.Client) (int, error) {
+			return doEmbeddingsGeneration(context.TODO(),
+				writer,
+				conf.TimeoutSeconds,
+				gtc,
+				p,
+			)
+		}, gt.WithModel(*p.Configuration.GoogleAIModel))
+	}
+
 	// list file search stores
 	if p.FileSearch.ListFileSearchStores {
 		return withGTClient(writer, conf, func(gtc *gt.Client) (int, error) {

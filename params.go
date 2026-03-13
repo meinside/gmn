@@ -169,6 +169,7 @@ func (p *params) taskRequested() bool {
 		p.Caching.DeleteCachedContext != nil ||
 		p.ListModels ||
 		p.MCPTools.RunAsStandaloneSTDIOServer ||
+		p.Embeddings.GenerateEmbeddings ||
 		p.FileSearch.ListFileSearchStores ||
 		p.FileSearch.CreateFileSearchStore != nil ||
 		p.FileSearch.DeleteFileSearchStore != nil ||
@@ -215,6 +216,12 @@ func (p *params) multipleTasksRequested() bool {
 	}
 	if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a STDIO MCP server
 		num++
+		if hasPrompt && !promptCounted {
+			num++
+			promptCounted = true
+		}
+	}
+	if p.Embeddings.GenerateEmbeddings { // generate embeddings
 		if hasPrompt && !promptCounted {
 			num++
 			promptCounted = true
