@@ -138,12 +138,12 @@ github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/
 github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/meinside/gemini-things-go v0.5.25 h1:tJdqrXsP9s74geqUZ3yi1QLbqwdFTzEjwReDeyUF4FQ=
-github.com/meinside/gemini-things-go v0.5.25/go.mod h1:HphtU0LUj2dwBmRfp6lbw40ev/WaOCf7rQXqEQWbPjE=
+github.com/meinside/gemini-things-go v0.5.26 h1:R3WVkyyQ3gPlh0e82yfg4GJXVGsE+OV0PI2U8yzOWZU=
+github.com/meinside/gemini-things-go v0.5.26/go.mod h1:pjoDpKcf9sqttKiabs399DjLvqzIbLIktdJTEPQIPsk=
 github.com/meinside/version-go v0.0.3 h1:GXSwi6sTmgpnSR09jAAqDGWeX2Nq52fe5xpitgAhQfM=
 github.com/meinside/version-go v0.0.3/go.mod h1:mFvlwbro1E126u4rU727CcHNa8OPFyhq+KDYYNysFj4=
-github.com/modelcontextprotocol/go-sdk v1.4.0 h1:u0kr8lbJc1oBcawK7Df+/ajNMpIDFE41OEPxdeTLOn8=
-github.com/modelcontextprotocol/go-sdk v1.4.0/go.mod h1:Nxc2n+n/GdCebUaqCOhTetptS17SXXNu9IfNTaLDi1E=
+github.com/modelcontextprotocol/go-sdk v1.4.1 h1:M4x9GyIPj+HoIlHNGpK2hq5o3BFhC+78PkEaldQRphc=
+github.com/modelcontextprotocol/go-sdk v1.4.1/go.mod h1:Bo/mS87hPQqHSRkMv4dQq1XCu6zv4INdXnFZabkNU6s=
 github.com/oracle/oci-go-sdk/v65 v65.109.1 h1:AWawOPlhpDJnpxNxwPB+5xueKVSdpuB3jDHhKFEe724=
 github.com/oracle/oci-go-sdk/v65 v65.109.1/go.mod h1:8ZzvzuEG/cFLFZhxg/Mg1w19KqyXBKO3c17QIc5PkGs=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
