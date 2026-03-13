@@ -45,7 +45,7 @@ const (
 
 // pre-compiled regexps
 var (
-	_urlRegexp                    = regexp.MustCompile(`https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
+	_urlRegexp                   = regexp.MustCompile(`https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`)
 	_consecutiveEmptyLinesRegexp = regexp.MustCompile("\n{2,}")
 )
 
@@ -1477,6 +1477,8 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 		)
 	} else {
 		// check if environment variable for api key or credentials file exists,
+		//
+		// (read `GEMINI_API_KEY` or `CREDENTIALS_FILEPATH`)
 		if envAPIKey, exists := os.LookupEnv(envVarNameAPIKey); exists {
 			writer.verbose(
 				verboseMinimum,
@@ -1493,36 +1495,42 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 				envVarNameCredentialsFilepath,
 			)
 			conf.GoogleCredentialsFilepath = &envCredentialsFilepath
-
-			if envLocation, exists := os.LookupEnv(envVarNameLocation); exists {
-				writer.verbose(
-					verboseMinimum,
-					p.Verbose,
-					"using location from environment variable: %s",
-					envVarNameLocation,
-				)
-				conf.Location = &envLocation
-			} else {
-				conf.Location = new(defaultLocation)
-			}
-
-			if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
-				writer.verbose(
-					verboseMinimum,
-					p.Verbose,
-					"using bucket name from environment variable: %s",
-					envVarNameBucket,
-				)
-				conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
-			} else {
-				conf.GoogleCloudStorageBucketNameForFileUploads = new(defaultBucketNameForFileUploads)
-			}
 		} else {
 			// or return an error
 			return config{}, params{}, fmt.Errorf(
 				"failed to read configuration: %w",
 				err,
 			)
+		}
+	}
+
+	// read `LOCATION`
+	if envLocation, exists := os.LookupEnv(envVarNameLocation); exists {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using location from environment variable: %s",
+			envVarNameLocation,
+		)
+		conf.Location = &envLocation
+	} else {
+		if conf.Location == nil {
+			conf.Location = new(defaultLocation)
+		}
+	}
+
+	// read `BUCKET`
+	if envBucket, exists := os.LookupEnv(envVarNameBucket); exists {
+		writer.verbose(
+			verboseMinimum,
+			p.Verbose,
+			"using bucket name from environment variable: %s",
+			envVarNameBucket,
+		)
+		conf.GoogleCloudStorageBucketNameForFileUploads = &envBucket
+	} else {
+		if conf.GoogleCloudStorageBucketNameForFileUploads == nil {
+			conf.GoogleCloudStorageBucketNameForFileUploads = new(defaultBucketNameForFileUploads)
 		}
 	}
 

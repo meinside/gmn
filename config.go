@@ -33,7 +33,7 @@ const (
 	defaultGoogleAIImageGenerationModel  = `gemini-3.1-flash-image-preview`
 	defaultGoogleAIVideoGenerationModel  = `veo-3.1-fast-generate-preview`
 	defaultGoogleAISpeechGenerationModel = `gemini-2.5-pro-preview-tts`
-	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-001`
+	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-2-preview`
 
 	// default system instruction
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API.

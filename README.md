@@ -533,6 +533,10 @@ Use `-E` or `--generate-embeddings`:
 ```bash
 $ gmn -m "gemini-embedding-001" -E \
     -p "Insanity: Doing the same thing over and over again expecting different results. - Albert Einstein"
+$ LOCATION="us-central1" gmn -m "gemini-embedding-2-preview" -E \
+    -p "Life is like riding a bicycle. To keep your balance, you must keep moving. - Albert Einstein" \
+    -f "./path/to/some-image.jpeg" \
+    -f "./path/to/some-document.pdf"
 ```
 
 ### Context Caching
