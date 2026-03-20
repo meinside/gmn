@@ -1280,7 +1280,7 @@ func doGeneration(
 							}
 
 							// grounding metadata
-							if cand.GroundingMetadata != nil {
+							if !groundingMetadataEmpty(cand.GroundingMetadata) {
 								// NOTE: make sure to insert a new line before displaying grounding metadata
 								if verboseLevel(vbs) >= verboseMinimum {
 									writer.makeSureToEndWithNewline()
@@ -1293,7 +1293,7 @@ func doGeneration(
 									prettify(cand.GroundingMetadata),
 								)
 
-								// saved retrieved context titles
+								// save retrieved context titles
 								for _, retrieved := range cand.GroundingMetadata.GroundingChunks {
 									if retrieved.RetrievedContext != nil {
 										if retrieved.RetrievedContext.Title != "" {
