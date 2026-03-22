@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1620,21 +1621,6 @@ func readAndFillConfig(p params, writer outputWriter) (conf config, altered para
 }
 
 // checks if given `genai.GroundingMetadata` is empty.
-//
-// FIXME: needs to be fixed when ever `genai.GroundingMetadata` is updated.
 func groundingMetadataEmpty(m *genai.GroundingMetadata) bool {
-	if m == nil ||
-		(len(m.ImageSearchQueries) <= 0 &&
-			len(m.GroundingChunks) <= 0 &&
-			len(m.GroundingSupports) <= 0 &&
-			m.RetrievalMetadata == nil &&
-			m.SearchEntryPoint == nil &&
-			len(m.WebSearchQueries) <= 0 &&
-			len(m.GoogleMapsWidgetContextToken) <= 0 &&
-			len(m.RetrievalQueries) <= 0 &&
-			len(m.SourceFlaggingUris) <= 0) {
-		return true
-	}
-
-	return false
+	return m == nil || reflect.DeepEqual(*m, genai.GroundingMetadata{})
 }
