@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/storage v1.61.3
 	github.com/BourgeoisBear/rasterm v1.1.2
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/google/jsonschema-go v0.4.2
 	github.com/infisical/go-sdk v0.6.8
