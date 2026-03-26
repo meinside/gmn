@@ -47,6 +47,7 @@ func doGeneration(
 	withThinking := p.Generation.ThinkingOn
 	thinkingLevel := p.Generation.DetailedOptions.ThinkingLevel
 	showThinking := p.Generation.DetailedOptions.ShowThinking
+	mediaResolution := p.Generation.DetailedOptions.MediaResolution
 	withGrounding := p.Generation.GroundingOn
 	withGoogleMaps := p.Generation.GoogleMaps.WithGoogleMaps
 	googleMapsLatitude := p.Generation.GoogleMaps.Latitude
@@ -62,6 +63,11 @@ func doGeneration(
 	generateImages := p.Generation.Image.GenerateImages
 	saveImagesToFiles := p.Generation.Image.SaveToFiles
 	saveImagesToDir := p.Generation.Image.SaveToDir
+	imageAspectRatio := p.Generation.Image.AspectRatio
+	imageSize := p.Generation.Image.ImageSize
+	imagePersonGeneration := p.Generation.Image.PersonGeneration
+	imageOutputMIMEType := p.Generation.Image.OutputMIMEType
+	imageCompressionQuality := p.Generation.Image.CompressionQuality
 	generateVideos := p.Generation.Video.GenerateVideos
 	negativePromptForVideo := p.Generation.Video.NegativePrompt
 	resolutionForVideo := p.Generation.Video.Resolution
@@ -70,6 +76,10 @@ func doGeneration(
 	numVideos := p.Generation.Video.NumGenerated
 	videoDurationSeconds := p.Generation.Video.DurationSeconds
 	videoFPS := p.Generation.Video.FPS
+	videoSeed := p.Generation.Video.Seed
+	videoAspectRatio := p.Generation.Video.AspectRatio
+	videoGenerateAudio := p.Generation.Video.GenerateAudio
+	videoCompressionQuality := p.Generation.Video.CompressionQuality
 	generateSpeech := p.Generation.Speech.GenerateSpeech
 	speechLanguage := p.Generation.Speech.Language
 	speechVoice := p.Generation.Speech.Voice
@@ -125,6 +135,18 @@ func doGeneration(
 	if seed != nil {
 		opts.Seed = seed
 	}
+	// (max output tokens)
+	if maxOutputTokens := p.Generation.DetailedOptions.MaxOutputTokens; maxOutputTokens != nil {
+		opts.MaxOutputTokens = *maxOutputTokens
+	}
+	// (stop sequences)
+	if stopSequences := p.Generation.DetailedOptions.StopSequences; len(stopSequences) > 0 {
+		opts.StopSequences = stopSequences
+	}
+	// (presence penalty)
+	opts.PresencePenalty = p.Generation.DetailedOptions.PresencePenalty
+	// (frequency penalty)
+	opts.FrequencyPenalty = p.Generation.DetailedOptions.FrequencyPenalty
 	// (tools and tool config)
 	opts.Tools = []*genai.Tool{}
 	for _, tool := range tools {
@@ -169,6 +191,32 @@ func doGeneration(
 		opts.ResponseModalities = []string{
 			string(genai.ModalityText),
 			string(genai.ModalityImage),
+		}
+
+		imageConfig := &genai.ImageConfig{}
+		hasImageConfig := false
+		if imageAspectRatio != nil {
+			imageConfig.AspectRatio = *imageAspectRatio
+			hasImageConfig = true
+		}
+		if imageSize != nil {
+			imageConfig.ImageSize = *imageSize
+			hasImageConfig = true
+		}
+		if imagePersonGeneration != nil {
+			imageConfig.PersonGeneration = *imagePersonGeneration
+			hasImageConfig = true
+		}
+		if imageOutputMIMEType != nil {
+			imageConfig.OutputMIMEType = *imageOutputMIMEType
+			hasImageConfig = true
+		}
+		if imageCompressionQuality != nil {
+			imageConfig.OutputCompressionQuality = imageCompressionQuality
+			hasImageConfig = true
+		}
+		if hasImageConfig {
+			opts.ImageConfig = imageConfig
 		}
 	} else if generateVideos {
 		gtc.SetSystemInstructionFunc(nil)
@@ -233,6 +281,17 @@ func doGeneration(
 			level = genai.ThinkingLevelUnspecified
 		}
 		opts.ThinkingConfig.ThinkingLevel = level
+	}
+	// (media resolution)
+	if mediaResolution != nil {
+		switch *mediaResolution {
+		case "low":
+			opts.MediaResolution = genai.MediaResolutionLow
+		case "medium":
+			opts.MediaResolution = genai.MediaResolutionMedium
+		case "high":
+			opts.MediaResolution = genai.MediaResolutionHigh
+		}
 	}
 	// (grounding)
 	if withGrounding {
@@ -384,6 +443,18 @@ func doGeneration(
 					resolutionForVideo = new(defaultGeneratedVideosResolution)
 				}
 				options.Resolution = *resolutionForVideo
+				if videoSeed != nil {
+					options.Seed = videoSeed
+				}
+				if videoAspectRatio != nil {
+					options.AspectRatio = *videoAspectRatio
+				}
+				if videoGenerateAudio != nil {
+					options.GenerateAudio = videoGenerateAudio
+				}
+				if videoCompressionQuality != nil {
+					options.CompressionQuality = genai.VideoCompressionQuality(*videoCompressionQuality)
+				}
 
 				if res, err := gtc.GenerateVideos(
 					ctxGenerate,
