@@ -48,6 +48,13 @@ type params struct {
 			FileSearchStores []string `long:"file-search-store" description:"Name of file search store (can be used multiple times)"`
 
 			Seed *int32 `long:"seed" description:"Seed for generation" value-name:"SEED"`
+
+			MaxOutputTokens  *int32    `long:"max-output-tokens" description:"Maximum number of tokens to generate" value-name:"TOKENS"`
+			StopSequences    []string  `long:"stop-sequence" description:"Stop sequence for generation (can be used multiple times)" value-name:"SEQ"`
+			PresencePenalty  *float32  `long:"presence-penalty" description:"Presence penalty for generation (positive values increase diversity)" value-name:"PENALTY"`
+			FrequencyPenalty *float32  `long:"frequency-penalty" description:"Frequency penalty for generation (positive values reduce repetition)" value-name:"PENALTY"`
+
+			MediaResolution *string `long:"media-resolution" description:"Resolution for processing input media ('low', 'medium', or 'high')" value-name:"RESOLUTION"`
 		} `group:"Detailed Generation Options"`
 
 		// google maps
@@ -66,21 +73,30 @@ type params struct {
 
 		// for image generation
 		Image struct {
-			GenerateImages bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
-			SaveToFiles    bool    `long:"save-images" description:"Save generated images to files"`
-			SaveToDir      *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)" value-name:"DIR"`
+			GenerateImages       bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
+			SaveToFiles          bool    `long:"save-images" description:"Save generated images to files"`
+			SaveToDir            *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)" value-name:"DIR"`
+			AspectRatio          *string `long:"image-aspect-ratio" description:"Aspect ratio for generated images ('1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', or '21:9')" value-name:"RATIO"`
+			ImageSize            *string `long:"image-size" description:"Size of generated images ('1K', '2K', or '4K')" value-name:"SIZE"`
+			PersonGeneration     *string `long:"image-person-generation" description:"Person generation control for images ('ALLOW_ALL', 'ALLOW_ADULT', or 'ALLOW_NONE')" value-name:"MODE"`
+			OutputMIMEType       *string `long:"image-output-mime-type" description:"Output MIME type for generated images (eg. 'image/png', 'image/jpeg')" value-name:"MIME"`
+			CompressionQuality   *int32  `long:"image-compression-quality" description:"Compression quality for generated images in JPEG (0-100)" value-name:"QUALITY"`
 		} `group:"Image Generation"`
 
 		// for video generation
 		Video struct {
-			GenerateVideos  bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
-			NegativePrompt  *string           `long:"negative-prompt-for-videos" description:"Negative prompt for video generation (can be omitted)" value-name:"PROMPT"`
-			ReferenceImages map[string]string `long:"reference-image-for-videos" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
-			SaveToDir       *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)" value-name:"DIR"`
-			NumGenerated    int32             `long:"num-generated-videos" description:"Number of generated videos" default:"1" value-name:"NUM"`
-			Resolution      *string           `long:"resolution-for-videos" description:"Resolution for generated videos"  default:"1080p" value-name:"RESOLUTION"`
-			DurationSeconds int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds" default:"8" value-name:"DURATION"`
-			FPS             int32             `long:"generated-videos-fps" description:"Frames per second for generated videos" default:"24" value-name:"FPS"`
+			GenerateVideos     bool              `long:"with-videos" description:"Generate videos (system instruction will be ignored)"`
+			NegativePrompt     *string           `long:"negative-prompt-for-videos" description:"Negative prompt for video generation (can be omitted)" value-name:"PROMPT"`
+			ReferenceImages    map[string]string `long:"reference-image-for-videos" description:"Reference images for video generation (can be used multiple times, eg. '/path/to/image1.jpg:style', '/path/to/image2.png:asset')"`
+			SaveToDir          *string           `long:"save-videos-to-dir" description:"Save generated videos to a directory ($TMPDIR when not given)" value-name:"DIR"`
+			NumGenerated       int32             `long:"num-generated-videos" description:"Number of generated videos" default:"1" value-name:"NUM"`
+			Resolution         *string           `long:"resolution-for-videos" description:"Resolution for generated videos"  default:"1080p" value-name:"RESOLUTION"`
+			DurationSeconds    int32             `long:"generated-videos-duration-seconds" description:"Duration of generated videos in seconds" default:"8" value-name:"DURATION"`
+			FPS                int32             `long:"generated-videos-fps" description:"Frames per second for generated videos" default:"24" value-name:"FPS"`
+			Seed               *int32            `long:"video-seed" description:"Seed for reproducible video generation" value-name:"SEED"`
+			AspectRatio        *string           `long:"video-aspect-ratio" description:"Aspect ratio for generated videos ('16:9' or '9:16')" value-name:"RATIO"`
+			GenerateAudio      *bool             `long:"video-with-audio" description:"Whether to generate audio along with the video"`
+			CompressionQuality *string           `long:"video-compression-quality" description:"Compression quality for generated videos ('OPTIMIZED' or 'LOSSLESS')" value-name:"QUALITY"`
 		} `group:"Video Generation"`
 
 		// for speech generation
