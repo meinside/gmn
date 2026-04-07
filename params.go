@@ -49,10 +49,10 @@ type params struct {
 
 			Seed *int32 `long:"seed" description:"Seed for generation" value-name:"SEED"`
 
-			MaxOutputTokens  *int32    `long:"max-output-tokens" description:"Maximum number of tokens to generate" value-name:"TOKENS"`
-			StopSequences    []string  `long:"stop-sequence" description:"Stop sequence for generation (can be used multiple times)" value-name:"SEQ"`
-			PresencePenalty  *float32  `long:"presence-penalty" description:"Presence penalty for generation (positive values increase diversity)" value-name:"PENALTY"`
-			FrequencyPenalty *float32  `long:"frequency-penalty" description:"Frequency penalty for generation (positive values reduce repetition)" value-name:"PENALTY"`
+			MaxOutputTokens  *int32   `long:"max-output-tokens" description:"Maximum number of tokens to generate" value-name:"TOKENS"`
+			StopSequences    []string `long:"stop-sequence" description:"Stop sequence for generation (can be used multiple times)" value-name:"SEQ"`
+			PresencePenalty  *float32 `long:"presence-penalty" description:"Presence penalty for generation (positive values increase diversity)" value-name:"PENALTY"`
+			FrequencyPenalty *float32 `long:"frequency-penalty" description:"Frequency penalty for generation (positive values reduce repetition)" value-name:"PENALTY"`
 
 			MediaResolution *string `long:"media-resolution" description:"Resolution for processing input media ('low', 'medium', or 'high')" value-name:"RESOLUTION"`
 		} `group:"Detailed Generation Options"`
@@ -73,14 +73,14 @@ type params struct {
 
 		// for image generation
 		Image struct {
-			GenerateImages       bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
-			SaveToFiles          bool    `long:"save-images" description:"Save generated images to files"`
-			SaveToDir            *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)" value-name:"DIR"`
-			AspectRatio          *string `long:"image-aspect-ratio" description:"Aspect ratio for generated images ('1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', or '21:9')" value-name:"RATIO"`
-			ImageSize            *string `long:"image-size" description:"Size of generated images ('1K', '2K', or '4K')" value-name:"SIZE"`
-			PersonGeneration     *string `long:"image-person-generation" description:"Person generation control for images ('ALLOW_ALL', 'ALLOW_ADULT', or 'ALLOW_NONE')" value-name:"MODE"`
-			OutputMIMEType       *string `long:"image-output-mime-type" description:"Output MIME type for generated images (eg. 'image/png', 'image/jpeg')" value-name:"MIME"`
-			CompressionQuality   *int32  `long:"image-compression-quality" description:"Compression quality for generated images in JPEG (0-100)" value-name:"QUALITY"`
+			GenerateImages     bool    `long:"with-images" description:"Generate images if possible (system instruction will be ignored)"`
+			SaveToFiles        bool    `long:"save-images" description:"Save generated images to files"`
+			SaveToDir          *string `long:"save-images-to-dir" description:"Save generated images to a directory ($TMPDIR when not given)" value-name:"DIR"`
+			AspectRatio        *string `long:"image-aspect-ratio" description:"Aspect ratio for generated images ('1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', or '21:9')" value-name:"RATIO"`
+			ImageSize          *string `long:"image-size" description:"Size of generated images ('1K', '2K', or '4K')" value-name:"SIZE"`
+			PersonGeneration   *string `long:"image-person-generation" description:"Person generation control for images ('ALLOW_ALL', 'ALLOW_ADULT', or 'ALLOW_NONE')" value-name:"MODE"`
+			OutputMIMEType     *string `long:"image-output-mime-type" description:"Output MIME type for generated images (eg. 'image/png', 'image/jpeg')" value-name:"MIME"`
+			CompressionQuality *int32  `long:"image-compression-quality" description:"Compression quality for generated images in JPEG (0-100)" value-name:"QUALITY"`
 		} `group:"Image Generation"`
 
 		// for video generation
@@ -135,6 +135,11 @@ type params struct {
 		RunAsStandaloneSTDIOServer bool `short:"M" long:"mcp-server-self" description:"Run as a standalone STDIO MCP server"`
 	} `group:"Tools (MCP)"`
 
+	// tools (skills)
+	Skills struct {
+		SkillsDirectory *string `long:"skills-dir" description:"Load skills in the given directory" value-name:"DIR"`
+	} `group:"Tools (Skills)"`
+
 	// for embedding
 	Embeddings struct {
 		GenerateEmbeddings            bool    `short:"E" long:"gen-embeddings" description:"Generate embeddings of the prompt"`
@@ -148,7 +153,7 @@ type params struct {
 		CacheContext        bool    `short:"C" long:"cache-context" description:"Cache things for future generations and print the cached context's name"`
 		ListCachedContexts  bool    `short:"L" long:"list-cached-contexts" description:"List all cached contexts"`
 		CachedContextName   *string `short:"N" long:"context-name" description:"Name of the cached context to use" value-name:"NAME"`
-		DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with given name" value-name:"NAME"`
+		DeleteCachedContext *string `short:"D" long:"delete-cached-context" description:"Delete the cached context with the given name" value-name:"NAME"`
 	} `group:"Caching"`
 
 	// for file search
@@ -165,7 +170,7 @@ type params struct {
 	} `group:"File Search"`
 
 	// others
-	OverrideFileMIMEType map[string]string `long:"override-file-mimetype" description:"Override MIME type for given file's extension (can be used multiple times, eg. '.apk:application/zip', '.md:text/markdown')"`
+	OverrideFileMIMEType map[string]string `long:"override-file-mimetype" description:"Override MIME type for the given file's extension (can be used multiple times, eg. '.apk:application/zip', '.md:text/markdown')"`
 
 	// for logging and debugging
 	Verbose                []bool `short:"v" long:"verbose" description:"Show verbose logs (can be used multiple times)"`
