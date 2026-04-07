@@ -25,6 +25,7 @@ import (
 	"google.golang.org/genai"
 
 	gt "github.com/meinside/gemini-things-go"
+	skills "github.com/meinside/mcp-skills-go"
 	"github.com/meinside/version-go"
 )
 
@@ -669,7 +670,7 @@ func buildSelfServer(
 											mimeType = video.Video.MIMEType
 										} else if len(video.Video.URI) > 0 {
 											var ferr error
-											if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
+											if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj != nil {
 												var reader *storage.Reader
 												if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
 													bytes, ferr = io.ReadAll(reader)
@@ -1822,17 +1823,49 @@ func selfAsMCPTool(
 	writer.verbose(
 		verboseMinimum,
 		p.Verbose,
-		"connecting to MCP server (self)...",
+		"connecting to local MCP server (self)...",
 	)
 
 	var conn *mcp.ClientSession
 	if conn, err = mcpRunInMemory(ctx, server); err != nil {
-		return nil, fmt.Errorf("failed to run in-memory mcp server (self): %w", err)
+		return nil, fmt.Errorf("failed to run in-memory MCP server (self): %w", err)
 	}
 
 	return &mcpConnectionDetails{
-		serverType: mcpServerStdio,
+		serverType: mcpServerInMemory,
 		connection: conn,
 		tools:      tools,
 	}, nil
+}
+
+// return skills as a MCP tool for local use (in-memory)
+func skillsAsMCPTool(
+	ctx context.Context,
+	conf config,
+	p params,
+	writer outputWriter,
+) (connDetails *mcpConnectionDetails, err error) {
+	writer.verbose(
+		verboseMinimum,
+		p.Verbose,
+		"connecting to local MCP server (skills in %q)...",
+		*p.Skills.SkillsDirectory,
+	)
+
+	var server *mcp.Server
+	var tools []*mcp.Tool
+	server, tools = skills.NewServer(os.DirFS(*p.Skills.SkillsDirectory))
+
+	if conn, err := mcpRunInMemory(
+		ctx,
+		server,
+	); err == nil {
+		return &mcpConnectionDetails{
+			serverType: mcpServerInMemory,
+			connection: conn,
+			tools:      tools,
+		}, nil
+	} else {
+		return nil, fmt.Errorf("failed to run in-memory MCP server (skills): %w", err)
+	}
 }

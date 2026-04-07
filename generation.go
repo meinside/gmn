@@ -472,7 +472,7 @@ func doGeneration(
 							mimeType = video.Video.MIMEType
 						} else if len(video.Video.URI) > 0 {
 							var ferr error
-							if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj == nil {
+							if obj := gtc.Storage().Bucket(gtc.GetBucketName()).Object(video.Video.URI); obj != nil {
 								var reader *storage.Reader
 								if reader, ferr = obj.NewReader(ctxGenerate); ferr == nil {
 									data, ferr = io.ReadAll(reader)
@@ -554,6 +554,10 @@ func doGeneration(
 				}
 			} else {
 				printedModelVersion := false
+				promptsAppended := false
+				tokenUsages := []string{}
+				bufModelResponse := new(strings.Builder)
+				retrievedContextTitles := map[string]struct{}{}
 
 				// iterate generated stream
 				for it, err := range gtc.GenerateStreamIterated(
@@ -570,8 +574,8 @@ func doGeneration(
 						}
 
 						// save token usages
-						tokenUsages := []string{}
 						if it.UsageMetadata != nil {
+							tokenUsages = tokenUsages[:0]
 							if it.UsageMetadata.PromptTokenCount != 0 {
 								tokenUsages = append(tokenUsages, fmt.Sprintf(
 									"prompt: %d",
@@ -616,15 +620,13 @@ func doGeneration(
 							}
 						}
 
-						// append prompts to past generations
-						for _, content := range contentsForGeneration {
-							pastGenerations = append(pastGenerations, *content)
+						// append prompts to past generations (only once)
+						if !promptsAppended {
+							for _, content := range contentsForGeneration {
+								pastGenerations = append(pastGenerations, *content)
+							}
+							promptsAppended = true
 						}
-
-						// string buffer for model responses
-						bufModelResponse := new(strings.Builder)
-
-						retrievedContextTitles := map[string]struct{}{}
 
 						for _, cand := range it.Candidates {
 							// url context metadata
@@ -1529,7 +1531,7 @@ func appendAndFlushModelResponse(
 		// if the last conversation is from model, append to it
 		if len(generatedConversations) > 0 &&
 			generatedConversations[len(generatedConversations)-1].Role == string(gt.RoleModel) {
-			lastContent := generatedConversations[len(generatedConversations)-1]
+			lastContent := &generatedConversations[len(generatedConversations)-1]
 
 			// append text to the last model response
 			hasTextPrompt := false

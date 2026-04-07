@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -326,6 +327,27 @@ func runGeneration(
 			allMCPConnections[mcpToolNameSelf] = *connDetails
 		} else {
 			return 1, fmt.Errorf("failed to run self as a local MCP tool: %w", err)
+		}
+	}
+
+	// load local skills
+	if p.Skills.SkillsDirectory != nil {
+		// check skills directory
+		p.Skills.SkillsDirectory = new(expandPath(*p.Skills.SkillsDirectory))
+		if _, err := os.Stat(*p.Skills.SkillsDirectory); errors.Is(err, os.ErrNotExist) {
+			return 1, fmt.Errorf("skills directory not found: %w", err)
+		}
+
+		ctx, cancel := context.WithTimeout(
+			context.TODO(),
+			mcpDefaultDialTimeoutSeconds*time.Second,
+		)
+		defer cancel()
+
+		if connDetails, err := skillsAsMCPTool(ctx, conf, p, writer); err == nil {
+			allMCPConnections[mcpToolNameSkills] = *connDetails
+		} else {
+			return 1, fmt.Errorf("failed to run skills as a local MCP tool: %w", err)
 		}
 	}
 

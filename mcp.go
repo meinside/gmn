@@ -26,7 +26,8 @@ const (
 	mcpClientName = `gmn/mcp-client`
 	mcpServerName = `gmn/mcp-server`
 
-	mcpToolNameSelf = `gmn/mcp-self`
+	mcpToolNameSelf   = `gmn/mcp-self`
+	mcpToolNameSkills = `gmn/mcp-skills`
 
 	mcpDefaultDialTimeoutSeconds           = 10
 	mcpDefaultKeepAliveSeconds             = 60
@@ -164,6 +165,7 @@ type mcpServerType string
 const (
 	mcpServerStreamable mcpServerType = "streamable"
 	mcpServerStdio      mcpServerType = "stdio"
+	mcpServerInMemory   mcpServerType = "in-memory"
 )
 
 // a map for keeping MCP connections and their tools
