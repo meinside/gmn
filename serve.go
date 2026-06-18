@@ -96,7 +96,7 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_list_models`,
-			Description: `This function lists all available Google AI models.
+			Description: `Use this function when you need to discover which Google AI models are available, for example before generating content with a specific model.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -138,7 +138,7 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_generate`,
-			Description: `This function generates texts/images/speeches/videos by processing the given 'prompt' and optional parameters.
+			Description: `Use this function when you need to generate text, images, speech, or video from a 'prompt' and optional parameters.
 
 * NOTE:
 - If there was any newly-created file, make sure to report to the user about the new file's absolute filepath so the user could use it later.
@@ -779,7 +779,7 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_list_envvar_names`,
-			Description: `This function lists all environment variables' names.
+			Description: `Use this function when you need to know which environment variables exist, for example before retrieving a specific one's value.
 
 * NOTE:
 - This function should be called prior to 'gmn_get_envvar'.
@@ -840,7 +840,7 @@ func buildSelfServer(
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_get_envvar`,
-			Description: `This function retrieves the value of an environment variable.
+			Description: `Use this function when you need the value of a specific environment variable whose name you already know.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -926,7 +926,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_get_cwd`,
-			Description: `This function returns the current working directory (absolute path).
+			Description: `Use this function when you need the current working directory (absolute path), for example before resolving or handling relative filepaths.
 
 * NOTE:
 - It is advised to call this function before performing any task which handles filepaths.
@@ -969,7 +969,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_stat_file`,
-			Description: `This function returns the state of a file or directory.
+			Description: `Use this function when you need to check whether a file or directory exists or inspect its metadata, for example before accessing or handling it.
 
 * NOTE:
 - It is advised to call this function before accessing or handling files and/or directories.
@@ -1032,7 +1032,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_get_mimetype`,
-			Description: `This function returns the mime type of a file at given path.
+			Description: `Use this function when you need to determine a file's mime type, for example before deciding how to read or process it.
 
 * NOTE:
 - It is advised to call this function before reading a file.
@@ -1110,7 +1110,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_list_files`,
-			Description: `This function lists all files at a given path.
+			Description: `Use this function when you need to see the contents of a directory, for example before reading or selecting files within it.
 `,
 			InputSchema: &jsonschema.Schema{
 				Type:     "object",
@@ -1170,7 +1170,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_read_text_file`,
-			Description: `This function reads a plain text file at a given filepath.
+			Description: `Use this function when you need to read the contents of a plain text file at a given filepath.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -1252,7 +1252,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_create_text_file`,
-			Description: `This function creates a plain text file at a given filepath.
+			Description: `Use this function when you need to write a new plain text file at a given filepath.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -1335,7 +1335,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_delete_file`,
-			Description: `This function deletes a file at a given filepath.
+			Description: `Use this function when you need to remove a file at a given filepath.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -1397,7 +1397,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_move_file`,
-			Description: `This function moves a file at a given filepath to another filepath.
+			Description: `Use this function when you need to move or rename a file from one filepath to another.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -1471,7 +1471,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_run_cmdline`,
-			Description: fmt.Sprintf(`This function executes a given bash commandline and returns the resulting output.
+			Description: fmt.Sprintf(`Use this function when there is no other tool available to accomplish the task and you need to execute a bash commandline to get its output.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 
@@ -1568,7 +1568,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 	toolsAndHandlers = append(toolsAndHandlers, toolAndHandler{
 		tool: mcp.Tool{
 			Name: `gmn_do_http`,
-			Description: `This function sends a HTTP request and returns the response.
+			Description: `Use this function when you need to send an HTTP request to a URL and read its response, for example to call a web API or fetch remote content.
 
 Without YOLO mode, this function requires the user's confirmation before running.
 `,
