@@ -1292,13 +1292,19 @@ func dirEntriesToJSON(
 	}
 }
 
-// runCommandWithContext runs the given command + args with context.
-func runCommandWithContext(
+// runShellCommandWithContext runs the given commandline through a shell with
+// context, so that shell features (pipes, redirections, logical operators,
+// variable expansion, globbing, etc.) work as expected.
+func runShellCommandWithContext(
 	ctx context.Context,
-	command string,
-	args ...string,
+	cmdline string,
 ) (stdout, stderr string, exitCode int, err error) {
-	cmd := exec.CommandContext(ctx, command, args...)
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
+	}
+
+	cmd := exec.CommandContext(ctx, shell, "-c", cmdline)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf

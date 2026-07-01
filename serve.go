@@ -1519,38 +1519,33 @@ Without YOLO mode, this function requires the user's confirmation before running
 			var cmdline *string
 			cmdline, err = gt.FuncArg[string](args, "cmdline")
 			if err == nil {
-				// execute cmdline
-				var command string
-				var args []string
-				if command, args, err = parseCommandline(*cmdline); err == nil {
-					// command timeout
-					cmdCtx, cancel := context.WithTimeout(context.Background(), commandTimeoutSeconds*time.Second)
-					defer cancel()
+				// command timeout
+				cmdCtx, cancel := context.WithTimeout(context.Background(), commandTimeoutSeconds*time.Second)
+				defer cancel()
 
-					var stdout, stderr string
-					var exit int
-					if stdout, stderr, exit, err = runCommandWithContext(cmdCtx, command, args...); err == nil {
-						result := struct {
-							Cmdline  string `json:"cmdline"`
-							ExitCode int    `json:"exitCode"`
-							Output   string `json:"output,omitempty"`
-							Error    string `json:"error,omitempty"`
-						}{
-							Cmdline:  *cmdline,
-							ExitCode: exit,
-							Output:   stdout,
-							Error:    stderr,
-						}
-
-						var marshalled []byte
-						if marshalled, err = json.Marshal(result); err == nil {
-							return mcpJSONResult(marshalled)
-						} else {
-							return mcpErrorResult("Failed to marshal cmdline result: %s", err)
-						}
+				// execute cmdline through a shell, so pipes, redirections,
+				// logical operators, variable expansion, etc. work as expected
+				var stdout, stderr string
+				var exit int
+				if stdout, stderr, exit, err = runShellCommandWithContext(cmdCtx, *cmdline); err == nil {
+					result := struct {
+						Cmdline  string `json:"cmdline"`
+						ExitCode int    `json:"exitCode"`
+						Output   string `json:"output,omitempty"`
+						Error    string `json:"error,omitempty"`
+					}{
+						Cmdline:  *cmdline,
+						ExitCode: exit,
+						Output:   stdout,
+						Error:    stderr,
 					}
-				} else {
-					err = fmt.Errorf("failed to parse 'cmdline': %w", err)
+
+					var marshalled []byte
+					if marshalled, err = json.Marshal(result); err == nil {
+						return mcpJSONResult(marshalled)
+					} else {
+						return mcpErrorResult("Failed to marshal cmdline result: %s", err)
+					}
 				}
 			} else {
 				err = fmt.Errorf("failed to get parameter 'cmdline': %w", err)
