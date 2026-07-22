@@ -38,9 +38,6 @@ func doGeneration(
 	p params,
 ) (exit int, e error) {
 	systemInstruction := *p.Generation.DetailedOptions.SystemInstruction
-	temperature := p.Generation.DetailedOptions.Temperature
-	topP := p.Generation.DetailedOptions.TopP
-	topK := p.Generation.DetailedOptions.TopK
 	seed := p.Generation.DetailedOptions.Seed
 	filepaths := p.Generation.Filepaths
 	overrideMimeTypeForExt := p.OverrideFileMIMEType
@@ -122,14 +119,6 @@ func doGeneration(
 	// (cached context)
 	if cachedContextName != nil {
 		opts.CachedContent = strings.TrimSpace(*cachedContextName)
-	}
-	// (temperature)
-	opts.Temperature = temperature
-	// (topP)
-	opts.TopP = topP
-	// (topK)
-	if topK != nil {
-		opts.TopK = new(float32(*topK))
 	}
 	// (seed)
 	if seed != nil {

@@ -38,10 +38,6 @@ type params struct {
 		DetailedOptions struct {
 			SystemInstruction *string `short:"s" long:"system" description:"System instruction (can be omitted)" value-name:"INSTRUCTION"`
 
-			Temperature *float32 `long:"temperature" description:"'temperature' for generation" value-name:"TEMP"`
-			TopP        *float32 `long:"top-p" description:"'top_p' for generation" value-name:"TOP_P"`
-			TopK        *int32   `long:"top-k" description:"'top_k' for generation" value-name:"TOP_K"`
-
 			ThinkingLevel *string `long:"thinking-level" description:"Level for thinking ('low', 'medium', 'high', or 'minimal')" value-name:"LEVEL"`
 			ShowThinking  bool    `long:"show-thinking" description:"Show thinking process between <thought></thought> tags"`
 
