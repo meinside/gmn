@@ -7,17 +7,17 @@ require (
 	github.com/BourgeoisBear/rasterm v1.1.2
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/fatih/color v1.19.0
-	github.com/gabriel-vasile/mimetype v1.4.13
+	github.com/gabriel-vasile/mimetype v1.4.14
 	github.com/google/jsonschema-go v0.4.3
 	github.com/infisical/go-sdk v0.8.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jwalton/go-supportscolor v1.2.0
-	github.com/meinside/gemini-things-go v0.5.46
+	github.com/meinside/gemini-things-go v0.5.47
 	github.com/meinside/mcp-skills-go v0.0.2
 	github.com/meinside/version-go v0.0.3
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/tailscale/hujson v0.0.0-20260722022634-78b5b162ee49
-	google.golang.org/genai v1.64.0
+	google.golang.org/genai v1.65.0
 	mvdan.cc/sh/v3 v3.13.1
 )
 
@@ -94,7 +94,7 @@ require (
 	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/api v0.289.0 // indirect
+	google.golang.org/api v0.290.0 // indirect
 	google.golang.org/genproto v0.0.0-20260720211330-0afa2a65878a // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260720211330-0afa2a65878a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260720211330-0afa2a65878a // indirect
