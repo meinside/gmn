@@ -29,10 +29,10 @@ const (
 	defaultConfigTimeoutSeconds = 10
 
 	// default model names
-	defaultGoogleAIModel                 = `gemini-3.5-flash`
+	defaultGoogleAIModel                 = `gemini-3.6-flash`
 	defaultGoogleAIImageGenerationModel  = `gemini-3.1-flash-lite-image`
 	defaultGoogleAIVideoGenerationModel  = `veo-3.1-lite-generate-preview`
-	defaultGoogleAISpeechGenerationModel = `gemini-2.5-pro-preview-tts`
+	defaultGoogleAISpeechGenerationModel = `gemini-3.1-flash-tts-preview`
 	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-2-preview`
 
 	// default system instruction
