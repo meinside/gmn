@@ -113,7 +113,11 @@ func doGeneration(
 	}()
 
 	// generation options
-	opts := genai.GenerateContentConfig{}
+	opts := genai.GenerateContentConfig{
+		HTTPOptions: &genai.HTTPOptions{
+			Timeout: new(time.Duration(timeoutSeconds) * time.Second),
+		},
+	}
 	// (safety settings)
 	opts.SafetySettings = safetySettings(gtc.Type)
 	// (cached context)
@@ -413,6 +417,9 @@ func doGeneration(
 				}
 
 				options := &genai.GenerateVideosConfig{
+					HTTPOptions: &genai.HTTPOptions{
+						Timeout: new(time.Duration(timeoutSeconds) * time.Second),
+					},
 					NumberOfVideos:   numVideos,
 					DurationSeconds:  new(videoDurationSeconds),
 					FPS:              new(videoFPS),

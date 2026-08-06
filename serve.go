@@ -441,6 +441,9 @@ func buildSelfServer(
 									ctxGenerate,
 									contentsForGeneration,
 									&genai.GenerateContentConfig{
+										HTTPOptions: &genai.HTTPOptions{
+											Timeout: new(time.Duration(mcpFunctionTimeoutSeconds) * time.Second),
+										},
 										Tools: tools,
 										ThinkingConfig: &genai.ThinkingConfig{
 											IncludeThoughts: *thinkingOn,
@@ -649,6 +652,9 @@ func buildSelfServer(
 								}
 
 								options := &genai.GenerateVideosConfig{
+									HTTPOptions: &genai.HTTPOptions{
+										Timeout: new(time.Duration(mcpFunctionTimeoutSeconds) * time.Second),
+									},
 									EnhancePrompt:    true,
 									PersonGeneration: "allow_adult",
 								}
