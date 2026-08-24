@@ -16,7 +16,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -34,6 +33,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/tailscale/hujson"
 	"google.golang.org/genai"
+	"mvdan.cc/sh/v3/expand"
 	"mvdan.cc/sh/v3/syntax"
 
 	gt "github.com/meinside/gemini-things-go"
@@ -1082,35 +1082,54 @@ func runExecutable(
 	return string(output), nil
 }
 
-// confirm with the given prompt (y/n)
-func confirm(prompt string) bool {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Printf("%s (y/N): ", prompt)
+// standard input for reading user input
+//
+// NOTE: kept in variables (and behind a single shared buffered reader, so that
+// buffered bytes are not lost between reads) for being replaceable in tests.
+var (
+	_stdin       io.Reader = os.Stdin
+	_stdinReader *bufio.Reader
+)
 
-		response, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Fprintln(
-				os.Stderr,
-				"Error reading input:",
-				err,
-			)
-			continue
-		}
-		response = strings.ToLower(strings.TrimSpace(response))
-		if strings.HasPrefix(response, "y") {
-			return true
-		} else {
-			return false
-		}
+// get the shared buffered reader for the standard input
+func stdinReader() *bufio.Reader {
+	if _stdinReader == nil {
+		_stdinReader = bufio.NewReader(_stdin)
 	}
+	return _stdinReader
+}
+
+// read a line from stdin (without printing any prompt)
+func readLineFromStdin() (string, error) {
+	return stdinReader().ReadString('\n')
+}
+
+// confirm with the given prompt (y/n)
+//
+// NOTE: returns false when the input cannot be read (eg. on EOF).
+func confirm(prompt string) bool {
+	fmt.Printf("%s (y/N): ", prompt)
+
+	response, err := readLineFromStdin()
+	if err != nil && len(response) == 0 {
+		_, _ = fmt.Fprintln(
+			os.Stderr,
+			"Error reading input:",
+			err,
+		)
+		return false
+	}
+
+	return strings.HasPrefix(
+		strings.ToLower(strings.TrimSpace(response)),
+		"y",
+	)
 }
 
 // read user input from stdin
 func readFromStdin(prompt string) (string, error) {
 	fmt.Printf("%s: ", prompt)
-	reader := bufio.NewReader(os.Stdin)
-	return reader.ReadString('\n')
+	return readLineFromStdin()
 }
 
 // check if the past generations end with users's message,
@@ -1139,30 +1158,34 @@ func duplicated[V comparable](arrs ...[]V) (value V, duplicated bool) {
 }
 
 // parse commandline
+//
+// Quotes and escapes are removed, and `~` / `$VAR` are expanded, so that the
+// resulting command and arguments can be passed to `exec.Command` as-is.
+//
+// NOTE: command substitutions (eg. `$(...)`) are rejected instead of being run,
+// and globs are left as they are (`expand.Config.CmdSubst` and
+// `expand.Config.ReadDir` are intentionally left nil).
 func parseCommandline(cmdline string) (command string, args []string, err error) {
 	parser := syntax.NewParser()
 
 	var node *syntax.File
 	if node, err = parser.Parse(strings.NewReader(cmdline), ""); err == nil {
-		var parts []string
+		var words []*syntax.Word
 		syntax.Walk(node, func(node syntax.Node) bool {
 			switch x := node.(type) {
 			case *syntax.CallExpr:
-				printer := syntax.NewPrinter()
-				for _, word := range x.Args {
-					var buf bytes.Buffer
-					if err := printer.Print(&buf, word); err != nil {
-						log.Printf("failure while serializing command line: %s", err)
-						continue
-					}
-					parts = append(parts, buf.String())
-				}
+				words = append(words, x.Args...)
 				return false
 			}
 			return true
 		})
 
-		if len(parts) > 0 {
+		var parts []string
+		if parts, err = expand.Fields(&expand.Config{
+			Env: expand.FuncEnviron(os.Getenv),
+		}, words...); err != nil {
+			err = fmt.Errorf("failed to expand command line: %w", err)
+		} else if len(parts) > 0 {
 			return parts[0], parts[1:], nil
 		} else {
 			err = fmt.Errorf("there was no available command or arguments from the command line")

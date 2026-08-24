@@ -1066,6 +1066,24 @@ func doGeneration(
 														part.FunctionCall.Name,
 														part.FunctionCall.Args,
 													); err == nil {
+														// NOTE: `IsError` marks a failed tool execution, and
+														// `NeedsInput` marks an interim `input_required` result
+														// (MRTR; since protocol version 2026-07-28) which could not
+														// be fulfilled. Neither is a successful result.
+														toolCallFailed := mcpToolCallFailed(res)
+														if toolCallFailed {
+															resultKind := "error"
+															if res.NeedsInput() {
+																resultKind = "input-required"
+															}
+															writer.warn(
+																"Tool '%s' from '%s' returned an %s result.",
+																part.FunctionCall.Name,
+																stripServerInfo(serverType, serverKey),
+																resultKind,
+															)
+														}
+
 														var generated []gt.Prompt
 														if res.StructuredContent != nil {
 															if raw, err := json.Marshal(res.StructuredContent); err == nil {
@@ -1233,13 +1251,13 @@ func doGeneration(
 														for _, gen := range generated {
 															output = append(output, gen.ToPart())
 														}
+														// NOTE: failures are reported as errors to the model
+														response := mcpToolCallResponse(output, toolCallFailed)
 														parts := []*genai.Part{
 															{
 																FunctionResponse: &genai.FunctionResponse{
-																	Name: part.FunctionCall.Name,
-																	Response: map[string]any{
-																		"output": output,
-																	},
+																	Name:     part.FunctionCall.Name,
+																	Response: response,
 																},
 																ThoughtSignature: thoughtSignature,
 															},
