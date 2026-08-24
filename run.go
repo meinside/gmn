@@ -277,7 +277,7 @@ func runGeneration(
 	for _, serverURL := range p.MCPTools.StreamableHTTPURLs {
 		ctx, cancel := context.WithTimeout(
 			context.TODO(),
-			mcpDefaultDialTimeoutSeconds*time.Second,
+			mcpDefaultConnectTimeoutSeconds*time.Second,
 		)
 		defer cancel()
 
@@ -298,7 +298,7 @@ func runGeneration(
 	for _, cmdline := range p.MCPTools.STDIOCommands {
 		ctx, cancel := context.WithTimeout(
 			context.TODO(),
-			mcpDefaultDialTimeoutSeconds*time.Second,
+			mcpDefaultConnectTimeoutSeconds*time.Second,
 		)
 		defer cancel()
 
@@ -319,7 +319,7 @@ func runGeneration(
 	if p.MCPTools.WithSelfAsSTDIOCommand {
 		ctx, cancel := context.WithTimeout(
 			context.TODO(),
-			mcpDefaultDialTimeoutSeconds*time.Second,
+			mcpDefaultConnectTimeoutSeconds*time.Second,
 		)
 		defer cancel()
 
@@ -340,7 +340,7 @@ func runGeneration(
 
 		ctx, cancel := context.WithTimeout(
 			context.TODO(),
-			mcpDefaultDialTimeoutSeconds*time.Second,
+			mcpDefaultConnectTimeoutSeconds*time.Second,
 		)
 		defer cancel()
 

@@ -60,11 +60,22 @@ func TestExpandPath(t *testing.T) {
 }
 
 // test `parseCommandline` with various commandlines
+//
+// NOTE: quotes and escapes are removed, and `~` / `$VAR` are expanded, so that
+// the results can be handed to `exec.Command` directly.
 func TestCommandlineParsing(t *testing.T) {
 	type test struct {
 		cmdline string
 		parsed  []string
+		fails   bool
 	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Errorf("failed to get home directory: %s", err)
+	}
+
+	t.Setenv("GMN_TEST_TOKEN", "s3cr3t")
 
 	tests := []test{
 		// should work with single/double quotes, multiline, etc.
@@ -74,18 +85,79 @@ func TestCommandlineParsing(t *testing.T) {
 			parsed: []string{
 				`/path/to/executable`,
 				`--text`,
-				`"testin' commandline parsing"`,
+				`testin' commandline parsing`,
 				`--phrase`,
-				`'"should work" correctly'`,
+				`"should work" correctly`,
 				`-v`,
 			},
+		},
+		// should unquote paths with spaces (they are passed to `exec.Command`)
+		{
+			cmdline: `"/path/to/some server" --stdio`,
+			parsed: []string{
+				`/path/to/some server`,
+				`--stdio`,
+			},
+		},
+		// should handle escapes in double quotes
+		{
+			cmdline: `/path/to/executable --json "{\"a\": 1}"`,
+			parsed: []string{
+				`/path/to/executable`,
+				`--json`,
+				`{"a": 1}`,
+			},
+		},
+		// should expand `~` and environment variables
+		{
+			cmdline: `~/bin/server --token $GMN_TEST_TOKEN`,
+			parsed: []string{
+				homeDir + `/bin/server`,
+				`--token`,
+				`s3cr3t`,
+			},
+		},
+		// NOTE: `~` inside quotes stays literal (like in a shell); the command
+		// path is expanded separately by `mcpRun` (with `expandPath`)
+		{
+			cmdline: `"~/some dir/server" --stdio`,
+			parsed: []string{
+				`~/some dir/server`,
+				`--stdio`,
+			},
+		},
+		// should not expand globs
+		{
+			cmdline: `/path/to/executable *.json`,
+			parsed: []string{
+				`/path/to/executable`,
+				`*.json`,
+			},
+		},
+		// should not run command substitutions
+		{
+			cmdline: `/path/to/executable $(echo pwned)`,
+			fails:   true,
 		},
 	}
 
 	for _, test := range tests {
 		cmdline, args, err := parseCommandline(test.cmdline)
+
+		if test.fails {
+			if err == nil {
+				t.Errorf(
+					"expected a failure for commandline '%s', got '%s'",
+					test.cmdline,
+					prettify(append([]string{cmdline}, args...), true),
+				)
+			}
+			continue
+		}
+
 		if err != nil {
 			t.Errorf("failed to parse commandline '%s': %s", test.cmdline, err)
+			continue
 		}
 
 		merged := append([]string{cmdline}, args...)

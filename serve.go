@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,6 +34,9 @@ const (
 	mcpFunctionTimeoutSeconds = 3 * 60
 
 	commandTimeoutSeconds = 30
+
+	mcpHTTPServerReadHeaderTimeoutSeconds = 20
+	mcpHTTPServerShutdownTimeoutSeconds   = 10
 )
 
 // serve MCP server with params
@@ -55,6 +59,20 @@ func serve(
 	// files are not supported
 	if len(p.Generation.Filepaths) > 0 {
 		return 1, fmt.Errorf("files are not supported")
+	}
+
+	// run MCP server
+	if p.MCPTools.RunAsStandaloneHTTPServer != nil { // streamable HTTP
+		if err = runStreamableHTTPServer(
+			context.TODO(),
+			writer,
+			conf,
+			p,
+			*p.MCPTools.RunAsStandaloneHTTPServer,
+		); err != nil {
+			return 1, err
+		}
+		return 0, nil
 	}
 
 	// run stdio MCP server
@@ -81,8 +99,17 @@ func buildSelfServer(
 			Name:    mcpServerName,
 			Version: version.Build(version.OS | version.Architecture),
 		},
-		&mcp.ServerOptions{},
+		&mcp.ServerOptions{
+			// NOTE: the SDK's default capabilities are `{"logging":{}}` for
+			// historical reasons, but the logging feature is deprecated as of
+			// protocol version 2026-07-28 (SEP-2577), so don't advertise it.
+			// (capabilities for tools are still inferred from added tools)
+			Capabilities: &mcp.ServerCapabilities{},
+		},
 	)
+
+	// add cache hints to list results
+	server.AddReceivingMiddleware(mcpCacheHintMiddleware(mcpToolsListTTLMs))
 
 	type toolAndHandler struct {
 		tool    mcp.Tool
@@ -102,6 +129,7 @@ func buildSelfServer(
 				Type:     "object",
 				ReadOnly: true,
 			},
+			OutputSchema: listModelsOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				IdempotentHint: true,
 				ReadOnlyHint:   true,
@@ -941,6 +969,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 				Type:     "object",
 				ReadOnly: true,
 			},
+			OutputSchema: getCwdOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				IdempotentHint: true,
 				ReadOnlyHint:   true,
@@ -994,6 +1023,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 					"filepath",
 				},
 			},
+			OutputSchema: statFileOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				ReadOnlyHint: true,
 			},
@@ -1057,6 +1087,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 					"filepath",
 				},
 			},
+			OutputSchema: getMimetypeOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				ReadOnlyHint: true,
 			},
@@ -1132,6 +1163,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 					"dirpath",
 				},
 			},
+			OutputSchema: listFilesOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				ReadOnlyHint: true,
 			},
@@ -1197,6 +1229,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 					"filepath",
 				},
 			},
+			OutputSchema: readTextFileOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				DestructiveHint: new(true),
 				ReadOnlyHint:    true,
@@ -1503,6 +1536,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 					"cmdline",
 				},
 			},
+			OutputSchema: runCmdlineOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				DestructiveHint: new(true),
 			},
@@ -1573,6 +1607,7 @@ Without YOLO mode, this function requires the user's confirmation before running
 
 Without YOLO mode, this function requires the user's confirmation before running.
 `,
+			OutputSchema: doHTTPOutputSchema(),
 			Annotations: &mcp.ToolAnnotations{
 				DestructiveHint: new(true),
 			},
@@ -1828,7 +1863,7 @@ func selfAsMCPTool(
 	)
 
 	var conn *mcp.ClientSession
-	if conn, err = mcpRunInMemory(ctx, server); err != nil {
+	if conn, err = mcpRunInMemory(ctx, writer, p, server); err != nil {
 		return nil, fmt.Errorf("failed to run in-memory MCP server (self): %w", err)
 	}
 
@@ -1859,6 +1894,8 @@ func skillsAsMCPTool(
 
 	if conn, err := mcpRunInMemory(
 		ctx,
+		writer,
+		p,
 		server,
 	); err == nil {
 		return &mcpConnectionDetails{
@@ -1868,5 +1905,85 @@ func skillsAsMCPTool(
 		}, nil
 	} else {
 		return nil, fmt.Errorf("failed to run in-memory MCP server (skills): %w", err)
+	}
+}
+
+// run MCP server through streamable HTTP
+//
+// NOTE: served in 'stateless' mode; protocol-level sessions (and the
+// `Mcp-Session-Id` header) were removed in protocol version 2026-07-28
+// (SEP-2567), so each request stands on its own.
+func runStreamableHTTPServer(
+	ctx context.Context,
+	writer outputWriter,
+	conf config,
+	p params,
+	addr string,
+) (err error) {
+	vbs := p.Verbose
+
+	server, _ := buildSelfServer(writer, conf, p)
+
+	// trap signals
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	handler := mcp.NewStreamableHTTPHandler(
+		func(*http.Request) *mcp.Server {
+			return server
+		},
+		&mcp.StreamableHTTPOptions{
+			Stateless: true,
+		},
+	)
+
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+
+		// NOTE: no `WriteTimeout` on purpose: responses of tool calls are
+		// streamed and may be long-lived.
+		ReadHeaderTimeout: mcpHTTPServerReadHeaderTimeoutSeconds * time.Second,
+	}
+
+	writer.verbose(
+		verboseNone,
+		vbs,
+		"Serving MCP over streamable HTTP on %s (Ctrl+C / SIGTERM to shut down)...",
+		addr,
+	)
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err = <-errCh:
+		if err != nil {
+			return fmt.Errorf("server listen error: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		writer.verbose(
+			verboseNone,
+			vbs,
+			"Shutdown signal received: %v", ctx.Err(),
+		)
+
+		shutdownCtx, cancelShutdown := context.WithTimeout(
+			context.Background(),
+			mcpHTTPServerShutdownTimeoutSeconds*time.Second,
+		)
+		defer cancelShutdown()
+
+		if err = httpServer.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("server shutdown error: %w", err)
+		}
+		return nil
 	}
 }

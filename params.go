@@ -125,10 +125,12 @@ type params struct {
 	// tools (MCP)
 	MCPTools struct {
 		StreamableHTTPURLs     []string `long:"mcp-streamable-url" description:"Streamable HTTP URLs of MCP Tools (can be used multiple times)" value-name:"URL"`
+		StreamableHTTPHeaders  []string `long:"mcp-header" description:"HTTP header for a streamable HTTP MCP server (can be used multiple times, eg. 'https://server/mcp|Authorization: Bearer xxxx')" value-name:"URL|HEADER"`
 		STDIOCommands          []string `long:"mcp-stdio-command" description:"Commands of local stdio MCP Tools (can be used multiple times)" value-name:"CMD"`
 		WithSelfAsSTDIOCommand bool     `short:"T" long:"mcp-tool-self" description:"Will add itself as an internal MCP tool"`
 
-		RunAsStandaloneSTDIOServer bool `short:"M" long:"mcp-server-self" description:"Run as a standalone STDIO MCP server"`
+		RunAsStandaloneSTDIOServer bool    `short:"M" long:"mcp-server-self" description:"Run as a standalone STDIO MCP server"`
+		RunAsStandaloneHTTPServer  *string `long:"mcp-server-self-http" description:"Run as a standalone streamable HTTP MCP server on the given address (eg. 'localhost:8080')" value-name:"ADDR"`
 	} `group:"Tools (MCP)"`
 
 	// tools (skills)
@@ -186,6 +188,7 @@ func (p *params) taskRequested() bool {
 		p.Caching.DeleteCachedContext != nil ||
 		p.ListModels ||
 		p.MCPTools.RunAsStandaloneSTDIOServer ||
+		p.MCPTools.RunAsStandaloneHTTPServer != nil ||
 		p.Embeddings.GenerateEmbeddings ||
 		p.FileSearch.ListFileSearchStores ||
 		p.FileSearch.CreateFileSearchStore != nil ||
@@ -231,7 +234,8 @@ func (p *params) multipleTasksRequested() bool {
 			promptCounted = true
 		}
 	}
-	if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a STDIO MCP server
+	if p.MCPTools.RunAsStandaloneSTDIOServer ||
+		p.MCPTools.RunAsStandaloneHTTPServer != nil { // run as a MCP server
 		num++
 		if hasPrompt && !promptCounted {
 			num++

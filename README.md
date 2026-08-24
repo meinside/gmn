@@ -496,6 +496,14 @@ $ gmn -p "search the web for shoebills" \
 
 You can use `--mcp-streamable-url` multiple times for using multiple servers at a time.
 
+If a server needs HTTP headers (eg. for authorization), pass them with `--mcp-header` in the `URL|Header: value` form (can be used multiple times; headers are only sent to the matching server URL):
+
+```bash
+$ gmn -p "search the web for shoebills" \
+    --mcp-streamable-url="https://some.server/mcp" \
+    --mcp-header="https://some.server/mcp|Authorization: Bearer YOUR_TOKEN" -r
+```
+
 #### Local MCP Servers (STDIO)
 
 Provide command line strings for running & connecting to local STDIO MCP servers:
@@ -505,12 +513,29 @@ $ gmn -p "hello my friend, my name is meinside" \
     --mcp-stdio-command="~/tmp/some-mcp-servers/hello --stdio --title 'hello world'"
 ```
 
+The standard error output of local STDIO servers is relayed to `gmn`'s verbose output (`-v -v` or more), which helps when debugging a misbehaving server.
+
+Command lines are split like a shell would: quotes and escapes are removed (so paths with spaces work when quoted), and environment variables are expanded — which is also a way to keep secrets out of your shell history and `ps` output. `~` in the command path is expanded even when quoted; in arguments it follows shell rules (only when unquoted):
+
+```bash
+$ gmn -p "hello" \
+    --mcp-stdio-command='"~/some dir/hello" --stdio --token $SOME_TOKEN'
+```
+
+Command substitutions (eg. `$(...)`) are rejected rather than executed, and globs are passed through as they are.
+
 #### Running `gmn` itself as an MCP Server
 
 You can run `gmn` itself as an MCP server for other applications using `-M` or `--mcp-server-self`:
 
 ```bash
 $ gmn --mcp-server-self --config=$HOME/.config/gmn/config.json
+```
+
+Or serve it over streamable HTTP (stateless) with `--mcp-server-self-http`:
+
+```bash
+$ gmn --mcp-server-self-http="localhost:8080" --config=$HOME/.config/gmn/config.json
 ```
 
 Or use it recursively as a tool within itself with `-T` or `--mcp-tool-self`:
@@ -525,6 +550,17 @@ $ gmn -T \
     -X \
     -r
 ```
+
+#### Supported MCP Protocol Revision
+
+`gmn` speaks the [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28) revision of the protocol (with automatic fallback to older revisions for servers which do not support it yet).
+
+Notes on the supported features:
+
+- Servers which need additional input are supported through the Multi Round-Trip Requests (MRTR) pattern: form and URL elicitations are prompted on the terminal. When the standard input is not interactive (eg. when the prompt is piped in), such requests are declined automatically.
+- Progress notifications from servers are printed in verbose mode (`-v -v` or more).
+- The deprecated Roots, Sampling, and Logging features ([SEP-2577](https://modelcontextprotocol.io/seps/2577-deprecate-roots-sampling-and-logging)) are not supported; local servers of `gmn` do not advertise them either.
+- The `io.modelcontextprotocol/tasks` extension (for long-running tool calls) is not supported yet.
 
 ### Generate Embeddings
 

@@ -62,7 +62,8 @@ func main() {
 			os.Exit(writer.printHelpBeforeExit(1, parser))
 		}
 
-		if p.MCPTools.RunAsStandaloneSTDIOServer { // run as a MCP server?
+		if p.MCPTools.RunAsStandaloneSTDIOServer ||
+			p.MCPTools.RunAsStandaloneHTTPServer != nil { // run as a MCP server?
 			// then serve as a MCP server
 			exit, err := serve(writer, p)
 			if err != nil {
