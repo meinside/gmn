@@ -29,11 +29,11 @@ const (
 	defaultConfigTimeoutSeconds = 10
 
 	// default model names
-	defaultGoogleAIModel                 = `gemini-3.6-flash`
+	defaultGoogleAIModel                 = `gemini-3.8-flash`
 	defaultGoogleAIImageGenerationModel  = `gemini-3.1-flash-lite-image`
 	defaultGoogleAIVideoGenerationModel  = `veo-3.1-lite-generate-preview`
 	defaultGoogleAISpeechGenerationModel = `gemini-3.1-flash-tts-preview`
-	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-2-preview`
+	defaultGoogleAIEmbeddingsModel       = `gemini-embedding-2`
 
 	// default system instruction
 	defaultSystemInstructionFormat = `You are a CLI named '%[1]s' which uses Google Gemini API.
